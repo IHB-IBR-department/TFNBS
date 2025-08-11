@@ -17,7 +17,6 @@ statistical values are computed across a range of thresholds over n cycles of pe
 Our implementation of TFNBS follows efficient computing and allows for computations to be performed on parallel cores therefore 
 massively reducing computation time and resources. 
 
-Overview.png
 
 ![Overview of TFNOS](https://github.com/IHB-IBR-department/TFNBS/blob/main/docs/Figure_Overview.png)
 
