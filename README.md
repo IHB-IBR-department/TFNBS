@@ -8,7 +8,7 @@
 ![license](https://img.shields.io/github/license/IHB-IBR-department/TFNBS)
 ![release](https://img.shields.io/github/v/release/IHB-IBR-department/TFNBS)
 ![last-commit](https://img.shields.io/github/last-commit/IHB-IBR-department/TFNBS)
-![TFNBS](https://img.shields.io/github/downloads/IHB-IBR-department/total)
+![TFNBS](https://img.shields.io/github/downloads/IHB-IBR-department/TFNBS/total)
 
 TFNBS Toolbox is a Python package for computation and generation of network-based statistics for neuroscience data 
 (i.e. fMRI, EEG data). The core concept is based on eliminating the use of a hardcoded threshold using threshold-free 
