@@ -19,7 +19,7 @@ massively reducing computation time and resources.
 
 Overview.png
 
-![Overview of TFNOS](docs/Figure_Overview.png)
+![Overview of TFNOS](https://github.com/IHB-IBR-department/TFNBS/blob/main/docs/Figure_Overview.png)
 
 ## Installation 
 TFNOS toolbox can be installed using: 
