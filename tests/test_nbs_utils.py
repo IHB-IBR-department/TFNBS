@@ -28,7 +28,7 @@ class TestNBSUtils(unittest.TestCase):
         p_vals, adj, null = nbs_bct(self.group1, self.group2,
                                     threshold=2.1,
                                     n_permutations=100,
-                                    paired=False,
+                                    test_type='two-sample',
                                     random_state=2,
                                     use_mp=False)
 
@@ -51,7 +51,7 @@ class TestNBSUtils(unittest.TestCase):
         _, adj, _ = nbs_bct(self.group1, self.group2,
                             threshold=2.0,
                             n_permutations=50,
-                            paired=False,
+                            test_type='two-sample',
                             random_state=123,
                             use_mp=False)
         for key in adj:
@@ -71,7 +71,7 @@ class TestNBSUtils(unittest.TestCase):
         p_vals, _, _ = nbs_bct(g1, g2,
                                threshold=1.5,
                                n_permutations=10,
-                               paired=True,
+                               test_type='paired',
                                use_mp=False)
         self.assertTrue(isinstance(p_vals, dict))
         self.assertIn("g1>g2", p_vals)

@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from .datasets import generate_fc_matrices
 
@@ -13,15 +13,15 @@ from .eeg_utils import (
 )
 from .nbs_utils import nbs_bct
 from .pairwise_tfns import (
-    compute_p_val, 
-    compute_null_dist, 
+    compute_p_val,
+    compute_null_dist,
     compute_permute_t_stat_ind,
-    compute_permute_t_stat_diff, 
-    compute_t_stat_tfnos, 
-    compute_t_stat_tfnos_diffs, 
-    compute_t_stat, 
-    compute_diffs, 
-    compute_t_stat_diff, 
+    compute_permute_t_stat_diff,
+    compute_t_stat_tfnos,
+    compute_t_stat_tfnos_diffs,
+    compute_t_stat,
+    compute_diffs,
+    compute_t_stat_diff,
     compute_t_stat_ind)
 
 from .tfnos import get_tfce_score, get_tfce_score_scipy
