@@ -3,27 +3,27 @@ import numpy.typing as npt
 from numpy import ndarray, dtype, triu_indices
 from typing import Optional, Callable, Any, Union, Dict, Tuple
 from functools import partial
-from .tfnos import get_tfce_score_scipy
+from tfnos import get_tfce_score_scipy
 from multiprocessing import Pool
 
-
 def compute_p_val(group1: npt.NDArray[np.float64],
-                  group2: npt.NDArray[np.float64],
+                  group2: Optional[npt.NDArray[np.float64]] = None,
                   n_permutations: int = 1000,
-                  paired: bool = True,
+                  test_type = 'paired',
                   tf: bool = True,
                   use_mp: bool = True,
                   random_state: Optional[int] = None,
                   n_processes: Optional[int] = None,
                   **kwargs):
     """
-    Function to compute P-values for statistical data using TFNOS and Standard T-Test approaches for paired and individual groups.
+    Function to compute P-values for statistical data using TFNOS and Standard T-Test approaches for individual (One sample, Two sample) and independent (Paired) groups of connectivity matrices.
     
     Parameters:
         group1 (np.float64): Input array of matrices of group 1 with shape (subjects_g1, N, N).
         group2 (np.float64): Input array of matrices of group 2 with shape (subjects_g2, N, N).
         n_permutations (int): Number of permutations for null distribution (default = 1000).
-        paired (bool): Test type (False, individual), (True,paired).
+        test_type (str): String indicating the type of statistical T-test to be performed. 
+            Should be one of ['paired', 'one-sample', 'two-sample'].
         tf (bool): T statistics to be generated via TFCE or standard t-test (True, TFCE T-statistics), (False, Standard T-test).
         use_mp (bool): Use parallel pools for computing (default = True).
         random_state (int): Set Random seed (optional).
@@ -34,41 +34,73 @@ def compute_p_val(group1: npt.NDArray[np.float64],
             - 'g1>g2': P-values for group 1 > group 2.
             - 'g2>g1': P-values for group 2 > group 1.
 
+    >>> np.random.seed(2)
     >>> group1 = np.random.rand(5, 3, 3); 
     >>> for arr in group1:  np.fill_diagonal(arr,1)
     >>> group2 = np.random.rand(8, 3, 3); 
     >>> for arr in group2:  np.fill_diagonal(arr,1);
-    >>> p_vals = compute_p_val(group1, group2, n_permutations=10, paired=False, tf=False, random_state = 0)
-    >>> p_vals['g2>g1'].mean() < p_vals['g1>g2'].mean() 
+    >>> p_vals = compute_p_val(group1, group2, n_permutations=10, test_type='two-sample', tf=False, use_mp=False, random_state = 0)
+    >>> (p_vals['g2>g1'].mean() < p_vals['g1>g2'].mean()).all() is np.True_
     True
     """
-    if paired is True:
+    if test_type == 'paired':
         t_func = compute_t_stat_tfnos_diffs if tf else compute_t_stat_diff
         emp_t_dict = t_func(compute_diffs(group1, group2), **kwargs)
 
-    else:
+    elif test_type == 'two-sample':
         t_func = compute_t_stat_tfnos if tf else compute_t_stat
-        emp_t_dict = t_func(group1, group2, paired=False, **kwargs)
-    max_null_dict = compute_null_dist(group1,
-                                      group2,
-                                      t_func,
-                                      n_permutations=n_permutations,
-                                      paired=paired,
-                                      use_mp=use_mp,
-                                      random_state=random_state,
-                                      n_processes=n_processes,
-                                      **kwargs)
+        emp_t_dict = t_func(group1, group2, test_type='two-sample', **kwargs)
 
-    keys = list(emp_t_dict.keys())
-    p_values = dict()
-    if len(emp_t_dict[keys[0]].shape) == 2:
-        for key in keys:
-            emp_t = emp_t_dict[key][..., np.newaxis]
-            p_values[key] = np.mean(emp_t < max_null_dict[key], axis=-1)
+    elif test_type == 'one-sample':
+        t_func = compute_t_stat_tfnos_diffs if tf else compute_t_stat_diff
+        emp_t_dict = t_func((group1), **kwargs)
+
     else:
-        for key in keys:
-            emp_t = emp_t_dict[key][..., np.newaxis]
-            p_values[key] = np.mean(emp_t < max_null_dict[key].swapaxes(0, 1)[None, None, ...], axis=-1)
+        ValueError('Invalid test type')
+
+    if test_type == 'paired' or test_type == 'two-sample':
+        max_null_dict = compute_null_dist(group1,
+                                        group2,
+                                        t_func,
+                                        n_permutations=n_permutations,
+                                        test_type=test_type,
+                                        use_mp=use_mp,
+                                        random_state=random_state,
+                                        n_processes=n_processes,
+                                        **kwargs)
+        
+        keys = list(emp_t_dict.keys())
+        p_values = dict()
+        if len(emp_t_dict[keys[0]].shape) == 2:
+            for key in keys:
+                emp_t = emp_t_dict[key][..., np.newaxis]
+                p_values[key] = np.mean(emp_t < max_null_dict[key], axis=-1)
+        else:
+            for key in keys:
+                emp_t = emp_t_dict[key][..., np.newaxis]
+                p_values[key] = np.mean(emp_t < max_null_dict[key].swapaxes(0, 1)[None, None, ...], axis=-1)
+        
+    elif test_type == 'one-sample':
+        max_null_dict = compute_null_dist(group1,
+                                        0,
+                                        t_func,
+                                        n_permutations=n_permutations,
+                                        test_type=test_type,
+                                        use_mp=use_mp,
+                                        random_state=random_state,
+                                        n_processes=n_processes,
+                                        **kwargs)
+        keys = list(emp_t_dict.keys())
+        p_values = dict()
+        if len(emp_t_dict[keys[0]].shape) == 2:
+            for key in keys:
+                emp_t = emp_t_dict[key][..., np.newaxis]
+                p_values[key] = np.mean(emp_t < max_null_dict[key], axis=-1)
+        else:
+            for key in keys:
+                emp_t = emp_t_dict[key][..., np.newaxis]
+                p_values[key] = np.mean(emp_t < max_null_dict[key].swapaxes(0, 1)[None, None, ...], axis=-1)
+
 
     return p_values
 
@@ -80,7 +112,7 @@ def _permutation_task_ind(full_group: npt.NDArray[np.float64],
                           **func_kwargs,
                           ) -> Dict[str, Union[float, npt.NDArray[np.float64]]]:
     """
-    Compute maximum t-statistic for a single permutation for individual sample groups.
+    Compute maximum t-statistic for a single permutation for individual & single sample groups (Two-sample & One-sample Test).
 
     Parameters:
         full_group (np.ndarray): Concatenated data array of shape (n_samples_1 + n_samples_2, *dims).
@@ -97,7 +129,7 @@ def _permutation_task_ind(full_group: npt.NDArray[np.float64],
     idx = rng.permutation(full_group.shape[0])
     new_group1 = full_group[idx[:n1]]
     new_group2 = full_group[idx[n1:]]
-    perm_stat_dict = func(new_group1, new_group2, paired=False, **func_kwargs)
+    perm_stat_dict = func(new_group1, new_group2, test_type='two-sample', **func_kwargs)# add test_type here
     if perm_stat_dict["g1>g2"].shape == full_group[0].shape:
         max_dict = {"g1>g2": np.max(perm_stat_dict["g1>g2"]).astype(np.float64),
                     "g2>g1": np.max(perm_stat_dict["g2>g1"]).astype(np.float64)}
@@ -109,13 +141,12 @@ def _permutation_task_ind(full_group: npt.NDArray[np.float64],
                 np.float64)}
     return max_dict
 
-
 def _permutation_task_paired(diffs: npt.NDArray[np.float64],
                              func: Callable[..., Any],
                              seed: Optional[int] = None,
                              **func_kwargs) -> Dict[str, Union[float, npt.NDArray[np.float64]]]:
     """
-    Compute maximum t-statistic for a single permutation for paired sample groups.
+    Compute maximum t-statistic for a single permutation for independent groups (Paired Test).
 
     Parameters:
         diffs (np.ndarray): Arrays of shape (n_samples, *dims) containing paired differences between two conditions.
@@ -143,18 +174,18 @@ def _permutation_task_paired(diffs: npt.NDArray[np.float64],
                 np.float64)}
     return max_dict
 
-
 def compute_null_dist(group1: npt.NDArray[np.float64],
-                      group2: npt.NDArray[np.float64],
-                      func: Callable[..., Any],
+                      group2: Optional[npt.NDArray[np.float64]] = 0,
+                      func: Callable[..., Any] = None,
                       n_permutations: int = 1000,
-                      paired: bool = False,
+                      test_type: str = 'paired',
                       random_state: Optional[int] = None,
                       n_processes: Optional[int] = None,
                       use_mp: bool = False,
                       **func_kwargs) -> Dict[str, npt.NDArray[np.float64]]:
+
     """
-    Compute null distribution of maximum t-statistics for multiple permutations of independent or paired groups.
+    Compute null distribution of maximum t-statistics for multiple permutations of independent, single or individual groups (paired, one sample, two sample).
 
     Parameters:
         group1 (np.ndarray): Array of shape (n_samples_1, *dims) containing data for group 1.
@@ -162,6 +193,9 @@ def compute_null_dist(group1: npt.NDArray[np.float64],
         group2 (np.ndarray): Array of shape (n_samples_2, *dims) containing data for group 2.
             Trailing dimensions must match group 1.
         func (Callable): Function to compute the t-statistic as input. 
+        n_permutations (int): Number of permutations for null distribution (default = 1000).
+        test_type (String): A String indicating the type of statistical T-test to be performed. 
+            Should be one of ['paired', 'one-sample', 'two-sample'].
         paired (bool): Computation to be done as repeated measures or individual group comparisons.
         random_state (int): Seed for random number generator. Ensures reproducibility (optional).
         n_processes (int): Number of parallel processes to use if 'use_mp=True', if None, uses cpu_count().
@@ -177,24 +211,35 @@ def compute_null_dist(group1: npt.NDArray[np.float64],
         
     >>> group1 = np.random.rand(3, 3)
     >>> group2 = np.random.rand(3, 3)
-    >>> null_d = compute_null_dist(group1, group2, compute_t_stat)
-    >>> isinstance(null_d, dict)
-    True
+    >>> null_d = compute_null_dist(group1, group2, compute_t_stat, 1000,'paired')
+    >>> null_d['g1>g2'].shape[0]
+    1000
     """
-    # Validate inputs
-    if group1.shape[1:] != group2.shape[1:]:
-        raise ValueError("Trailing dimensions of group1 and group2 must match.")
-    n1, n2 = group1.shape[0], group2.shape[0]
-    if n1 < 2 or n2 < 2:
-        raise ValueError("Each group must have at least 2 samples.")
+    
+    if test_type == 'paired' or test_type == 'two-sample':
+        # Validate inputs
+        if group1.shape[1:] != group2.shape[1:]:
+            raise ValueError("Trailing dimensions of group1 and group2 must match.")
+        n1, n2 = group1.shape[0], group2.shape[0]
+        if n1 < 2 or n2 < 2:
+            raise ValueError("Each group must have at least 2 samples.")
+        
     if n_permutations < 1:
         raise ValueError("n_permutations must be at least 1.")
 
     # Concatenate groups once
-    if paired:
+    if test_type == 'paired':
         array_to_permute = compute_diffs(group1, group2)
-    else:
+        
+    elif test_type == 'two-sample':
         array_to_permute = np.concatenate((group1, group2), axis=0)
+
+    elif test_type == 'one-sample':
+        group2 = np.zeros(group1.shape)
+        array_to_permute = compute_diffs(group1, group2)
+
+    else: 
+        ValueError('incorrect test-type')
 
     # Set random state and generate unique seeds
     rng = np.random.RandomState(random_state)
@@ -206,26 +251,32 @@ def compute_null_dist(group1: npt.NDArray[np.float64],
     # Compute t-statistics based on use_cycle
     if use_mp is False:
         # Sequential computation with a for loop
-        if paired:
+        if test_type == 'paired':
             sample_output_dict = _permutation_task_paired(array_to_permute, func, seeds[0], **func_kwargs)
-        else:
+        elif test_type == 'two-sample':
             sample_output_dict = _permutation_task_ind(array_to_permute, func, n1, seeds[0], **func_kwargs)
+        elif test_type == 'one-sample':
+            sample_output_dict = _permutation_task_paired(array_to_permute, func, seeds[0], **func_kwargs)
+        
         group_keys = list(sample_output_dict.keys())
         output_shape = sample_output_dict[group_keys[0]].shape
-
         # Allocate space based on determined shape
         t_maxes_dict = {key: np.empty((n_permutations, *output_shape), dtype=np.float64) for key in group_keys}
-        #t_maxes = np.empty(n_permutations, dtype=np.float64)
+
+
         for i, seed in enumerate(seeds[1:]):
             #print(f"  Permutation {i + 1} of {n_permutations}")
-            if paired:
+
+            if test_type == 'paired' or test_type == 'one-sample':
                 perm_dict = _permutation_task_paired(array_to_permute, func, seed, **func_kwargs)
                 for k, v in t_maxes_dict.items():
                     t_maxes_dict[k][i] = perm_dict[k]
-            else:
+
+            elif test_type == 'two-sample':
                 perm_dict = _permutation_task_ind(array_to_permute, func, n1, seed, **func_kwargs)
                 for k, v in t_maxes_dict.items():
                     t_maxes_dict[k][i] = perm_dict[k]
+                    
     else:
         # Parallel computation with multiprocessing
 
@@ -238,10 +289,11 @@ def compute_null_dist(group1: npt.NDArray[np.float64],
         # Use multiprocessing Pool with starmap
         with Pool(processes=n_processes) as pool:
             #t_maxes = pool.starmap(_permutation_task_ind, task_args)
-            if paired:
+            if test_type == 'paired' or test_type == 'one-sample':
                 task_dict = partial(_permutation_task_paired, array_to_permute, func, **func_kwargs)
-            else:
+            elif test_type == 'two-sample':
                 task_dict = partial(_permutation_task_ind, array_to_permute, func, n1, **func_kwargs)
+
             results = pool.map(task_dict, seeds)
             group_keys = list(results[0].keys())
             output_shape = results[0][group_keys[0]].shape
@@ -281,12 +333,13 @@ def compute_permute_t_stat_ind(group1: npt.NDArray[np.float64],
         into original group sizes. Assumes compute_t_stat_ind computes Welch's t-test.
         Useful for building a null distribution in permutation testing.
 
+    >>> 
     >>> group1 = np.random.rand(5, 3, 3)
     >>> group2 = np.random.rand(5, 3, 3)
     >>> perm_t_pos, perm_t_neg = compute_permute_t_stat_ind(group1, group2, 10)
-    >>> perm_t_pos >1
+    >>> (perm_t_pos>1).all() is np.True_
     True
-    >>> perm_t_neg >1
+    >>> (perm_t_neg>1).all() is np.True_
     True
     """
     # Validate input shapes
@@ -313,7 +366,6 @@ def compute_permute_t_stat_ind(group1: npt.NDArray[np.float64],
     t_stat_dict = compute_t_stat_ind(new_group1, new_group2)
     return np.max(t_stat_dict["g2>g1"]).astype(float), np.max(t_stat_dict["g1>g2"]).astype(float)
 
-
 def compute_permute_t_stat_diff(diffs: npt.NDArray) -> tuple[float, float]:
     """
     Computes the maximum t-statistics for a single permutation of paired groups of data
@@ -326,14 +378,17 @@ def compute_permute_t_stat_diff(diffs: npt.NDArray) -> tuple[float, float]:
             - 'g1>g2': Maximum t-statistics for group 1 > group 2.
             - 'g2>g1': Maximum t-statistics for group 2 > group 1.
     
+    Notes:
+        The function can also be used for single groups (one sample test) by calculating the different of single group with Zero matrix.
+    
     >>> np.random.seed(42)
     >>> group1 = np.random.rand(5, 3, 3)
     >>> group2 = np.random.rand(5, 3, 3)
     >>> diffs = group2 - group1
     >>> perm_t_pos, perm_t_neg = compute_permute_t_stat_diff(diffs)
-    >>> perm_t_pos > 1
+    >>> (perm_t_pos>1).all() is np.True_
     True
-    >>> perm_t_neg > 1
+    >>> (perm_t_neg>1).all() is np.True_
     True
     """
     n_dims = len(diffs.shape) - 1
@@ -345,7 +400,7 @@ def compute_permute_t_stat_diff(diffs: npt.NDArray) -> tuple[float, float]:
 
 def compute_t_stat_tfnos(group1: npt.NDArray[np.float64],
                          group2: npt.NDArray[np.float64],
-                         paired: bool = False,
+                         test_type = 'two-sample',
                          e: Union[float, list[float]] = 0.4,
                          h: Union[float, list[float]] = 3,
                          n: int = 10) -> Dict[str, npt.NDArray[np.float64]]:
@@ -356,6 +411,8 @@ def compute_t_stat_tfnos(group1: npt.NDArray[np.float64],
     Parameters:
         group1 (np.ndarray): Array of shape (n_samples_1, N*N) containing data for group 1.
         group2 (np.ndarray): Array of shape (n_samples_2, N*N) containing data for group 2.
+        test_type (str): String indicating the type of statistical T-test to be performed. 
+            Should be one of ['paired', 'one-sample', 'two-sample'].
         paired (bool): Flag to compute pairwise t-statistics or as per individual groups.         
         e (float or List[float]): Exponent parameter for TFCE transformation (default=0.4).
         h (float or List[float]): Height parameter for TFCE transformation (default=3).
@@ -372,17 +429,16 @@ def compute_t_stat_tfnos(group1: npt.NDArray[np.float64],
     >>> np.random.seed(2)
     >>> group1 = np.random.rand(5, 3, 3); group2 = np.random.rand(5, 3, 3)
     >>> for i in range(group1.shape[0]): np.fill_diagonal(group1[i], 0); np.fill_diagonal(group2[i], 0);
-    >>> t_stat_dict = compute_t_stat(group1, group2, False)
+    >>> t_stat_dict = compute_t_stat(group1, group2, test_type='two-sample')
     >>> results = get_tfce_score_scipy(t_stat_dict["g1>g2"], 0.4, 3, 10)
     >>> upper_vals = results.reshape(3, 3)[np.triu_indices(3, k=1)]
-    >>> round(upper_vals.mean(), 6) < 1
-    True    
+    >>> (round(upper_vals.mean(), 6) < 1).all() is np.True_
+    True
     """
-    t_stat_dict = compute_t_stat(group1, group2, paired=paired)
+    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
     score_pos = get_tfce_score_scipy(t_stat_dict["g2>g1"], e, h, n)
     score_neg = get_tfce_score_scipy(t_stat_dict["g1>g2"], e, h, n)
     return {"g2>g1": score_pos, "g1>g2": score_neg}
-
 
 def compute_t_stat_tfnos_diffs(diffs: npt.NDArray[np.float64],
                                e: Union[float, list[float]] = 0.4,
@@ -413,7 +469,7 @@ def compute_t_stat_tfnos_diffs(diffs: npt.NDArray[np.float64],
     >>> diff = group1-group2
     >>> result = compute_t_stat_tfnos_diffs(diff, e=0.4, h=3, n=10, start_thres=1.65)
     >>> upper_vals = result["g1>g2"].reshape(3, 3)[np.triu_indices(3, k=1)]
-    >>> round(upper_vals.mean(), 6) < 1
+    >>> (round(upper_vals.mean(), 6) < 1).all() is np.True_
     True
     """
     t_stat_dict = compute_t_stat_diff(diffs)
@@ -421,46 +477,66 @@ def compute_t_stat_tfnos_diffs(diffs: npt.NDArray[np.float64],
     score_neg = get_tfce_score_scipy(t_stat_dict["g1>g2"], e, h, n, start_thres=start_thres)
     return {"g2>g1": score_pos, "g1>g2": score_neg}
 
-
-def compute_t_stat(group1: npt.NDArray[np.float64],
-                   group2: npt.NDArray[np.float64],
-                   paired: bool = True) -> Dict[str, npt.NDArray[np.float64]]:
+def compute_t_stat(group1: npt.NDArray[np.float64],                           
+                   group2: Optional[npt.NDArray[np.float64]] = 0,
+                   test_type: str = 'paired') -> Dict[str, npt.NDArray[np.float64]]:
     """
-    Compute empirical t-statistics for paired or independent groups.
+    Compute empirical t-statistics for individual, single and independent groups (paired, one-sample, two-sample tests).
 
     Args:
         group1: Array of shape (n_samples_1, N*N) containing data for group 1.
         group2: Array of shape (n_samples_2, NxN) containing data for group 2.
             Must match group1's trailing dimensions; n_samples_2 may differ if paired=False.
-        paired: If True, compute paired t-test on differences; if False, independent t-test.
-            Defaults to True.
+        test_type (str): String indicating the type of statistical T-test to be performed. 
+            Should be one of ['paired', 'one-sample', 'two-sample'].
 
         Returns:
-        Dict[str, npt.NDArray[np.float64]]: Dictionary with keys:
-            - 'g2>g1': Array of t-values where group 2 > group 1 (positive t-values).
-            - 'g1>g2': Array of t-values where group 1 > group 2 (negative t-values, converted to positive).
+        For test_type: 'paired' and 'two-sample'
+            Dict[str, npt.NDArray[np.float64]]: Dictionary with keys:
+                - 'g2>g1': Array of t-statistic values where group 2 > group 1 (positive t-values).
+                - 'g1>g2': Array of t-statistic values where group 1 > group 2 (negative t-values, converted to positive).
+
+        For test_type: 'one-sample'
+            [np.ndarray]: Array of t-statistic values for individual group
 
     Raises:
-        ValueError: If shapes are incompatible or sample sizes don't match for paired test.
+        ValueError: If test_type are incorrect or out of bounds.
+        ValueError: If shapes of input groups are incompatible or sample sizes don't match for paired t-test.
 
 
     >>> group1 = np.array([[0, 2, 1], [3, 0, 1], [2, 2, 0]])
     >>> group2 = np.array([[0, 1, 3], [1, 0, 1], [3, 1, 0]])
-    >>> result = compute_t_stat(group1, group2, paired = True)
+    >>> result = compute_t_stat(group1, group2, test_type = 'paired')
     >>> result['g2>g1'].shape[0] ==  group1.shape[0]
     True
     """
-    # Validate input shapes
-    if group1.shape[1:] != group2.shape[1:]:
-        raise ValueError("Trailing dimensions of group1 and group2 must match.")
-    if paired and group1.shape[0] != group2.shape[0]:
-        raise ValueError("Sample sizes must match for paired t-test.")
+    if test_type == 'one-sample':
+        if group2 is not 0:
+            print('Group 1 input will be considered for one-sample T-test.')
+        if group1.ndim != 3:
+            raise ValueError("Dimensions of group 1 data should be: (subjects, N, N). Please try again or use numpy.reshape")
+        #t_stat_dict = compute_t_stat_diff(group1)['g2>g1']
+        t_stat_dict = compute_t_stat_diff(group1)
 
-    if paired:
+    elif test_type == 'two-sample':
+        if group1.shape[1:] != group2.shape[1:]:
+            raise ValueError("Trailing dimensions of group1 and group2 must match.")
+        else:
+            t_stat_dict = compute_t_stat_ind(group1, group2)
+
+    elif test_type == 'paired': 
+        
+        #if group1.shape[1:] != group2.shape[1:]:
+        #    raise ValueError("Trailing dimensions of group1 and group2 must match.")
+
+        #if test_type == 'paired' and group1.shape[0] != group2.shape[0]:
+        #    raise ValueError("Sample sizes must match for paired t-test.")
+        
         diffs = compute_diffs(group1, group2)
         t_stat_dict = compute_t_stat_diff(diffs)
     else:
-        t_stat_dict = compute_t_stat_ind(group1, group2)
+        raise ValueError("Statical test_type not recognized, please select from {'one-sample', 'two-sample', 'paired'}")
+    
     return t_stat_dict
 
 
@@ -478,7 +554,7 @@ def compute_diffs(group1: npt.NDArray[np.float64],
     
     >>> group_1 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     >>> group_2 = np.array([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
-    >>> (compute_diffs(group_1, group_2)==np.eye(3)).all()
+    >>> (compute_diffs(group_1, group_2)==np.eye(3)).all() is np.True_
     True
     """
     return group2 - group1
@@ -525,7 +601,6 @@ def compute_t_stat_diff(diff: npt.NDArray[np.float64]) -> Dict[str, npt.NDArray[
 
     return {"g2>g1": pos_t, "g1>g2": neg_t}
 
-
 def compute_t_stat_ind(group1: npt.NDArray[np.float64],
                        group2: npt.NDArray[np.float64]) -> Dict[str, npt.NDArray[np.float64]]:
     """
@@ -551,7 +626,7 @@ def compute_t_stat_ind(group1: npt.NDArray[np.float64],
     >>> result = compute_t_stat_ind(g1, g2)
     >>> result["g2>g1"].shape == result["g1>g2"].shape
     True
-    >>> (result["g2>g1"] >= 0).all() and (result["g1>g2"] >= 0).all()
+    >>> (result["g2>g1"] >= 0).all() and (result["g1>g2"] >= 0).all() is np.True_
     True
     """
     n1, n2 = group1.shape[0], group2.shape[0]
