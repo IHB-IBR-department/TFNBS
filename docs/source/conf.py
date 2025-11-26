@@ -9,7 +9,7 @@
 project = 'TFNBS'
 copyright = '2025, IHB RAS'
 author = 'N.P. Bechtereva Institute of the Human Brain, Russian Academy of Sciences - IHB RAS'
-release = '1.0.0'
+release = '1.0.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
