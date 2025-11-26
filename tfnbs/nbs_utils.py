@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
-from pairwise_tfns import *
-from utils import *
+from .pairwise_tfns import *
+from .utils import *
 
 def nbs_bct(group1: npt.NDArray[np.float64],
             group2: Optional[npt.NDArray[np.float64]] = None,
