@@ -3,7 +3,7 @@ import numpy.typing as npt
 from numpy import ndarray, dtype, triu_indices
 from typing import Optional, Callable, Any, Union, Dict, Tuple
 from functools import partial
-from tfnos import get_tfce_score_scipy
+from .tfnos import get_tfce_score_scipy
 from multiprocessing import Pool
 
 def compute_p_val(group1: npt.NDArray[np.float64],
