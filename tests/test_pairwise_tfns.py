@@ -88,7 +88,7 @@ class TestBasicStats(TestCase):
         self.assertGreater(emp_tfnos_dict["g2>g1"].sum(), emp_t_dict["g2>g1"].sum())
 
     def test_compute_t_stat_tfnos_list_pars(self):
-        group_dict = self.fc_sim
+        group_dict = self.fc_sim_paired
         t_stat_mod = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='paired', e=[0.4, 0.6], h=[1, 2])
         self.assertEqual(t_stat_mod["g2>g1"].shape[-1], 2)
         self.assertEqual(t_stat_mod["g1>g2"].shape[-1], 2)
@@ -180,7 +180,7 @@ class TestBasicStats(TestCase):
 
         n_permutations = 100
         emp_tfnos = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='paired',
-                                         e=[0.4, 0.6], h=[1, 2], paired=True)
+                                         e=[0.4, 0.6], h=[1, 2])
 
         null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
                                    compute_t_stat_tfnos_diffs, n_permutations=n_permutations,
