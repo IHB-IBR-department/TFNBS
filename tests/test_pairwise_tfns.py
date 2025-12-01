@@ -14,7 +14,10 @@ from tfnbs.pairwise_tfns import (_permutation_task_ind,
 
 from tfnbs.datasets import generate_fc_matrices
 import numpy as np
+from pathlib import Path
 
+# Get path to datasets directory relative to this file
+DATASETS_DIR = Path(__file__).parent.parent / 'datasets' / '02_BLOCK_VAR_HRF_SNR05_CORRDIFF'
 
 class TestBasicStats(TestCase):
     @classmethod
@@ -265,9 +268,8 @@ class TestRealExample(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         from scipy.io import loadmat
-        path_to_data = '../datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/'
-        taskB = loadmat(path_to_data + 'Task_B.mat')['corrdiff_TaskB']
-        taskA = loadmat(path_to_data + 'Task_A.mat')['corrdiff_TaskA']
+        taskB = loadmat(DATASETS_DIR / 'Task_B.mat')['corrdiff_TaskB']
+        taskA = loadmat(DATASETS_DIR / 'Task_A.mat')['corrdiff_TaskA']
         taskB = fisher_r_to_z(np.nan_to_num(taskB, posinf=0, neginf=0))
         taskA = fisher_r_to_z(np.nan_to_num(taskA, posinf=0, neginf=0))
         cls.taskA = taskA
