@@ -22,7 +22,7 @@ class TestTFNOS(TestCase):
                                                             n_samples_group2=20,
                                                             seed=42)
         t_stat_30 = compute_t_stat(fisher_r_to_z(group1),
-                                   fisher_r_to_z(group2), paired=False)
+                                   fisher_r_to_z(group2), test_type='two-sample')
 
         cls.fc_sim_30 = {"t_stat": t_stat_30,
                          "cov1": cov1.copy(), "cov2": cov2.copy()}
@@ -33,7 +33,7 @@ class TestTFNOS(TestCase):
                                                             n_samples_group2=40,
                                                             seed=42)
         t_stat_100 = compute_t_stat(fisher_r_to_z(group1),
-                                    fisher_r_to_z(group2), paired=False)
+                                    fisher_r_to_z(group2), test_type='two-sample')
 
         cls.fc_sim_100 = {"t_stat": t_stat_100,
                           "cov1": cov1, "cov2": cov2}

@@ -5,6 +5,10 @@ from tfnbs.utils import fisher_r_to_z
 from tfnbs.pairwise_tfns import compute_t_stat, compute_t_stat_diff
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
+
+# Get path to datasets directory relative to this file
+DATASETS_DIR = Path(__file__).parent.parent / 'datasets' / '02_BLOCK_VAR_HRF_SNR05_CORRDIFF'
 
 
 class Test(TestCase):
@@ -19,15 +23,14 @@ class Test(TestCase):
                                                             seed=42)
 
         t_stat_30 = compute_t_stat(fisher_r_to_z(group1),
-                                   fisher_r_to_z(group2), paired=False)
+                                   fisher_r_to_z(group2), test_type='two-sample')
 
         cls.fc_sim_30 = {"t_stat": t_stat_30,
                          "cov1": cov1.copy(), "cov2": cov2.copy()}
 
         from scipy.io import loadmat
-        path_to_data = '../datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/'
-        taskB = loadmat(path_to_data + 'Task_B.mat')['corrdiff_TaskB']
-        taskA = loadmat(path_to_data + 'Task_A.mat')['corrdiff_TaskA']
+        taskB = loadmat(DATASETS_DIR / 'Task_B.mat')['corrdiff_TaskB']
+        taskA = loadmat(DATASETS_DIR / 'Task_A.mat')['corrdiff_TaskA']
         taskB = fisher_r_to_z(np.nan_to_num(taskB, posinf=0, neginf=0))
         taskA = fisher_r_to_z(np.nan_to_num(taskA, posinf=0, neginf=0))
         cls.taskA = taskA
@@ -62,9 +65,8 @@ class TestReal(TestCase):
     @classmethod
     def setUpClass(cls):
         from scipy.io import loadmat
-        path_to_data = '../datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/'
-        taskB = loadmat(path_to_data + 'Task_B.mat')['corrdiff_TaskB']
-        taskA = loadmat(path_to_data + 'Task_A.mat')['corrdiff_TaskA']
+        taskB = loadmat(DATASETS_DIR / 'Task_B.mat')['corrdiff_TaskB']
+        taskA = loadmat(DATASETS_DIR / 'Task_A.mat')['corrdiff_TaskA']
         taskB = fisher_r_to_z(np.nan_to_num(taskB, posinf=0, neginf=0)).swapaxes(0, 2)
         taskA = fisher_r_to_z(np.nan_to_num(taskA, posinf=0, neginf=0)).swapaxes(0, 2)
         cls.taskA = taskA
