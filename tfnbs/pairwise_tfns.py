@@ -196,7 +196,6 @@ def compute_null_dist(group1: npt.NDArray[np.float64],
         n_permutations (int): Number of permutations for null distribution (default = 1000).
         test_type (String): A String indicating the type of statistical T-test to be performed. 
             Should be one of ['paired', 'one-sample', 'two-sample'].
-        paired (bool): Computation to be done as repeated measures or individual group comparisons.
         random_state (int): Seed for random number generator. Ensures reproducibility (optional).
         n_processes (int): Number of parallel processes to use if 'use_mp=True', if None, uses cpu_count().
         use_mp (bool): Whether to use parallel computations (default = False).
@@ -413,7 +412,6 @@ def compute_t_stat_tfnos(group1: npt.NDArray[np.float64],
         group2 (np.ndarray): Array of shape (n_samples_2, N*N) containing data for group 2.
         test_type (str): String indicating the type of statistical T-test to be performed. 
             Should be one of ['paired', 'one-sample', 'two-sample'].
-        paired (bool): Flag to compute pairwise t-statistics or as per individual groups.         
         e (float or List[float]): Exponent parameter for TFCE transformation (default=0.4).
         h (float or List[float]): Height parameter for TFCE transformation (default=3).
         n (int): Number of integration steps in TFCE transformation (default=10).
