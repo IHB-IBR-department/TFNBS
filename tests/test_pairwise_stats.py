@@ -1,16 +1,14 @@
 from unittest import TestCase
 import time
 from tfnbs.utils import fisher_r_to_z
-from tfnbs.pairwise_tfns import (_permutation_task_ind,
-                                 _permutation_task_paired,
-                                 compute_null_dist,
-                                 compute_t_stat_diff,
-                                 compute_permute_t_stat_ind,
-                                 compute_permute_t_stat_diff,
-                                 compute_p_val,
-                                 compute_t_stat,
-                                 compute_t_stat_tfnos,
-                                 compute_t_stat_tfnos_diffs)
+from tfnbs.pairwise_stats import (_permutation_task_ind,
+                                   _permutation_task_paired,
+                                   compute_null_dist,
+                                   compute_t_stat_diff,
+                                   compute_p_val,
+                                   compute_t_stat,
+                                   compute_t_stat_tfnbs,
+                                   compute_t_stat_tfnbs_diffs)
 
 from tfnbs.datasets import generate_fc_matrices
 import numpy as np
@@ -61,35 +59,41 @@ class TestBasicStats(TestCase):
     def test_compute_permut_t_stat_ind(self):
         group_dict = self.fc_sim
 
-        perm_t_pos, perm_t_neg = compute_permute_t_stat_ind(group_dict['group1'], group_dict['group2'])
+        # Use modern _permutation_task_ind
+        full_group = np.concatenate((group_dict['group1'], group_dict['group2']), axis=0)
+        n1 = group_dict['group1'].shape[0]
+        perm_result = _permutation_task_ind(full_group, compute_t_stat, n1, seed=42)
+
+        perm_t_pos = perm_result["g2>g1"]
+        perm_t_neg = perm_result["g1>g2"]
 
         self.assertGreater(perm_t_pos, 1)
         self.assertGreater(perm_t_neg, 1)
         self.assertLess(perm_t_pos, 5)
 
-    def test_compute_t_stat_tfnos(self):
+    def test_compute_t_stat_tfnbs(self):
         group_dict = self.fc_sim
 
         emp_t_dict = compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='two-sample')
-        emp_tfnos_dict = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='two-sample')
+        emp_tfnos_dict = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='two-sample')
 
         self.assertLess(10, emp_tfnos_dict["g2>g1"][np.triu_indices(10, k=1)].mean())
         self.assertLess(1, emp_t_dict["g2>g1"][np.triu_indices(10, k=1)].mean())
 
-    def test_compute_t_stat_tfnos_paired(self):
+    def test_compute_t_stat_tfnbs_paired(self):
         group_dict = self.fc_sim_paired
 
         emp_t_dict = compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='paired')
-        emp_tfnos_dict = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='paired')
-        emp_tfnos_sp_dict = compute_t_stat_tfnos_diffs(group_dict['group2'] - group_dict['group1'])
+        emp_tfnos_dict = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired')
+        emp_tfnos_sp_dict = compute_t_stat_tfnbs_diffs(group_dict['group2'] - group_dict['group1'])
 
         self.assertIsNone(np.testing.assert_almost_equal(emp_tfnos_dict["g2>g1"],
                                                          emp_tfnos_sp_dict["g2>g1"]))
         self.assertGreater(emp_tfnos_dict["g2>g1"].sum(), emp_t_dict["g2>g1"].sum())
 
-    def test_compute_t_stat_tfnos_list_pars(self):
+    def test_compute_t_stat_tfnbs_list_pars(self):
         group_dict = self.fc_sim_paired
-        t_stat_mod = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='paired', e=[0.4, 0.6], h=[1, 2])
+        t_stat_mod = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired', e=[0.4, 0.6], h=[1, 2])
         self.assertEqual(t_stat_mod["g2>g1"].shape[-1], 2)
         self.assertEqual(t_stat_mod["g1>g2"].shape[-1], 2)
 
@@ -105,9 +109,9 @@ class TestBasicStats(TestCase):
 
     def test__permutation_task_ind(self):
         group_dict = self.fc_sim
-        t_stat_mod = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type = 'two-sample', e=[0.4, 0.6], h=[1, 2])
+        t_stat_mod = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type = 'two-sample', e=[0.4, 0.6], h=[1, 2])
         full_group = np.concatenate((group_dict['group1'], group_dict['group2']), axis=0)
-        t_maxes = _permutation_task_ind(full_group, compute_t_stat_tfnos,
+        t_maxes = _permutation_task_ind(full_group, compute_t_stat_tfnbs,
                                         30, 42, e=[0.4, 0.6], h=[1, 2])
         self.assertIsInstance(t_maxes, dict)
         self.assertIsInstance(t_stat_mod, dict)
@@ -117,9 +121,9 @@ class TestBasicStats(TestCase):
     def test__permutation_task_paired(self):
         group_dict = self.fc_sim_paired
         emp_t = compute_t_stat_diff(group_dict['group2'] - group_dict['group1'])
-        emp_tfnos = compute_t_stat_tfnos_diffs(group_dict['group2'] - group_dict['group1'], e=[0.4, 0.6], h=[1, 2])
+        emp_tfnos = compute_t_stat_tfnbs_diffs(group_dict['group2'] - group_dict['group1'], e=[0.4, 0.6], h=[1, 2])
         t_max_t = _permutation_task_paired(group_dict['group2'] - group_dict['group1'], compute_t_stat_diff, 30)
-        t_maxes = _permutation_task_paired(group_dict['group2'] - group_dict['group1'], compute_t_stat_tfnos_diffs,
+        t_maxes = _permutation_task_paired(group_dict['group2'] - group_dict['group1'], compute_t_stat_tfnbs_diffs,
                                            e=[0.4, 0.6], h=[1, 2])
         self.assertIsInstance(t_maxes, dict)
         self.assertIsInstance(t_max_t, dict)
@@ -147,13 +151,13 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim
 
         n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type = 'two-sample')
+        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type = 'two-sample')
 
         null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnos, n_permutations=n_permutations,
+                                   compute_t_stat_tfnbs, n_permutations=n_permutations,
                                    test_type='two-sample', random_state=42, use_mp=False)
         null_t_mc = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnos, n_permutations=n_permutations,
+                                      compute_t_stat_tfnbs, n_permutations=n_permutations,
                                       test_type='two-sample', random_state=42, use_mp=True)
 
         self.assertGreater(emp_tfnos["g2>g1"].mean(), null_t["g1>g2"].mean())
@@ -163,14 +167,14 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim
 
         n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='two-sample',
+        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='two-sample',
                                          e=[0.4, 0.6], h=[1, 2])
 
         null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnos, n_permutations=n_permutations,
+                                   compute_t_stat_tfnbs, n_permutations=n_permutations,
                                    test_type='two-sample', use_mp=False, e=[0.4, 0.6], h=[1, 2])
         null_t_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnos, n_permutations=n_permutations,
+                                      compute_t_stat_tfnbs, n_permutations=n_permutations,
                                    test_type='two-sample', use_mp=True, e=[0.4, 0.6], h=[1, 2])
         self.assertEqual(null_t["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
         self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
@@ -179,14 +183,14 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim_paired
 
         n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnos(group_dict['group1'], group_dict['group2'], test_type='paired',
+        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired',
                                          e=[0.4, 0.6], h=[1, 2])
 
         null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnos_diffs, n_permutations=n_permutations,
+                                   compute_t_stat_tfnbs_diffs, n_permutations=n_permutations,
                                    test_type='paired', use_mp=False, e=[0.4, 0.6], h=[1, 2])
         null_t_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnos_diffs, n_permutations=n_permutations,
+                                      compute_t_stat_tfnbs_diffs, n_permutations=n_permutations,
                                    test_type='paired', use_mp=True, e=[0.4, 0.6], h=[1, 2])
         self.assertEqual(null_t["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
         self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
@@ -198,11 +202,11 @@ class TestBasicStats(TestCase):
         random_state = 42
         test_type = 'two-sample'
 
-        time_mp = self.run_and_measure(compute_t_stat_tfnos,
+        time_mp = self.run_and_measure(compute_t_stat_tfnbs,
                                        group_dict['group1'], group_dict['group2'],
                                        n_permutations, test_type, random_state, True)
 
-        time_cycle = self.run_and_measure(compute_t_stat_tfnos,
+        time_cycle = self.run_and_measure(compute_t_stat_tfnbs,
                                           group_dict['group1'], group_dict['group2'],
                                           n_permutations, test_type, random_state, False)
 
@@ -265,7 +269,10 @@ class TestRealExample(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         from scipy.io import loadmat
-        path_to_data = '../datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/'
+        import os
+        # Get path relative to this test file
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        path_to_data = os.path.join(test_dir, '../datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/')
         taskB = loadmat(path_to_data + 'Task_B.mat')['corrdiff_TaskB']
         taskA = loadmat(path_to_data + 'Task_A.mat')['corrdiff_TaskA']
         taskB = fisher_r_to_z(np.nan_to_num(taskB, posinf=0, neginf=0))
