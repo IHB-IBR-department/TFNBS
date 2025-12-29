@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
 import warnings
@@ -175,3 +177,61 @@ def binarize(W, copy=True):
         W = W.copy()
     W[W != 0] = 1
     return W
+
+
+def create_prior_weights(node_labels: npt.NDArray[np.int_],
+                         target_network_id: Optional[int] = None,
+                         boost_factor: float = 2.0) -> npt.NDArray[np.float64]:
+    """
+    Create an (N, N) symmetric weight matrix based on node network labels.
+
+    Parameters
+    ----------
+    node_labels : np.ndarray[int]
+        1D array of integer network IDs for each node (length N).
+    target_network_id : int or None, optional
+        If provided, only edges where both nodes belong to this network are
+        boosted. If None (default), all intra-network edges (nodes sharing
+        the same label) are boosted.
+    boost_factor : float, optional
+        Multiplicative weight for priority edges (default 2.0).
+
+    Returns
+    -------
+    weights : np.ndarray[float]
+        Symmetric (N, N) weight matrix with background value 1.0 and
+        `boost_factor` for priority intra-network edges. The diagonal is
+        left at 1.0.
+
+    Examples
+    --------
+    >>> labels = np.array([1, 1, 2, 2])
+    >>> create_prior_weights(labels, boost_factor=3.0)
+    array([[1., 3., 1., 1.],
+           [3., 1., 1., 1.],
+           [1., 1., 1., 3.],
+           [1., 1., 3., 1.]])
+    """
+    labels = np.asarray(node_labels)
+    if labels.ndim != 1:
+        raise ValueError("`node_labels` must be a 1D array of integer labels")
+
+    N = labels.shape[0]
+    # Start with background weight 1.0
+    weights = np.ones((N, N), dtype=np.float64)
+
+    # Build mask of same-network pairs
+    same_network = labels[:, None] == labels[None, :]
+
+    if target_network_id is not None:
+        # Only boost pairs where both belong to the target network
+        target_mask = labels == target_network_id
+        same_network = np.logical_and(same_network, target_mask[:, None] & target_mask[None, :])
+
+    # Exclude diagonal (self-connections) from boosting
+    np.fill_diagonal(same_network, False)
+
+    # Apply boost
+    weights[same_network] = float(boost_factor)
+
+    return weights
