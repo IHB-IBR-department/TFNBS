@@ -33,6 +33,48 @@ For more information on TFNBS's features, modules and usage, please refer to the
 
 Examples of usage on fMRI and EEG data are avaialble in [notebooks]() and [data](). 
 
+## Permutation p-values (`compute_p_val`)
+
+The main entry point for permutation-based inference is `tfnbs.pairwise_stats.compute_p_val`.
+
+Supported `method` values:
+- `tstat`: raw t-statistics (max-stat correction)
+- `tfnbs`: threshold-free NBS / TFCE-style enhancement
+- `nbs`: classical NBS with fixed threshold (`nbs_stat="extent"` or `"intensity"`)
+- `cnbs`: constrained NBS (requires `net_labels`)
+- `ni_tfnbs`: network-informed TFNBS (requires `net_labels`)
+- `fbc_tfnbs`: functional-block clustering TFNBS (requires `net_labels`)
+
+Minimal example (two-sample):
+```python
+from tfnbs.pairwise_stats import compute_p_val
+from tfnbs.utils import fisher_r_to_z
+
+# group1, group2: arrays of shape (n_subjects, N, N), symmetric, diagonal=0
+group1_z = fisher_r_to_z(group1)
+group2_z = fisher_r_to_z(group2)
+
+p_vals = compute_p_val(
+    group1_z,
+    group2_z,
+    n_permutations=1000,
+    test_type="two-sample",
+    method="tfnbs",
+    use_mp=True,
+)
+```
+
+Notes:
+- Constrained methods (`cnbs`, `ni_tfnbs`, `fbc_tfnbs`) require `net_labels: ndarray[int]` of shape `(N,)`.
+- NBS uses `threshold` and `nbs_stat`; TFNBS-family uses `e`, `h`, `n`, and `start_thres` (plus `min_cluster_size` for `fbc_tfnbs`).
+
+## Synthetic method-comparison example
+
+See `examples/sim_method_comparisons.py` which compares all methods via `compute_p_val` and saves GT/t-stat/`1-p` heatmaps:
+```bash
+python examples/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
+```
+
 
 ## Citing the toolbox 
 To cite the toolbox, you can use: [doi]() and refer to the paper [paper_doi]()
@@ -41,7 +83,6 @@ To cite the toolbox, you can use: [doi]() and refer to the paper [paper_doi]()
 ```
 
 For further discussions or reports on bugs, please contact [ashish@ireddy.ru]()
-
 
 
 
