@@ -10,7 +10,7 @@ from tfnbs.pairwise_stats import (_permutation_task_ind,
                                    compute_t_stat_tfnbs,
                                    compute_t_stat_tfnbs_diffs)
 
-from tfnbs.datasets import generate_fc_matrices
+from tfnbs.synth_datasets import generate_fc_matrices
 import numpy as np
 
 
@@ -216,7 +216,7 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim
         n_permutations = 1000
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
-                               n_permutations=n_permutations, test_type='two-sample', tf=False, use_mp=True)
+                               n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
 
         self.assertLess(p_vals["g2>g1"][np.triu_indices(10, k=1)].mean(), 0.3)
         self.assertGreater(p_vals["g1>g2"][np.triu_indices(10, k=1)].mean(), 0.3)
@@ -226,7 +226,7 @@ class TestBasicStats(TestCase):
         n_permutations = 1000
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
-                               n_permutations=n_permutations, test_type='two-sample', tf=True, use_mp=True)
+                               n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True)
 
         self.assertLess(p_vals["g2>g1"][np.triu_indices(10, k=1)].mean(), 0.3)
         self.assertGreater(p_vals["g1>g2"][np.triu_indices(10, k=1)].mean(), 0.3)
@@ -236,7 +236,7 @@ class TestBasicStats(TestCase):
         n_permutations = 1000
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
-                               n_permutations=n_permutations, test_type='two-sample', tf=True, use_mp=True, e=[0.4, 0.6],
+                               n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True, e=[0.4, 0.6],
                                h=[1, 2])
 
         self.assertLess(p_vals["g2>g1"][..., 0][np.triu_indices(10, k=1)].mean(), 0.05)
@@ -246,9 +246,9 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim
         n_permutations = 1000
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
-                                    n_permutations=n_permutations, test_type='two-sample', tf=False, use_mp=True)
+                                    n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],
-                                  n_permutations=n_permutations, test_type='two-sample', tf=True, use_mp=True)
+                                  n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True)
 
         self.assertLess(p_vals_tf["g2>g1"][np.triu_indices(10, k=1)].mean(),
                         p_vals_orig["g2>g1"][np.triu_indices(10, k=1)].mean())
@@ -257,12 +257,244 @@ class TestBasicStats(TestCase):
         group_dict = self.fc_sim_paired
         n_permutations = 1000
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
-                                    n_permutations=n_permutations, test_type='paired', tf=False, use_mp=True)
+                                    n_permutations=n_permutations, test_type='paired', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],
-                                  n_permutations=n_permutations, test_type='paired', tf=True, use_mp=True)
+                                  n_permutations=n_permutations, test_type='paired', method='tfnbs', use_mp=True)
 
         self.assertLess(p_vals_tf["g2>g1"][np.triu_indices(10, k=1)].mean(),
                         p_vals_orig["g2>g1"][np.triu_indices(10, k=1)].mean())
+
+    def test_compute_p_val_tfnbs_multi_params(self):
+        """Test TFNBS with multiple parameter combinations e=[0.5, 1], h=[1, 2]."""
+        group_dict = self.fc_sim
+        n_permutations = 100
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='tfnbs',
+            e=[0.5, 1],
+            h=[1, 2],
+            n=10,
+            use_mp=False,
+            random_state=42
+        )
+
+        # Check that p-values are computed
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+        # Check shape: should be (N, N, 2) for 2 parameter combinations
+        expected_shape = group_dict['group1'][0].shape + (2,)
+        self.assertEqual(p_vals["g2>g1"].shape, expected_shape)
+        self.assertEqual(p_vals["g1>g2"].shape, expected_shape)
+
+        # Check that different parameter combinations give different results
+        self.assertFalse(np.allclose(p_vals["g2>g1"][..., 0], p_vals["g2>g1"][..., 1]))
+
+    def test_compute_p_val_nbs_two_sample(self):
+        """Test NBS method with two-sample test."""
+        group_dict = self.fc_sim
+        n_permutations = 100
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='nbs',
+            threshold=2.0,
+            nbs_stat='extent',
+            use_mp=False,
+            random_state=42
+        )
+        # Check that p-values are computed
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+        self.assertEqual(p_vals["g2>g1"].shape, group_dict['group1'][0].shape)
+
+    def test_compute_p_val_nbs_paired(self):
+        """Test NBS method with paired test."""
+        group_dict = self.fc_sim_paired
+        n_permutations = 100
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='paired',
+            method='nbs',
+            threshold=2.0,
+            nbs_stat='intensity',
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+    def test_compute_p_val_cnbs_two_sample(self):
+        """Test cNBS method with two-sample test."""
+        group_dict = self.fc_sim
+        n_permutations = 100
+        # Create network labels (3 networks for 30 nodes)
+        net_labels = np.repeat([0, 1, 2], 10)
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='cnbs',
+            net_labels=net_labels,
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+    def test_compute_p_val_cnbs_paired(self):
+        """Test cNBS method with paired test."""
+        group_dict = self.fc_sim_paired
+        n_permutations = 100
+        net_labels = np.repeat([0, 1, 2], 10)
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='paired',
+            method='cnbs',
+            net_labels=net_labels,
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+    def test_compute_p_val_ni_tfnbs_two_sample(self):
+        """Test NI-TFNBS method with two-sample test."""
+        group_dict = self.fc_sim
+        n_permutations = 100
+        net_labels = np.repeat([0, 1, 2], 10)
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='ni_tfnbs',
+            net_labels=net_labels,
+            e=0.5,
+            h=2.0,
+            n=10,
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+        # NI-TFNBS should produce different results than regular TFNBS
+        p_vals_tfnbs = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='tfnbs',
+            e=0.5,
+            h=2.0,
+            n=10,
+            use_mp=False,
+            random_state=42
+        )
+        # At least some p-values should differ
+        self.assertFalse(np.allclose(p_vals["g2>g1"], p_vals_tfnbs["g2>g1"]))
+
+    def test_compute_p_val_fbc_tfnbs_two_sample(self):
+        """Test FBC-TFNBS method with two-sample test."""
+        group_dict = self.fc_sim
+        n_permutations = 100
+        net_labels = np.repeat([0, 1, 2], 10)
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='two-sample',
+            method='fbc_tfnbs',
+            net_labels=net_labels,
+            e=0.5,
+            h=2.0,
+            n=10,
+            min_cluster_size=3,
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+    def test_compute_p_val_fbc_tfnbs_paired(self):
+        """Test FBC-TFNBS method with paired test."""
+        group_dict = self.fc_sim_paired
+        n_permutations = 100
+        net_labels = np.repeat([0, 1, 2], 10)
+
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=n_permutations,
+            test_type='paired',
+            method='fbc_tfnbs',
+            net_labels=net_labels,
+            e=0.5,
+            h=2.0,
+            n=10,
+            min_cluster_size=2,
+            use_mp=False,
+            random_state=42
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+
+    def test_constrained_methods_require_net_labels(self):
+        """Test that constrained methods raise ValueError without net_labels."""
+        group_dict = self.fc_sim
+
+        # cNBS should require net_labels
+        with self.assertRaises(ValueError) as context:
+            compute_p_val(
+                group_dict['group1'], group_dict['group2'],
+                n_permutations=10,
+                test_type='two-sample',
+                method='cnbs',
+                use_mp=False
+            )
+        self.assertIn("net_labels", str(context.exception))
+
+        # NI-TFNBS should require net_labels
+        with self.assertRaises(ValueError) as context:
+            compute_p_val(
+                group_dict['group1'], group_dict['group2'],
+                n_permutations=10,
+                test_type='two-sample',
+                method='ni_tfnbs',
+                use_mp=False
+            )
+        self.assertIn("net_labels", str(context.exception))
+
+        # FBC-TFNBS should require net_labels
+        with self.assertRaises(ValueError) as context:
+            compute_p_val(
+                group_dict['group1'], group_dict['group2'],
+                n_permutations=10,
+                test_type='two-sample',
+                method='fbc_tfnbs',
+                use_mp=False
+            )
+        self.assertIn("net_labels", str(context.exception))
+
+    def test_invalid_method_raises_error(self):
+        """Test that invalid method raises ValueError."""
+        group_dict = self.fc_sim
+
+        with self.assertRaises(ValueError) as context:
+            compute_p_val(
+                group_dict['group1'], group_dict['group2'],
+                n_permutations=10,
+                test_type='two-sample',
+                method='invalid_method',
+                use_mp=False
+            )
+        self.assertIn("Invalid method", str(context.exception))
 
 
 class TestRealExample(TestCase):
@@ -286,6 +518,6 @@ class TestRealExample(TestCase):
                                     self.taskB,
                                     n_permutations=n_permutations,
                                     test_type='paired',
-                                    tf=False,
+                                    method='tstat',
                                     use_mp=True)
         self.assertEqual(0,0)
