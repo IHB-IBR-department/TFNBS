@@ -8,7 +8,7 @@ Submodules
    :maxdepth: 1
 
    tfnbs.datasets
-   tfnbs.nbs_utils
+   tfnbs.nbs_score
    tfnbs.utils
    tfnbs.pairwise_tfns
    tfnbs.tfnos

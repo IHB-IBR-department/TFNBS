@@ -27,10 +27,13 @@ __all__ = [
     "get_tfnbs_score",
     "get_tfnbs_score_baseline",
     "get_tfnbs_score_networkx",
+    "get_network_informed_tfnbs_score",
+    "get_fbc_tfnbs_score",
     "DEFAULT_START_THRESHOLD",
     "DEFAULT_EXTENT_EXPONENT",
     "DEFAULT_HEIGHT_EXPONENT",
     "DEFAULT_N_THRESHOLDS",
+    "DEFAULT_MIN_CLUSTER_SIZE",
 ]
 
 logger = logging.getLogger(__name__)
@@ -50,6 +53,9 @@ DEFAULT_HEIGHT_EXPONENT: float = 2.0
 
 DEFAULT_N_THRESHOLDS: int = 100
 """Default number of threshold integration steps."""
+
+DEFAULT_MIN_CLUSTER_SIZE: int = 3
+"""Default minimum edges in a functional block to form a cluster (for FBC-TFNBS)."""
 
 
 # =============================================================================
@@ -188,67 +194,12 @@ def _get_edges(
     return rows[valid_mask], cols[valid_mask], weights[valid_mask]
 
 
-def _compute_weighted_cluster_sizes_vectorized(
-    n_nodes: int,
-    rows: npt.NDArray[np.intp],
-    cols: npt.NDArray[np.intp],
-    mask: npt.NDArray[np.bool_],
-    node_labels: npt.NDArray[np.intp],
-    n_components: int,
-    weight_map: npt.NDArray[np.floating]
-) -> npt.NDArray[np.float64]:
-    """
-    Compute weighted cluster sizes using vectorized operations.
-
-    Parameters
-    ----------
-    n_nodes : int
-        Number of nodes in the graph.
-    rows : ndarray
-        Row indices of edges.
-    cols : ndarray
-        Column indices of edges.
-    mask : ndarray of bool
-        Boolean mask of active edges.
-    node_labels : ndarray
-        Component labels for each node.
-    n_components : int
-        Number of connected components.
-    weight_map : ndarray of shape (N, N)
-        Weight matrix for edges.
-
-    Returns
-    -------
-    edge_sizes : ndarray
-        Weighted cluster size for each edge.
-    """
-    active_mask = mask[rows, cols]
-
-    if not np.any(active_mask):
-        return np.zeros(len(rows), dtype=np.float64)
-
-    edge_components = node_labels[rows]
-    edge_weights = weight_map[rows, cols]
-
-    weighted_sums = np.bincount(
-        edge_components[active_mask],
-        weights=edge_weights[active_mask],
-        minlength=n_components
-    )
-
-    edge_sizes = np.zeros(len(rows), dtype=np.float64)
-    edge_sizes[active_mask] = weighted_sums[edge_components[active_mask]]
-
-    return edge_sizes
-
-
 def get_tfnbs_score(
     t_stats: npt.NDArray[np.floating],
     e: ArrayLike,
     h: ArrayLike,
     n: int,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    weight_map: Optional[npt.NDArray[np.floating]] = None
+    start_thres: float = DEFAULT_START_THRESHOLD
 ) -> npt.NDArray[np.floating]:
     """
     Transform the connectivity matrix using Threshold-Free Network-Based Statistics.
@@ -271,8 +222,6 @@ def get_tfnbs_score(
         Number of threshold steps between start_thres and max(t_stats).
     start_thres : float, default=1.65
         Initial threshold for cluster formation.
-    weight_map : ndarray of shape (N, N), optional
-        Prior weights for edges. If provided, cluster sizes are weighted.
 
     Returns
     -------
@@ -292,11 +241,6 @@ def get_tfnbs_score(
 
     # Round to avoid float precision issues at threshold boundaries
     t_stats = np.round(t_stats, decimals=10)
-
-    if weight_map is not None:
-        weight_map = np.asarray(weight_map, dtype=np.float64)
-        if weight_map.shape != t_stats.shape:
-            raise ValueError("`weight_map` must have the same shape as `t_stats` (N, N)")
 
     nroi = t_stats.shape[0]
     num_params = len(e_arr)
@@ -346,16 +290,10 @@ def get_tfnbs_score(
         sparse_mat = csr_matrix(mask_for_cc)
         n_components, node_labels = connected_components(sparse_mat, directed=False)
 
-        if weight_map is not None:
-            edge_sizes = _compute_weighted_cluster_sizes_vectorized(
-                nroi, active_rows, active_cols, mask, node_labels,
-                n_components, weight_map
-            )
-        else:
-            # Count edges per component
-            edge_component_ids = node_labels[active_rows]
-            component_edge_counts = np.bincount(edge_component_ids, minlength=n_components)
-            edge_sizes = component_edge_counts[edge_component_ids].astype(np.float64)
+        # Count edges per component
+        edge_component_ids = node_labels[active_rows]
+        component_edge_counts = np.bincount(edge_component_ids, minlength=n_components)
+        edge_sizes = component_edge_counts[edge_component_ids].astype(np.float64)
 
         clustsize.fill(0)
         clustsize[active_rows, active_cols] = edge_sizes
@@ -559,4 +497,469 @@ def get_tfnbs_score_networkx(
             tfnbs += (clustsize[..., np.newaxis] ** e_bc) * (threshold ** h_bc)
 
     tfnbs *= dh
+    return tfnbs
+
+
+"""
+Network-Informed TFNBS scoring module.
+
+This module extends TFNBS to incorporate functional network architecture.
+It weights topological clusters based on the density of the functional blocks
+they span, increasing sensitivity to effects that align with known
+functional anatomy.
+"""
+
+
+# =============================================================================
+# Specific Helper Functions
+# =============================================================================
+
+def _validate_net_labels(
+    net_labels: npt.NDArray[np.integer], 
+    n_nodes: int
+) -> npt.NDArray[np.integer]:
+    """
+    Validate and normalize network labels.
+    
+    Parameters
+    ----------
+    net_labels : ndarray of shape (N,)
+        Network assignments.
+    n_nodes : int
+        Expected number of nodes.
+        
+    Returns
+    -------
+    normalized_labels : ndarray
+        Labels mapped to 0..K-1 range.
+    """
+    if net_labels.shape[0] != n_nodes:
+        raise ValueError(f"net_labels shape {net_labels.shape} does not match "
+                         f"number of nodes {n_nodes}.")
+    
+    # Map to continuous range 0..K-1 for efficient bincount indexing
+    _, inverse = np.unique(net_labels, return_inverse=True)
+    return inverse
+
+
+def _precompute_block_metadata(
+    edge_rows: npt.NDArray[np.intp],
+    edge_cols: npt.NDArray[np.intp],
+    node_labels: npt.NDArray[np.integer],
+) -> Tuple[npt.NDArray[np.intp], npt.NDArray[np.floating]]:
+    """
+    Pre-compute block assignments and capacity factors for all extractable edges.
+    
+    This avoids re-calculating block IDs and capacities inside the threshold loop.
+    
+    Parameters
+    ----------
+    edge_rows : ndarray
+        Row indices of all potential suprathreshold edges.
+    edge_cols : ndarray
+        Column indices of all potential suprathreshold edges.
+    node_labels : ndarray
+        Normalized network labels (0..K-1) for each node.
+        
+    Returns
+    -------
+    edge_block_ids : ndarray
+        The Block ID assigned to each edge in `edge_rows`.
+    sqrt_capacities : ndarray
+        Lookup table for sqrt(M_total) indexed by Block ID.
+    """
+    n_nets = np.max(node_labels) + 1
+    
+    # Calculate Block ID for each edge: Block_ID = Label_i * N_nets + Label_j
+    # Note: For symmetric analysis (triu), this implicitly defines blocks 
+    # based on the upper triangle connections.
+    labels_i = node_labels[edge_rows]
+    labels_j = node_labels[edge_cols]
+    
+    # Ensure canonical block ID for undirected edges (min, max) to handle symmetry
+    # effectively if needed, though simple mapping usually suffices if we stick 
+    # to upper triangle. Here we stick to direct mapping.
+    edge_block_ids = labels_i * n_nets + labels_j
+    
+    # Total number of possible blocks
+    n_blocks_total = n_nets * n_nets
+    
+    # Calculate Capacity (M_total) for each block based on the provided edges.
+    # If we are working with just upper triangle edges, this counts the 
+    # capacity of the upper triangle block, which is correct for the density formula.
+    block_capacities = np.bincount(edge_block_ids, minlength=n_blocks_total).astype(np.float64)
+    
+    # Pre-calculate sqrt(Capacity) for the weighting formula: W = k / sqrt(M)
+    # Avoid division by zero
+    sqrt_capacities = np.sqrt(block_capacities)
+    sqrt_capacities[sqrt_capacities == 0] = 1.0
+    
+    return edge_block_ids, sqrt_capacities
+
+
+def _compute_edge_block_weights(
+    active_edge_indices: npt.NDArray[np.bool_],
+    edge_block_ids: npt.NDArray[np.intp],
+    sqrt_capacities: npt.NDArray[np.floating]
+) -> npt.NDArray[np.float64]:
+    """
+    Compute edge-level weights based on functional block density.
+
+    Each edge's weight depends only on its functional block density,
+    with no topological clustering (Edge-Level Weighting approach).
+
+    Formula: W_edge = k_active_in_block / sqrt(M_total_in_block)
+
+    Parameters
+    ----------
+    active_edge_indices : ndarray
+        Boolean mask indicating which pre-extracted edges are active.
+    edge_block_ids : ndarray
+        Block ID for every pre-extracted edge.
+    sqrt_capacities : ndarray
+        Sqrt of total edges per block (precomputed).
+
+    Returns
+    -------
+    edge_weights : ndarray
+        Weight for each active edge based on its block density.
+    """
+    # 1. Get block IDs for active edges
+    active_block_ids = edge_block_ids[active_edge_indices]
+
+    # 2. Count active edges (k) per block
+    block_active_counts = np.bincount(active_block_ids, minlength=len(sqrt_capacities))
+
+    # 3. Calculate weight per block: W = k / sqrt(M)
+    block_weights = block_active_counts / sqrt_capacities
+
+    # 4. Return weight for each active edge
+    return block_weights[active_block_ids]
+
+
+# =============================================================================
+# Main Function
+# =============================================================================
+
+def get_network_informed_tfnbs_score(
+    t_stats: npt.NDArray[np.floating],
+    net_labels: npt.NDArray[np.integer],
+    e: ArrayLike,
+    h: ArrayLike,
+    n: int,
+    start_thres: float = DEFAULT_START_THRESHOLD
+) -> npt.NDArray[np.floating]:
+    """
+    Transform connectivity matrix using Network-Informed TFNBS (Edge-Level Weighting).
+
+    This method uses Edge-Level Weighting: each edge's support depends only on
+    the density of its functional block, with NO topological clustering.
+    This prevents "signal bleeding" where noise edges inherit scores from
+    signal clusters they happen to connect to.
+
+    Weighting Logic:
+        S_edge = k_active_in_block / sqrt(M_total_edges_in_block)
+
+    Key difference from standard TFNBS:
+        - Standard TFNBS: edges cluster if they share a node (topological)
+        - NI-TFNBS: each edge scored independently by block density
+
+    Parameters
+    ----------
+    t_stats : ndarray of shape (N, N)
+        Statistical matrix to be transformed.
+    net_labels : ndarray of shape (N,)
+        Integer labels assigning each node to a functional network.
+    e : float or array-like
+        Extent exponent.
+    h : float or array-like
+        Height exponent.
+    n : int
+        Number of threshold steps.
+    start_thres : float, default=1.65
+        Initial threshold for cluster formation.
+
+    Returns
+    -------
+    tfnbs : ndarray of shape (N, N) or (N, N, num_params)
+        Network-Informed TFNBS score matrix.
+    """
+    # 1. Validation
+    e_arr, h_arr, scalar_mode = _validate_params(t_stats, e, h)
+    nroi = t_stats.shape[0]
+    
+    normalized_net_labels = _validate_net_labels(np.asarray(net_labels), nroi)
+    
+    # Round to avoid float precision issues at threshold boundaries
+    t_stats = np.round(t_stats, decimals=10)
+    
+    # Initialize output
+    num_params = len(e_arr)
+    tfnbs_shape = (nroi, nroi) if scalar_mode else (nroi, nroi, num_params)
+    tfnbs = np.zeros(tfnbs_shape)
+
+    # 2. Thresholds
+    threshs, dh = _compute_thresholds(t_stats, n, start_thres)
+    if threshs is None:
+        return tfnbs
+
+    # 3. Pre-processing
+    # Check symmetry to optimize edge extraction
+    is_symm = _is_symmetric(t_stats)
+    
+    # Extract ALL potential edges > start_thres. 
+    # We do this ONCE to avoid repeated masking of the full NxN matrix.
+    edge_rows, edge_cols, edge_weights = _get_edges(t_stats, start_thres, symmetric=is_symm)
+
+    if len(edge_rows) == 0:
+        return tfnbs
+
+    # Pre-compute Block Metadata for these specific edges
+    # This gives us the Block ID for every edge in our list and the Capacity of blocks
+    edge_block_ids, sqrt_capacities = _precompute_block_metadata(
+        edge_rows, edge_cols, normalized_net_labels
+    )
+
+    # Prepare broadcasting parameters
+    if scalar_mode:
+        e_bc = e_arr[0]
+        h_bc = h_arr[0]
+    else:
+        e_bc = e_arr
+        h_bc = h_arr
+
+    # 4. Main Integration Loop (NO topological clustering - edge-level weighting)
+    for threshold in threshs:
+        # Determine which of our pre-extracted edges are active at this level
+        active_indices_mask = edge_weights >= threshold
+
+        if not np.any(active_indices_mask):
+            continue
+
+        # Get active edge indices
+        active_rows = edge_rows[active_indices_mask]
+        active_cols = edge_cols[active_indices_mask]
+
+        # Compute edge-level weights based on block density
+        # Each edge's weight = k_active_in_block / sqrt(M_total_in_block)
+        edge_supports = _compute_edge_block_weights(
+            active_indices_mask,
+            edge_block_ids,
+            sqrt_capacities
+        )
+
+        # Calculate score increment: h^H * support^E * dh
+        if scalar_mode:
+            increment = (threshold ** h_bc) * (edge_supports ** e_bc) * dh
+            tfnbs[active_rows, active_cols] += increment
+            if is_symm:
+                tfnbs[active_cols, active_rows] += increment
+        else:
+            # Handle parameter sweep (broadcast dimensions)
+            increment = (threshold ** h_bc) * (edge_supports[..., np.newaxis] ** e_bc) * dh
+            tfnbs[active_rows, active_cols, :] += increment
+            if is_symm:
+                tfnbs[active_cols, active_rows, :] += increment
+
+    return tfnbs
+
+
+# =============================================================================
+# Functional Block Clustering TFNBS (FBC-TFNBS)
+# =============================================================================
+
+def _compute_canonical_block_ids(
+    edge_rows: npt.NDArray[np.intp],
+    edge_cols: npt.NDArray[np.intp],
+    node_labels: npt.NDArray[np.integer],
+    n_networks: int
+) -> npt.NDArray[np.intp]:
+    """
+    Compute canonical block IDs for edges (handles undirected networks).
+
+    For undirected networks, Block(A→B) == Block(B→A), so we use
+    min(label_i, label_j) * n_networks + max(label_i, label_j).
+
+    Parameters
+    ----------
+    edge_rows : ndarray
+        Row indices of edges.
+    edge_cols : ndarray
+        Column indices of edges.
+    node_labels : ndarray
+        Network label for each node (0..K-1).
+    n_networks : int
+        Number of distinct networks.
+
+    Returns
+    -------
+    block_ids : ndarray
+        Canonical block ID for each edge.
+    """
+    labels_i = node_labels[edge_rows]
+    labels_j = node_labels[edge_cols]
+
+    # Canonical ordering for undirected: min * n_networks + max
+    min_labels = np.minimum(labels_i, labels_j)
+    max_labels = np.maximum(labels_i, labels_j)
+
+    return min_labels * n_networks + max_labels
+
+
+def get_fbc_tfnbs_score(
+    t_stats: npt.NDArray[np.floating],
+    net_labels: npt.NDArray[np.integer],
+    e: ArrayLike,
+    h: ArrayLike,
+    n: int,
+    start_thres: float = DEFAULT_START_THRESHOLD,
+    min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE
+) -> npt.NDArray[np.floating]:
+    """
+    Functional Block Clustering TFNBS (FBC-TFNBS).
+
+    This method clusters edges by functional block membership rather than
+    topological connectivity. At each threshold:
+
+    1. Edges are grouped by their functional block (e.g., Visual-Visual, DMN-DMN)
+    2. If a block has k >= min_cluster_size edges, those edges support each other
+       (support = k)
+    3. If a block has fewer edges, they are considered "isolated" and suppressed
+       (support = 0)
+
+    Key difference from standard TFNBS:
+        - Standard TFNBS: edges cluster if they share a node (topological)
+        - FBC-TFNBS: edges cluster if they're in the same functional block
+
+    Key difference from NI-TFNBS:
+        - NI-TFNBS: topological clustering with density weighting (spreads to noise)
+        - FBC-TFNBS: no topological clustering, isolated edges are suppressed
+
+    Parameters
+    ----------
+    t_stats : ndarray of shape (N, N)
+        Statistical matrix to be transformed (usually absolute t-values).
+    net_labels : ndarray of shape (N,)
+        Integer labels assigning each node to a functional network.
+    e : float or array-like
+        Extent exponent. Controls how much cluster size matters.
+    h : float or array-like
+        Height exponent. Controls how much threshold height matters.
+    n : int
+        Number of threshold steps between start_thres and max(t_stats).
+    start_thres : float, default=1.65
+        Initial threshold for cluster formation.
+    min_cluster_size : int, default=3
+        Minimum number of edges in a functional block to form a cluster.
+        Blocks with fewer edges get support=0 (suppressed).
+
+    Returns
+    -------
+    tfnbs : ndarray of shape (N, N) or (N, N, num_params)
+        FBC-TFNBS score matrix.
+
+    Notes
+    -----
+    The key insight is that edges in the same functional block should support
+    each other even if they don't share any nodes. This captures the biological
+    reality that effects within a functional system (e.g., Visual cortex) are
+    likely related, while isolated edges are more likely noise.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Create a simple t-statistic matrix
+    >>> t = np.array([[0, 2.5, 1.8, 0.5],
+    ...               [2.5, 0, 2.2, 0.3],
+    ...               [1.8, 2.2, 0, 2.0],
+    ...               [0.5, 0.3, 2.0, 0]])
+    >>> # Nodes 0,1 in network 0; nodes 2,3 in network 1
+    >>> labels = np.array([0, 0, 1, 1])
+    >>> scores = get_fbc_tfnbs_score(t, labels, e=0.5, h=2.0, n=20,
+    ...                               start_thres=1.5, min_cluster_size=2)
+    """
+    # 1. Validation
+    e_arr, h_arr, scalar_mode = _validate_params(t_stats, e, h)
+    nroi = t_stats.shape[0]
+
+    normalized_net_labels = _validate_net_labels(np.asarray(net_labels), nroi)
+    n_networks = np.max(normalized_net_labels) + 1
+
+    # Round to avoid float precision issues
+    t_stats = np.round(t_stats, decimals=10)
+
+    # Initialize output
+    num_params = len(e_arr)
+    tfnbs_shape = (nroi, nroi) if scalar_mode else (nroi, nroi, num_params)
+    tfnbs = np.zeros(tfnbs_shape)
+
+    # 2. Compute thresholds
+    threshs, dh = _compute_thresholds(t_stats, n, start_thres)
+    if threshs is None:
+        return tfnbs
+
+    # 3. Pre-processing
+    is_symm = _is_symmetric(t_stats)
+
+    # Extract edges above start threshold
+    edge_rows, edge_cols, edge_weights = _get_edges(t_stats, start_thres, symmetric=is_symm)
+
+    if len(edge_rows) == 0:
+        return tfnbs
+
+    # Compute canonical block IDs for all extracted edges
+    edge_block_ids = _compute_canonical_block_ids(
+        edge_rows, edge_cols, normalized_net_labels, n_networks
+    )
+
+    # Maximum possible block ID (for bincount)
+    max_block_id = n_networks * n_networks
+
+    # Prepare broadcasting parameters
+    if scalar_mode:
+        e_bc = e_arr[0]
+        h_bc = h_arr[0]
+    else:
+        e_bc = e_arr
+        h_bc = h_arr
+
+    # 4. Main Integration Loop
+    for threshold in threshs:
+        # Find active edges at this threshold
+        active_mask = edge_weights >= threshold
+
+        if not np.any(active_mask):
+            continue
+
+        active_indices = np.where(active_mask)[0]
+        active_rows = edge_rows[active_indices]
+        active_cols = edge_cols[active_indices]
+        active_block_ids = edge_block_ids[active_indices]
+
+        # Count edges per functional block at this threshold
+        block_counts = np.bincount(active_block_ids, minlength=max_block_id)
+
+        # Compute support for each active edge
+        # Support = block_count if block_count >= min_cluster_size, else 0
+        edge_block_counts = block_counts[active_block_ids]
+        edge_supports = np.where(
+            edge_block_counts >= min_cluster_size,
+            edge_block_counts,
+            0
+        ).astype(np.float64)
+
+        # Calculate score increment: h^H * support^E * dh
+        # Note: support^E where support=0 gives 0, which is correct (suppressed)
+        if scalar_mode:
+            increment = (threshold ** h_bc) * (edge_supports ** e_bc) * dh
+            tfnbs[active_rows, active_cols] += increment
+            if is_symm:
+                tfnbs[active_cols, active_rows] += increment
+        else:
+            # Handle parameter sweep
+            increment = (threshold ** h_bc) * (edge_supports[..., np.newaxis] ** e_bc) * dh
+            tfnbs[active_rows, active_cols, :] += increment
+            if is_symm:
+                tfnbs[active_cols, active_rows, :] += increment
+
     return tfnbs
