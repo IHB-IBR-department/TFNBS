@@ -235,7 +235,14 @@ class ModularDatasetGenerator:
         Parameters
         ----------
         effect_mask : np.ndarray
-            Binary matrix indicating where to apply the effect.
+            Effect mask matrix of shape (N, N).
+
+            - 0 means "no effect" for that edge.
+            - Non-zero values scale the effect magnitude per edge.
+            - The sign of the value controls effect direction (positive/negative).
+
+            The matrix is treated as undirected: it will be symmetrized internally
+            and its diagonal will be set to 0.
         effect_size : float
             Magnitude of the effect (Cohen's d-like shift in correlation). 
             Positive values increase correlation, negative values decrease it.
@@ -255,6 +262,14 @@ class ModularDatasetGenerator:
         labels : np.ndarray (N,)
             Vector of module assignments for nodes.
         """
+        effect_mask = np.asarray(effect_mask, dtype=np.float64)
+        if effect_mask.shape != (self.N, self.N):
+            raise ValueError(f"effect_mask must have shape ({self.N}, {self.N}).")
+
+        # Enforce undirected mask semantics.
+        effect_mask = (effect_mask + effect_mask.T) / 2
+        np.fill_diagonal(effect_mask, 0.0)
+
         # Group 1: Base Covariance
         cov_g1 = self.base_cov.copy()
         
@@ -267,7 +282,9 @@ class ModularDatasetGenerator:
         effect_noise = (effect_noise + effect_noise.T) / 2
         
         # Apply effect: Delta = (Target_Shift + Noise) * Mask
-        update_vals = (effect_size + effect_noise) * (effect_mask != 0)
+        # - For binary masks (0/1), this reduces to a constant mean shift on masked edges.
+        # - For signed/weighted masks, this enables mixed-sign and graded effects.
+        update_vals = (effect_size + effect_noise) * effect_mask
         cov_g2 += update_vals
         
         # Re-enforce SPD property after modification
