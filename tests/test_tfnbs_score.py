@@ -2,11 +2,16 @@ import unittest
 from unittest import TestCase
 import numpy as np
 from tfnbs.pairwise_stats import compute_t_stat, compute_t_stat_diff
-from tfnbs.tfnbs_score import get_tfnbs_score_networkx, get_tfnbs_score, get_tfnbs_score_baseline
-from tfnbs.datasets import generate_fc_matrices
+from tfnbs.tfnbs_score import (
+    get_tfnbs_score_networkx,
+    get_tfnbs_score,
+    get_tfnbs_score_baseline,
+    get_network_informed_tfnbs_score
+)
+from tfnbs.synth_datasets import generate_fc_matrices, ModularDatasetGenerator
+from tfnbs.pairwise_stats import compute_t_stat_ind
 from tfnbs.utils import fisher_r_to_z
 import time
-from tfnbs.utils import create_prior_weights
 
 
 class TestTFNBS(TestCase):
@@ -116,36 +121,6 @@ class TestTFNBS(TestCase):
         self.assertTrue(result.shape[2] == 2)
         self.assertTrue(result_nx.shape[2] == 2)
 
-    def test_weighted_tfnbs_increases_scores(self):
-        """
-        Create a small synthetic t_stats and a prior weight_map boosting two
-        networks. Verify that using the weight_map increases the overall
-        TFNBS score compared to the unweighted variant and preserves symmetry.
-        """
-        t = np.zeros((6, 6), dtype=float)
-        t[0, 1] = t[1, 0] = 3.0
-        t[0, 2] = t[2, 0] = 2.8
-        t[1, 2] = t[2, 1] = 2.6
-        t[3, 4] = t[4, 3] = 2.5
-        np.fill_diagonal(t, 0.0)
-
-        labels = np.array([1, 1, 1, 2, 2, 3])
-        weight_map = create_prior_weights(labels, boost_factor=3.0)
-
-        E = 0.5
-        H = 2.0
-        n = 20
-        start_thres = 1.65
-
-        unweighted = get_tfnbs_score(t, E, H, n, start_thres=start_thres)
-        weighted = get_tfnbs_score(t, E, H, n, start_thres=start_thres, weight_map=weight_map)
-
-        self.assertEqual(unweighted.shape, weighted.shape)
-        self.assertTrue(np.allclose(unweighted, unweighted.T))
-        self.assertTrue(np.allclose(weighted, weighted.T))
-        self.assertGreaterEqual(np.sum(weighted), np.sum(unweighted))
-        self.assertTrue(np.any(weighted > unweighted + 1e-12))
-
     def test_baseline_correctness(self):
         """Test that baseline and optimized versions produce similar results."""
         statsmat = self.small_matrix
@@ -231,3 +206,153 @@ class TestTFNBS(TestCase):
         self.assertEqual(result_baseline.shape, (30, 30, 3))
         self.assertEqual(result_optimized.shape, (30, 30, 3))
         np.testing.assert_allclose(result_baseline, result_optimized, rtol=1e-10)
+
+
+class TestNetworkInformedTFNBS(TestCase):
+    """
+    Tests for Network-Informed TFNBS implementation.
+
+    Uses ModularDatasetGenerator to create controlled test scenarios
+    that validate the NI-TFNBS algorithm behavior.
+    """
+
+    def setUp(self):
+        """Set up generator for testing."""
+        self.N = 50
+        self.n_modules = 5
+        self.seed = 42
+        self.gen = ModularDatasetGenerator(
+            N=self.N,
+            n_modules=self.n_modules,
+            intra_corr=0.6,
+            inter_corr=0.1,
+            seed=self.seed
+        )
+
+    def test_basic_output_shape(self):
+        """Test that NI-TFNBS returns correct output shape."""
+        t_stats = np.zeros((self.N, self.N))
+        t_stats[0, 1] = t_stats[1, 0] = 2.5
+        t_stats[1, 2] = t_stats[2, 1] = 2.0
+
+        labels = self.gen.labels
+        result = get_network_informed_tfnbs_score(t_stats, labels, e=0.5, h=2.0, n=50)
+
+        self.assertEqual(result.shape, (self.N, self.N))
+        np.testing.assert_allclose(result, result.T)
+
+    def test_param_sweep_shape(self):
+        """Test parameter sweep returns correct shape."""
+        t_stats = np.zeros((self.N, self.N))
+        t_stats[0, 1] = t_stats[1, 0] = 2.5
+
+        labels = self.gen.labels
+        e_vals = [0.3, 0.5, 0.7]
+        h_vals = [1.5, 2.0, 2.5]
+
+        result = get_network_informed_tfnbs_score(t_stats, labels, e=e_vals, h=h_vals, n=50)
+
+        self.assertEqual(result.shape, (self.N, self.N, 3))
+
+    def test_zero_matrix_returns_zeros(self):
+        """Test that zero input returns zero output."""
+        t_stats = np.zeros((self.N, self.N))
+        labels = self.gen.labels
+
+        result = get_network_informed_tfnbs_score(t_stats, labels, e=0.5, h=2.0, n=50)
+
+        np.testing.assert_allclose(result, 0)
+
+    def test_below_threshold_returns_zeros(self):
+        """Test that values below start_thres give zero scores."""
+        t_stats = np.ones((self.N, self.N)) * 1.0
+        np.fill_diagonal(t_stats, 0)
+        labels = self.gen.labels
+
+        result = get_network_informed_tfnbs_score(
+            t_stats, labels, e=0.5, h=2.0, n=50, start_thres=1.65
+        )
+
+        np.testing.assert_allclose(result, 0)
+
+    def test_within_module_boost(self):
+        """
+        Test that edges within a densely activated module receive higher scores
+        compared to isolated edges spanning different modules.
+        """
+        mask_within = self.gen.get_mask_within_module(0)
+
+        # Scenario A: Dense activation within Module 0
+        t_stats_dense = np.zeros((self.N, self.N))
+        t_stats_dense[mask_within == 1] = 2.5
+
+        # Scenario B: Same number of edges, but scattered across modules
+        n_edges_within = np.sum(mask_within) // 2
+        t_stats_scattered = np.zeros((self.N, self.N))
+
+        rng = np.random.default_rng(123)
+        placed = 0
+        while placed < n_edges_within:
+            i = rng.integers(0, self.N)
+            j = rng.integers(0, self.N)
+            if i != j and self.gen.labels[i] != self.gen.labels[j] and t_stats_scattered[i, j] == 0:
+                t_stats_scattered[i, j] = 2.5
+                t_stats_scattered[j, i] = 2.5
+                placed += 1
+
+        labels = self.gen.labels
+
+        score_dense = get_network_informed_tfnbs_score(t_stats_dense, labels, e=0.5, h=2.0, n=50)
+        score_scattered = get_network_informed_tfnbs_score(t_stats_scattered, labels, e=0.5, h=2.0, n=50)
+
+        ni_ratio = np.sum(score_dense) / (np.sum(score_scattered) + 1e-10)
+
+        self.assertGreater(ni_ratio, 1.0,
+                           "Within-module dense pattern should score higher than scattered")
+
+    def test_integration_with_generated_data(self):
+        """
+        End-to-end test: generate modular data, compute t-stats, apply NI-TFNBS.
+        """
+        mask = self.gen.get_mask_within_module(0)
+        g1, g2, labels = self.gen.generate_data(
+            effect_mask=mask,
+            effect_size=0.3,
+            n_samples_g1=30,
+            n_samples_g2=30,
+            time_points=200
+        )
+
+        t_stat_dict = compute_t_stat_ind(g1, g2)
+        t_stats = t_stat_dict["g2>g1"]
+        np.fill_diagonal(t_stats, 0)
+
+        ni_scores = get_network_informed_tfnbs_score(t_stats, labels, e=0.5, h=2.0, n=50)
+
+        self.assertFalse(np.any(np.isnan(ni_scores)), "NI-TFNBS produced NaN values")
+        self.assertFalse(np.any(np.isinf(ni_scores)), "NI-TFNBS produced Inf values")
+        np.testing.assert_allclose(ni_scores, ni_scores.T, rtol=1e-10)
+        self.assertTrue(np.all(ni_scores >= 0), "Scores should be non-negative")
+
+    def test_label_validation(self):
+        """Test that invalid labels raise appropriate errors."""
+        t_stats = np.zeros((self.N, self.N))
+        t_stats[0, 1] = t_stats[1, 0] = 2.5
+
+        wrong_labels = np.zeros(self.N + 5, dtype=int)
+
+        with self.assertRaises(ValueError):
+            get_network_informed_tfnbs_score(t_stats, wrong_labels, e=0.5, h=2.0, n=50)
+
+    def test_non_contiguous_labels(self):
+        """Test that non-contiguous labels (e.g., [0, 5, 10]) work correctly."""
+        t_stats = np.zeros((self.N, self.N))
+        t_stats[0, 1] = t_stats[1, 0] = 2.5
+        t_stats[1, 2] = t_stats[2, 1] = 2.3
+
+        labels = np.array([0, 5, 10] * (self.N // 3) + [0] * (self.N % 3))
+
+        result = get_network_informed_tfnbs_score(t_stats, labels, e=0.5, h=2.0, n=50)
+
+        self.assertEqual(result.shape, (self.N, self.N))
+        self.assertFalse(np.any(np.isnan(result)))
