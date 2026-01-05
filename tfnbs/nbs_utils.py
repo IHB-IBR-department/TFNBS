@@ -1,6 +1,9 @@
+from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
-from .pairwise_tfns import *
+
+from .pairwise_stats import *
 from .utils import *
 
 def nbs_bct(group1: npt.NDArray[np.float64],

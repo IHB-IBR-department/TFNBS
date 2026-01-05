@@ -7,9 +7,9 @@ Submodules
 .. toctree::
    :maxdepth: 1
 
-   tfnbs.datasets
-   tfnbs.nbs_utils
+   tfnbs.nbs_score
+   tfnbs.tfnbs_score
    tfnbs.utils
-   tfnbs.pairwise_tfns
-   tfnbs.tfnos
+   tfnbs.pairwise_stats
+   tfnbs.synth_datasets
    tfnbs.eeg_utils

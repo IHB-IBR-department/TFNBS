@@ -1,8 +1,9 @@
 from unittest import TestCase
 from tfnbs.utils import binarize, get_components
-from tfnbs.datasets import generate_fc_matrices
+from tfnbs.utils import create_prior_weights
+from tfnbs.synth_datasets import generate_fc_matrices
 from tfnbs.utils import fisher_r_to_z
-from tfnbs.pairwise_tfns import compute_t_stat, compute_t_stat_diff
+from tfnbs.pairwise_stats import compute_t_stat, compute_t_stat_diff
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
@@ -96,3 +97,32 @@ class TestReal(TestCase):
         plt.show()
 
         self.assertTrue(True)
+
+
+class TestCreatePriorWeights(TestCase):
+    def test_basic_boosting(self):
+
+        labels = np.array([1, 1, 2, 2, 3])
+        W = create_prior_weights(labels, boost_factor=3.0)
+
+        # shape and diagonal
+        self.assertEqual(W.shape, (5, 5))
+        self.assertTrue(np.allclose(np.diag(W), 1.0))
+
+        # intra-network pairs boosted
+        self.assertEqual(W[0, 1], 3.0)
+        self.assertEqual(W[1, 0], 3.0)
+        self.assertEqual(W[2, 3], 3.0)
+
+        # inter-network pairs remain background
+        self.assertEqual(W[0, 2], 1.0)
+
+    def test_target_network_only(self):
+
+        labels = np.array([1, 1, 2, 2, 3])
+        W = create_prior_weights(labels, target_network_id=2, boost_factor=4.0)
+
+        # only nodes in network 2 (indices 2 and 3) are boosted
+        self.assertEqual(W[2, 3], 4.0)
+        self.assertEqual(W[0, 1], 1.0)
+        self.assertEqual(W[0, 2], 1.0)
