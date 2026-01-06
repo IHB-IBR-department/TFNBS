@@ -1,0 +1,48 @@
+# TFNBS Method Comparison - Quick Test Configuration
+#
+# Usage:
+#   python examples/batch_sweep_runner.py --config examples/sweep_config_quick.yaml
+#
+# Fast smoke test to verify methods work correctly.
+# Estimated runtime: ~2-5 min
+
+effect_size:
+  - 0.25
+
+time_points:
+  - 30
+
+n_samples:
+  - 20
+
+n_permutations:
+  - 20  # Fast but less accurate
+
+scenarios:
+  - within_module_dense
+  - chain
+
+e:
+  - 0.5
+
+h:
+  - 2.0
+
+n_thresholds:
+  - 50
+
+start_thres:
+  - 1.65
+
+nbs_threshold:
+  - 2.0
+
+fbc_min_cluster:
+  - 3
+
+n_nodes: 60
+n_modules: 4
+seed: 42
+alpha: 0.05
+
+output_dir: examples/output/quick_test

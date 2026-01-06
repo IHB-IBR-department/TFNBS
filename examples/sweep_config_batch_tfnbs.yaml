@@ -1,0 +1,74 @@
+# TFNBS Parameter Sweep - Batch Mode Configuration
+#
+# Usage:
+#   python examples/batch_sweep_runner.py --config examples/sweep_config_batch_tfnbs.yaml
+#
+# Uses batch mode to efficiently sweep TFNBS (e, h) parameters.
+# IMPORTANT: e and h must have EQUAL LENGTH - they are paired!
+#   (e[0], h[0]), (e[1], h[1]), ... are computed together
+#
+# Estimated runtime: ~5-10 min (much faster than separate runs)
+
+# Enable batch mode
+batch_tfnbs_params: true
+
+# Paired TFNBS parameters (same length required!)
+# These create 5 parameter pairs:
+#   (0.3, 2.0), (0.4, 2.5), (0.5, 3.0), (0.6, 3.5), (0.7, 4.0)
+e:
+  - 0.3
+  - 0.4
+  - 0.5
+  - 0.6
+  - 0.7
+
+h:
+  - 2.0
+  - 2.5
+  - 3.0
+  - 3.5
+  - 4.0
+
+# Data parameters (each creates separate runs)
+effect_size:
+  - 0.20
+  - 0.25
+
+time_points:
+  - 50
+
+n_samples:
+  - 20
+
+n_permutations:
+  - 100
+
+# Scenarios
+scenarios:
+  - within_module_dense
+  - perfect_matching_within_module
+  - chain
+
+# Other TFNBS params
+n_thresholds:
+  - 10
+
+start_thres:
+  - 1.65
+
+# NBS/FBC params
+nbs_threshold:
+  - 2.0
+
+fbc_min_cluster:
+  - 3
+
+# Network structure
+n_nodes: 60
+n_modules: 4
+seed: 42
+alpha: 0.05
+
+# Execution
+use_mp: true
+output_dir: examples/output/batch_tfnbs_sweep

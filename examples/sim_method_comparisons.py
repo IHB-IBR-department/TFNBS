@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import pickle
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -384,6 +385,37 @@ def main(argv: Optional[List[str]] = None) -> int:
             out_path=out_file,
         )
         print(f"[OK] {out_file}")
+
+        # Save results dictionary to pickle file (includes metadata for aggregation).
+        pkl_file = out_file.with_suffix(".pkl")
+        results_data = {
+            "p_maps": p_maps,
+            "gt_mask": ds.effect_mask,
+            "gt_effect_r": gt_effect_r,
+            "t_signed": t_signed,
+            "net_labels": ds.net_labels,
+            "scenario_name": scenario.name,
+            "base_kind": scenario.base_kind,
+            "params": {
+                "effect_size": args.effect_size,
+                "n_nodes": args.n_nodes,
+                "n_modules": args.n_modules,
+                "n_samples": args.n_samples,
+                "time_points": args.time_points,
+                "n_permutations": args.n_permutations,
+                "alpha": args.alpha,
+                "seed": args.seed,
+                "e": args.e,
+                "h": args.h,
+                "n_thresholds": args.n_thresholds,
+                "start_thres": args.start_thres,
+                "nbs_threshold": args.nbs_threshold,
+                "fbc_min_cluster": args.fbc_min_cluster,
+            },
+        }
+        with open(pkl_file, "wb") as f:
+            pickle.dump(results_data, f)
+        print(f"[OK] {pkl_file}")
 
     return 0
 
