@@ -1,0 +1,50 @@
+# TFNBS Power Analysis Quick Test Configuration
+#
+# This is a minimal, fast config for sanity checks.
+# Run with: python examples/power_analysis.py --config examples/sweep_config_power_quick.yaml
+
+effect_sizes:
+  - 0.20
+  - 0.30
+
+n_samples: 20
+
+sample_sizes:
+  - 20
+  - 30
+
+effect_size: 0.25
+
+scenarios:
+  - fragmented_within_module 
+  - chain
+ 
+
+methods:
+  - tstat
+  - tfnbs
+  - nbs_extent
+
+# Method-specific options (not yet consumed by power_analysis.py)
+tfnbs_options:
+  e: 0.5
+  h: 2.0
+  n_thresholds: 20
+  start_thres: 1.65
+  fbc_min_cluster_size: 3
+
+nbs_options:
+  threshold: 2.0
+
+
+n_repeats: 2
+n_permutations: 50
+alpha: 0.05
+
+n_nodes: 30
+n_modules: 3
+
+seed: 42
+use_mp: false
+
+output_dir: results/power_analysis_quick
