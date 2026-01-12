@@ -1,0 +1,144 @@
+# TFNBS Extended Scenarios Configuration
+#
+# This config runs all 19 topological scenarios for comprehensive
+# method comparison and publication.
+#
+# Usage:
+#   python examples/batch_sweep_runner.py --config examples/sweep_config_extended.yaml
+
+# =============================================================================
+# DATA GENERATION PARAMETERS
+# =============================================================================
+
+# Test at multiple effect sizes for comprehensive coverage
+effect_size:
+  - 0.20   # Moderate-weak
+  - 0.25   # Standard
+  - 0.30   # Strong
+
+time_points:
+  - 50
+
+n_samples:
+  - 20
+
+n_permutations:
+  - 500    # Higher for publication quality
+
+# =============================================================================
+# ALL 19 SCENARIOS
+# =============================================================================
+
+all_scenarios: true
+
+# Alternatively, list specific scenarios:
+# scenarios:
+#   # Block/modular effects (9 scenarios)
+#   - within_module_dense
+#   - between_modules_dense
+#   - perfect_matching_within_module
+#   - checkerboard_within_module
+#   - multi_cluster_within_module
+#   - fragmented_within_module
+#   - uniform_base_modular_effect
+#   - within_plus_between
+#   - imbalanced_modules_within_effect
+#
+#   # Chain/path effects (3 scenarios)
+#   - chain
+#   - cross_block_connected_chain
+#   - gradient_effect_chain
+#
+#   # Hub/centrality effects (3 scenarios)
+#   - hub
+#   - rich_club
+#   - gradient_core_periphery_within_module
+#
+#   # Clique effects (2 scenarios)
+#   - two_equal_disconnected_cliques
+#   - focal_clique_inside_module
+#
+#   # Cross-block effects (2 scenarios)
+#   - scattered_cross_block
+#   - partial_bipartite_between_modules
+
+# =============================================================================
+# TFNBS PARAMETERS (standard defaults)
+# =============================================================================
+
+e:
+  - 0.5
+
+h:
+  - 2.0
+
+n_thresholds:
+  - 50
+
+start_thres:
+  - 1.65
+
+# =============================================================================
+# NBS PARAMETERS
+# =============================================================================
+
+nbs_threshold:
+  - 2.0
+
+# =============================================================================
+# FBC PARAMETERS
+# =============================================================================
+
+fbc_min_cluster:
+  - 3
+
+# =============================================================================
+# NETWORK STRUCTURE
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+
+intra_corr: 0.3
+inter_corr: 0.05
+uniform_corr: 0.15
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION OPTIONS
+# =============================================================================
+
+seed: 42
+alpha: 0.05
+use_mp: true
+
+output_dir: output/extended_scenarios
+
+# =============================================================================
+# EXPECTED OUTCOMES BY SCENARIO CATEGORY
+# =============================================================================
+#
+# Block-coherent effects (within_module_dense, between_modules_dense, etc.):
+#   - Expected winner: cNBS (direct block averaging)
+#   - FBC-TFNBS should also perform well
+#   - NBS may struggle if effects don't form connected components
+#
+# Chain/path effects (chain, cross_block_connected_chain, etc.):
+#   - Expected winner: NBS/TFNBS (topological clustering)
+#   - cNBS should struggle (chains cross blocks)
+#   - NI-TFNBS may help with cross_block patterns
+#
+# Hub effects (hub, rich_club):
+#   - Expected winner: NBS (strong topological clustering)
+#   - TFNBS should also perform well
+#   - cNBS depends on hub placement within/between blocks
+#
+# Scattered effects (scattered_cross_block):
+#   - All methods should struggle (no clear structure)
+#   - Good FPR control test
+#   - NBS-intensity may have FPR inflation
+#
+# Clique effects (disconnected_cliques, focal_clique):
+#   - NBS depends on clique connectivity
+#   - FBC-TFNBS if cliques align with blocks
+#   - TFNBS for topological clustering
