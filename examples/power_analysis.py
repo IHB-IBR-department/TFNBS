@@ -8,6 +8,9 @@ This script computes statistical power curves for all methods across:
 Power is defined as the proportion of true edges that are detected
 (True Positive Rate / Sensitivity) at the nominal alpha level.
 
+Scenario names follow examples/sim_topology_examples.py so power analyses
+match the method-comparison topologies exactly.
+
 Usage:
     # Power vs Effect Size
     python power_analysis.py --mode effect-size \
@@ -23,6 +26,9 @@ Usage:
     # Both analyses
     python power_analysis.py --mode both
 
+    # Use YAML config
+    python power_analysis.py --config sweep_config_power.yaml
+
 Output:
     - results/power_analysis/power_vs_effect_size.csv
     - results/power_analysis/power_vs_sample_size.csv
@@ -37,15 +43,24 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import itertools
 
 import numpy as np
 import pandas as pd
 
+# Optional YAML support.
+try:
+    import yaml
+
+    HAS_YAML = True
+except ImportError:  # pragma: no cover - optional dependency
+    HAS_YAML = False
+
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import sim_topology_examples as topo
 from tfnbs.pairwise_stats import compute_p_val
-from tfnbs.synth_datasets import ModularDatasetGenerator
 
 
 @dataclass
@@ -53,6 +68,7 @@ class PowerResult:
     """Result from a single power simulation."""
 
     method: str
+    method_params: str
     scenario: str
     effect_size: float
     n_samples: int
@@ -66,102 +82,54 @@ class PowerResult:
     TPR: float        # Sensitivity/Power
     FPR: float        # False Positive Rate
     precision: float
-    F1: float
+    FDR: float
     elapsed_time: float
-
-
-def create_effect_mask(scenario: str, n_nodes: int, n_modules: int) -> np.ndarray:
-    """Create effect mask for different scenarios."""
-
-    nodes_per_module = n_nodes // n_modules
-    mask = np.zeros((n_nodes, n_nodes), dtype=bool)
-
-    if scenario == "within_module_dense":
-        # Dense block within first module
-        mask[:nodes_per_module, :nodes_per_module] = True
-
-    elif scenario == "chain":
-        # Chain of edges spanning multiple modules
-        for i in range(n_nodes - 1):
-            if i % 2 == 0:  # Create chain pattern
-                mask[i, i + 1] = True
-                mask[i + 1, i] = True
-
-    elif scenario == "hub":
-        # Hub node connected to many others
-        hub_node = 0
-        for i in range(1, min(n_nodes // 2, 30)):
-            mask[hub_node, i] = True
-            mask[i, hub_node] = True
-
-    elif scenario == "scattered_cross_block":
-        # Scattered edges across blocks
-        rng = np.random.default_rng(42)
-        n_edges = 60
-        for _ in range(n_edges):
-            i = rng.integers(0, n_nodes)
-            j = rng.integers(0, n_nodes)
-            if i != j:
-                mask[i, j] = True
-                mask[j, i] = True
-
-    elif scenario == "between_modules":
-        # Dense block between first two modules
-        mask[:nodes_per_module, nodes_per_module:2*nodes_per_module] = True
-        mask[nodes_per_module:2*nodes_per_module, :nodes_per_module] = True
-
-    else:
-        # Default: within first module
-        mask[:nodes_per_module, :nodes_per_module] = True
-
-    # Ensure symmetric and zero diagonal
-    mask = mask | mask.T
-    np.fill_diagonal(mask, False)
-
-    return mask
 
 
 def run_single_power_test(
     method: str,
+    method_params: str,
     scenario: str,
     effect_size: float,
     n_samples: int,
     repeat_id: int,
     n_nodes: int = 60,
     n_modules: int = 4,
+    time_points: int = 30,
     n_permutations: int = 500,
     alpha: float = 0.05,
     use_mp: bool = False,
     seed_base: int = 42,
     method_kwargs: dict = None,
+    intra_corr: float = 0.3,
+    inter_corr: float = 0.05,
+    uniform_corr: float = 0.15,
+    noise_level: float = 0.05,
 ) -> PowerResult:
     """Run a single power simulation."""
 
     start_time = time.time()
 
-    # Create effect mask
-    effect_mask = create_effect_mask(scenario, n_nodes, n_modules)
-
-    # Generate data with effect
-    seed = seed_base + repeat_id * 1000 + hash(scenario) % 10000
-    generator = ModularDatasetGenerator(
+    # Generate data using the same topology definitions as sim_method_comparisons.py.
+    seed = seed_base + repeat_id * 1000
+    generator = topo.TopologyDatasetGenerator(
         n_nodes=n_nodes,
         n_modules=n_modules,
-        intra_corr=0.3,
-        inter_corr=0.05,
-        noise_level=0.05,
+        intra_corr=intra_corr,
+        inter_corr=inter_corr,
+        uniform_corr=uniform_corr,
+        noise_level=noise_level,
         seed=seed,
     )
-
-    group1, group2, net_labels = generator.generate_data(
+    dataset = generator.generate(
+        scenario,
         effect_size=effect_size,
         n_samples=n_samples,
-        effect_mask=effect_mask,
+        time_points=time_points,
     )
-
-    # Apply Fisher z-transform
-    group1_z = np.arctanh(np.clip(group1, -0.999, 0.999))
-    group2_z = np.arctanh(np.clip(group2, -0.999, 0.999))
+    group1_z, group2_z = dataset.fisher_z()
+    effect_mask = dataset.effect_mask
+    net_labels = dataset.net_labels
 
     # Prepare method kwargs
     kwargs = method_kwargs or {}
@@ -190,7 +158,7 @@ def run_single_power_test(
         # Get upper triangle
         triu_idx = np.triu_indices(n_nodes, k=1)
         p_upper = p_pos[triu_idx]
-        mask_upper = effect_mask[triu_idx]
+        mask_upper = effect_mask[triu_idx] != 0
 
         # Compute metrics
         sig_mask = p_upper < alpha
@@ -206,19 +174,20 @@ def run_single_power_test(
         TPR = TP / n_true if n_true > 0 else 0.0
         FPR = FP / n_null if n_null > 0 else 0.0
         precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
-        F1 = 2 * TP / (2 * TP + FP + FN) if (2 * TP + FP + FN) > 0 else 0.0
+        FDR = FP / (TP + FP) if (TP + FP) > 0 else 0.0
 
     except Exception as e:
         print(f"  ERROR in {method} repeat {repeat_id}: {e}")
-        n_true = int(np.sum(effect_mask[np.triu_indices(n_nodes, k=1)]))
+        n_true = int(np.sum(effect_mask[np.triu_indices(n_nodes, k=1)] != 0))
         n_null = n_nodes * (n_nodes - 1) // 2 - n_true
         TP, FP, FN, TN = 0, 0, n_true, n_null
-        TPR, FPR, precision, F1 = 0.0, 0.0, 0.0, 0.0
+        TPR, FPR, precision, FDR = 0.0, 0.0, 0.0, 0.0
 
     elapsed = time.time() - start_time
 
     return PowerResult(
         method=method,
+        method_params=method_params,
         scenario=scenario,
         effect_size=effect_size,
         n_samples=n_samples,
@@ -227,22 +196,123 @@ def run_single_power_test(
         n_null=n_null,
         TP=TP, FP=FP, FN=FN, TN=TN,
         TPR=TPR, FPR=FPR,
-        precision=precision, F1=F1,
+        precision=precision, FDR=FDR,
         elapsed_time=elapsed,
     )
 
 
-def get_method_configs() -> Dict[str, dict]:
+def _normalize_tfnbs_options(options: Optional[dict]) -> dict:
+    if not options:
+        return {}
+    if not isinstance(options, dict):
+        raise TypeError("tfnbs_options must be a dict.")
+    normalized = dict(options)
+    if "n_thresholds" in normalized and "n" not in normalized:
+        normalized["n"] = normalized.pop("n_thresholds")
+    if "fbc_min_cluster_size" in normalized and "min_cluster_size" not in normalized:
+        normalized["min_cluster_size"] = normalized.pop("fbc_min_cluster_size")
+    return normalized
+
+
+def _normalize_nbs_options(options: Optional[dict]) -> dict:
+    if not options:
+        return {}
+    if not isinstance(options, dict):
+        raise TypeError("nbs_options must be a dict.")
+    return dict(options)
+
+
+def _expand_options(base: dict, overrides: dict) -> List[dict]:
+    base_config = dict(base)
+    sweep_keys = []
+    sweep_values = []
+    fixed = {}
+    for key, value in overrides.items():
+        if isinstance(value, (list, tuple)):
+            sweep_keys.append(key)
+            sweep_values.append(list(value))
+        else:
+            fixed[key] = value
+    base_config.update(fixed)
+    if not sweep_keys:
+        return [base_config]
+    configs = []
+    for combo in itertools.product(*sweep_values):
+        cfg = dict(base_config)
+        for key, value in zip(sweep_keys, combo):
+            cfg[key] = value
+        configs.append(cfg)
+    return configs
+
+
+def _format_method_params(method: str, method_kwargs: dict) -> str:
+    if not method_kwargs:
+        return ""
+    if method in {"tfnbs", "ni_tfnbs"}:
+        keys = ("e", "h", "n", "start_thres")
+    elif method == "fbc_tfnbs":
+        keys = ("e", "h", "n", "start_thres", "min_cluster_size")
+    elif method in {"nbs_extent", "nbs_intensity"}:
+        keys = ("threshold",)
+    else:
+        keys = tuple(method_kwargs.keys())
+    parts = []
+    for key in keys:
+        if key in method_kwargs:
+            parts.append(f"{key}={method_kwargs[key]}")
+    return ",".join(parts)
+
+
+def get_method_configs(
+    *,
+    tfnbs_options: Optional[dict] = None,
+    nbs_options: Optional[dict] = None,
+) -> Dict[str, dict]:
     """Get default configuration for each method."""
+    tfnbs_overrides = _normalize_tfnbs_options(tfnbs_options)
+    nbs_overrides = _normalize_nbs_options(nbs_options)
+
+    tfnbs_defaults = {"e": 0.5, "h": 2.0, "n": 50, "start_thres": 1.65}
+    tfnbs_configs = _expand_options(
+        tfnbs_defaults,
+        {k: v for k, v in tfnbs_overrides.items() if k != "min_cluster_size"},
+    )
+
+    fbc_defaults = dict(tfnbs_defaults)
+    fbc_defaults.setdefault("min_cluster_size", 3)
+    fbc_configs = _expand_options(
+        fbc_defaults,
+        {k: v for k, v in tfnbs_overrides.items()},
+    )
+
+    nbs_defaults = {"threshold": 2.0}
+    nbs_configs = _expand_options(nbs_defaults, nbs_overrides)
+
     return {
         "tstat": {},
-        "tfnbs": {"e": 0.5, "h": 2.0, "n": 50, "start_thres": 1.65},
-        "ni_tfnbs": {"e": 0.5, "h": 2.0, "n": 50, "start_thres": 1.65},
-        "fbc_tfnbs": {"e": 0.5, "h": 2.0, "n": 50, "start_thres": 1.65, "min_cluster_size": 3},
-        "nbs_extent": {"threshold": 2.0},
-        "nbs_intensity": {"threshold": 2.0},
+        "tfnbs": tfnbs_configs,
+        "ni_tfnbs": tfnbs_configs,
+        "fbc_tfnbs": fbc_configs,
+        "nbs_extent": nbs_configs,
+        "nbs_intensity": nbs_configs,
         "cnbs": {},
     }
+
+
+def _iter_method_variants(
+    methods: List[str],
+    method_configs: Dict[str, object],
+) -> List[Tuple[str, dict]]:
+    variants = []
+    for method in methods:
+        configs = method_configs.get(method, {})
+        if isinstance(configs, list):
+            variants.extend((method, cfg) for cfg in configs)
+        elif isinstance(configs, dict):
+            variants.append((method, configs))
+        else:
+            raise TypeError(f"Invalid method config for {method}: {type(configs).__name__}")
+    return variants
 
 
 def run_power_vs_effect_size(
@@ -253,21 +323,28 @@ def run_power_vs_effect_size(
     n_repeats: int = 50,
     n_nodes: int = 60,
     n_modules: int = 4,
+    time_points: int = 30,
     n_permutations: int = 500,
     alpha: float = 0.05,
     use_mp: bool = False,
     seed: int = 42,
+    intra_corr: float = 0.3,
+    inter_corr: float = 0.05,
+    uniform_corr: float = 0.15,
+    noise_level: float = 0.05,
+    method_configs: Optional[Dict[str, dict]] = None,
 ) -> pd.DataFrame:
     """Run power analysis across effect sizes."""
 
-    method_configs = get_method_configs()
+    method_configs = method_configs or get_method_configs()
     results = []
 
-    total_runs = len(methods) * len(scenarios) * len(effect_sizes) * n_repeats
+    method_variants = _iter_method_variants(methods, method_configs)
+    total_runs = len(method_variants) * len(scenarios) * len(effect_sizes) * n_repeats
     run_count = 0
 
     print(f"=== Power vs Effect Size ===")
-    print(f"Methods: {methods}")
+    print(f"Methods: {methods} (variants: {len(method_variants)})")
     print(f"Scenarios: {scenarios}")
     print(f"Effect sizes: {effect_sizes}")
     print(f"Repeats per condition: {n_repeats}")
@@ -280,35 +357,45 @@ def run_power_vs_effect_size(
         for effect_size in effect_sizes:
             print(f"  Effect size: {effect_size}")
 
-            for method in methods:
-                kwargs = method_configs.get(method, {})
+            for method, kwargs in method_variants:
+                method_params = _format_method_params(method, kwargs)
 
                 for repeat_id in range(n_repeats):
                     run_count += 1
 
                     result = run_single_power_test(
                         method=method,
+                        method_params=method_params,
                         scenario=scenario,
                         effect_size=effect_size,
                         n_samples=n_samples,
                         repeat_id=repeat_id,
                         n_nodes=n_nodes,
                         n_modules=n_modules,
+                        time_points=time_points,
                         n_permutations=n_permutations,
                         alpha=alpha,
                         use_mp=use_mp,
                         seed_base=seed,
                         method_kwargs=kwargs,
+                        intra_corr=intra_corr,
+                        inter_corr=inter_corr,
+                        uniform_corr=uniform_corr,
+                        noise_level=noise_level,
                     )
                     results.append(result)
 
                 # Print progress
-                method_results = [r for r in results
-                                  if r.method == method
-                                  and r.scenario == scenario
-                                  and r.effect_size == effect_size]
+                method_results = [
+                    r for r in results
+                    if r.method == method
+                    and r.method_params == method_params
+                    and r.scenario == scenario
+                    and r.effect_size == effect_size
+                ]
                 mean_tpr = np.mean([r.TPR for r in method_results])
-                print(f"    {method}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
+                label = f"{method} [{method_params}]" if method_params else method
+                print(f"    {label}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -321,21 +408,28 @@ def run_power_vs_sample_size(
     n_repeats: int = 50,
     n_nodes: int = 60,
     n_modules: int = 4,
+    time_points: int = 30,
     n_permutations: int = 500,
     alpha: float = 0.05,
     use_mp: bool = False,
     seed: int = 42,
+    intra_corr: float = 0.3,
+    inter_corr: float = 0.05,
+    uniform_corr: float = 0.15,
+    noise_level: float = 0.05,
+    method_configs: Optional[Dict[str, dict]] = None,
 ) -> pd.DataFrame:
     """Run power analysis across sample sizes."""
 
-    method_configs = get_method_configs()
+    method_configs = method_configs or get_method_configs()
     results = []
 
-    total_runs = len(methods) * len(scenarios) * len(sample_sizes) * n_repeats
+    method_variants = _iter_method_variants(methods, method_configs)
+    total_runs = len(method_variants) * len(scenarios) * len(sample_sizes) * n_repeats
     run_count = 0
 
     print(f"=== Power vs Sample Size ===")
-    print(f"Methods: {methods}")
+    print(f"Methods: {methods} (variants: {len(method_variants)})")
     print(f"Scenarios: {scenarios}")
     print(f"Sample sizes: {sample_sizes}")
     print(f"Effect size: {effect_size}")
@@ -348,34 +442,44 @@ def run_power_vs_sample_size(
         for n_samples in sample_sizes:
             print(f"  Sample size: {n_samples}")
 
-            for method in methods:
-                kwargs = method_configs.get(method, {})
+            for method, kwargs in method_variants:
+                method_params = _format_method_params(method, kwargs)
 
                 for repeat_id in range(n_repeats):
                     run_count += 1
 
                     result = run_single_power_test(
                         method=method,
+                        method_params=method_params,
                         scenario=scenario,
                         effect_size=effect_size,
                         n_samples=n_samples,
                         repeat_id=repeat_id,
                         n_nodes=n_nodes,
                         n_modules=n_modules,
+                        time_points=time_points,
                         n_permutations=n_permutations,
                         alpha=alpha,
                         use_mp=use_mp,
                         seed_base=seed,
                         method_kwargs=kwargs,
+                        intra_corr=intra_corr,
+                        inter_corr=inter_corr,
+                        uniform_corr=uniform_corr,
+                        noise_level=noise_level,
                     )
                     results.append(result)
 
-                method_results = [r for r in results
-                                  if r.method == method
-                                  and r.scenario == scenario
-                                  and r.n_samples == n_samples]
+                method_results = [
+                    r for r in results
+                    if r.method == method
+                    and r.method_params == method_params
+                    and r.scenario == scenario
+                    and r.n_samples == n_samples
+                ]
                 mean_tpr = np.mean([r.TPR for r in method_results])
-                print(f"    {method}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
+                label = f"{method} [{method_params}]" if method_params else method
+                print(f"    {label}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -387,7 +491,7 @@ def summarize_power_results(df: pd.DataFrame, groupby_cols: List[str]) -> pd.Dat
         "TPR": ["mean", "std", "count"],
         "FPR": ["mean", "std"],
         "precision": ["mean", "std"],
-        "F1": ["mean", "std"],
+        "FDR": ["mean", "std"],
     }).reset_index()
 
     # Flatten column names
@@ -412,11 +516,29 @@ def plot_power_curves(
         print("matplotlib/seaborn not available, skipping plots")
         return
 
-    # Color palette for methods
-    methods = df_effect["method"].unique()
-    palette = dict(zip(methods, sns.color_palette("husl", len(methods))))
+    df_effect_plot = df_effect.copy()
+    df_sample_plot = df_sample.copy() if df_sample is not None else None
+    if "method_params" in df_effect_plot.columns:
+        df_effect_plot["method_display"] = df_effect_plot.apply(
+            lambda row: f"{row['method']} [{row['method_params']}]" if row["method_params"] else row["method"],
+            axis=1,
+        )
+    else:
+        df_effect_plot["method_display"] = df_effect_plot["method"]
+    if df_sample_plot is not None:
+        if "method_params" in df_sample_plot.columns:
+            df_sample_plot["method_display"] = df_sample_plot.apply(
+                lambda row: f"{row['method']} [{row['method_params']}]" if row["method_params"] else row["method"],
+                axis=1,
+            )
+        else:
+            df_sample_plot["method_display"] = df_sample_plot["method"]
 
-    scenarios = df_effect["scenario"].unique()
+    # Color palette for method variants
+    method_labels = df_effect_plot["method_display"].unique()
+    palette = dict(zip(method_labels, sns.color_palette("husl", len(method_labels))))
+
+    scenarios = df_effect_plot["scenario"].unique()
 
     # Plot 1: Power vs Effect Size (one subplot per scenario)
     n_scenarios = len(scenarios)
@@ -424,15 +546,15 @@ def plot_power_curves(
 
     for idx, scenario in enumerate(scenarios):
         ax = axes[0, idx]
-        scenario_df = df_effect[df_effect["scenario"] == scenario]
+        scenario_df = df_effect_plot[df_effect_plot["scenario"] == scenario]
 
-        for method in methods:
-            method_df = scenario_df[scenario_df["method"] == method]
+        for label in method_labels:
+            method_df = scenario_df[scenario_df["method_display"] == label]
             summary = method_df.groupby("effect_size")["TPR"].agg(["mean", "std"]).reset_index()
             ax.errorbar(
                 summary["effect_size"], summary["mean"],
                 yerr=summary["std"],
-                label=method, color=palette[method],
+                label=label, color=palette[label],
                 marker="o", capsize=3, linewidth=2,
             )
 
@@ -440,7 +562,7 @@ def plot_power_curves(
         ax.set_xlabel("Effect Size")
         ax.set_ylabel("Power (TPR)")
         ax.set_title(f"{scenario}")
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, 1.)
         ax.legend(loc="lower right", fontsize=8)
         ax.grid(True, alpha=0.3)
 
@@ -449,21 +571,50 @@ def plot_power_curves(
     plt.savefig(output_dir / "power_vs_effect_size.png", dpi=150, bbox_inches="tight")
     plt.close()
 
+    # Plot 1b: FDR vs Effect Size (one subplot per scenario)
+    fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+    for idx, scenario in enumerate(scenarios):
+        ax = axes[0, idx]
+        scenario_df = df_effect_plot[df_effect_plot["scenario"] == scenario]
+
+        for label in method_labels:
+            method_df = scenario_df[scenario_df["method_display"] == label]
+            summary = method_df.groupby("effect_size")["FDR"].agg(["mean", "std"]).reset_index()
+            ax.errorbar(
+                summary["effect_size"], summary["mean"],
+                yerr=summary["std"],
+                label=label, color=palette[label],
+                marker="o", capsize=3, linewidth=2,
+            )
+
+        ax.set_xlabel("Effect Size")
+        ax.set_ylabel("False Discovery Rate (FDR)")
+        ax.set_title(f"{scenario}")
+        ax.set_ylim(0, 0.5)
+        ax.legend(loc="upper right", fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    plt.suptitle("FDR vs Effect Size by Scenario", y=1.02)
+    plt.tight_layout()
+    plt.savefig(output_dir / "fdr_vs_effect_size.png", dpi=150, bbox_inches="tight")
+    plt.close()
+
     # Plot 2: Power vs Sample Size
-    if df_sample is not None and len(df_sample) > 0:
+    if df_sample_plot is not None and len(df_sample_plot) > 0:
         fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
 
         for idx, scenario in enumerate(scenarios):
             ax = axes[0, idx]
-            scenario_df = df_sample[df_sample["scenario"] == scenario]
+            scenario_df = df_sample_plot[df_sample_plot["scenario"] == scenario]
 
-            for method in methods:
-                method_df = scenario_df[scenario_df["method"] == method]
+            for label in method_labels:
+                method_df = scenario_df[scenario_df["method_display"] == label]
                 summary = method_df.groupby("n_samples")["TPR"].agg(["mean", "std"]).reset_index()
                 ax.errorbar(
                     summary["n_samples"], summary["mean"],
                     yerr=summary["std"],
-                    label=method, color=palette[method],
+                    label=label, color=palette[label],
                     marker="o", capsize=3, linewidth=2,
                 )
 
@@ -471,7 +622,7 @@ def plot_power_curves(
             ax.set_xlabel("Sample Size (per group)")
             ax.set_ylabel("Power (TPR)")
             ax.set_title(f"{scenario}")
-            ax.set_ylim(0, 1.05)
+            ax.set_ylim(0, 1.)
             ax.legend(loc="lower right", fontsize=8)
             ax.grid(True, alpha=0.3)
 
@@ -480,21 +631,50 @@ def plot_power_curves(
         plt.savefig(output_dir / "power_vs_sample_size.png", dpi=150, bbox_inches="tight")
         plt.close()
 
-    # Plot 3: Combined summary heatmap (F1 by method x scenario at ES=0.25)
-    if "effect_size" in df_effect.columns:
-        pivot_df = df_effect[df_effect["effect_size"] == 0.25].groupby(
-            ["method", "scenario"]
-        )["F1"].mean().unstack()
+        # Plot 2b: FDR vs Sample Size
+        fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+        for idx, scenario in enumerate(scenarios):
+            ax = axes[0, idx]
+            scenario_df = df_sample_plot[df_sample_plot["scenario"] == scenario]
+
+            for label in method_labels:
+                method_df = scenario_df[scenario_df["method_display"] == label]
+                summary = method_df.groupby("n_samples")["FDR"].agg(["mean", "std"]).reset_index()
+                ax.errorbar(
+                    summary["n_samples"], summary["mean"],
+                    yerr=summary["std"],
+                    label=label, color=palette[label],
+                    marker="o", capsize=3, linewidth=2,
+                )
+
+            ax.set_xlabel("Sample Size (per group)")
+            ax.set_ylabel("False Discovery Rate (FDR)")
+            ax.set_title(f"{scenario}")
+            ax.set_ylim(0, 0.5)
+            ax.legend(loc="upper right", fontsize=8)
+            ax.grid(True, alpha=0.3)
+
+        plt.suptitle("FDR vs Sample Size by Scenario", y=1.02)
+        plt.tight_layout()
+        plt.savefig(output_dir / "fdr_vs_sample_size.png", dpi=150, bbox_inches="tight")
+        plt.close()
+
+    # Plot 3: Combined summary heatmap (FDR by method x scenario at ES=0.25)
+    if "effect_size" in df_effect_plot.columns:
+        pivot_df = df_effect_plot[df_effect_plot["effect_size"] == 0.25].groupby(
+            ["method_display", "scenario"]
+        )["FDR"].mean().unstack()
 
         if not pivot_df.empty:
             fig, ax = plt.subplots(figsize=(8, 6))
             sns.heatmap(
-                pivot_df, annot=True, fmt=".2f", cmap="RdYlGn",
-                vmin=0, vmax=1, ax=ax, cbar_kws={"label": "F1 Score"}
+                pivot_df, annot=True, fmt=".2f", cmap="Reds",
+                vmin=0, vmax=1, ax=ax, cbar_kws={"label": "FDR"}
             )
-            ax.set_title("F1 Score by Method and Scenario (Effect Size = 0.25)")
+            ax.set_title("FDR by Method and Scenario (Effect Size = 0.25)")
             plt.tight_layout()
-            plt.savefig(output_dir / "f1_heatmap.png", dpi=150, bbox_inches="tight")
+            plt.savefig(output_dir / "fdr_heatmap.png", dpi=150, bbox_inches="tight")
             plt.close()
 
     print(f"Saved plots to {output_dir}")
@@ -508,7 +688,13 @@ def compute_required_sample_size(
 
     results = []
 
-    for (method, scenario, effect_size), group in df.groupby(["method", "scenario", "effect_size"]):
+    group_cols = ["method", "scenario", "effect_size"]
+    if "method_params" in df.columns:
+        group_cols.append("method_params")
+
+    for group_keys, group in df.groupby(group_cols):
+        method, scenario, effect_size = group_keys[:3]
+        method_params = group_keys[3] if len(group_keys) > 3 else ""
         power_by_n = group.groupby("n_samples")["TPR"].mean()
 
         # Find smallest n with power >= target
@@ -520,6 +706,7 @@ def compute_required_sample_size(
 
         results.append({
             "method": method,
+            "method_params": method_params,
             "scenario": scenario,
             "effect_size": effect_size,
             "target_power": target_power,
@@ -530,6 +717,35 @@ def compute_required_sample_size(
     return pd.DataFrame(results)
 
 
+def load_yaml_config(path: Path) -> dict:
+    """Load configuration from YAML file."""
+    if not HAS_YAML:
+        raise ImportError("PyYAML is required for --config. Install with: pip install pyyaml")
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected a dict in {path}, got {type(data).__name__}")
+    return data
+
+
+def apply_config_defaults(parser: argparse.ArgumentParser, config: dict) -> None:
+    """Apply YAML config values as parser defaults."""
+    valid_keys = {action.dest for action in parser._actions}
+    defaults = {}
+    for key, value in config.items():
+        if key in {"tfnbs_options", "nbs_options"}:
+            continue
+        if key not in valid_keys:
+            print(f"Warning: ignoring unknown config key '{key}'")
+            continue
+        if key == "output_dir" and value is not None:
+            defaults[key] = Path(value)
+        else:
+            defaults[key] = value
+    if defaults:
+        parser.set_defaults(**defaults)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Power analysis for TFNBS methods",
@@ -537,6 +753,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         epilog=__doc__,
     )
 
+    parser.add_argument(
+        "--config", type=Path, default=None,
+        help="Load power analysis configuration from YAML file.",
+    )
     parser.add_argument(
         "--mode", choices=["effect-size", "sample-size", "both"],
         default="both", help="Analysis mode",
@@ -590,6 +810,26 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Number of modules",
     )
     parser.add_argument(
+        "--time-points", type=int, default=30,
+        help="Time points per subject (data generator)",
+    )
+    parser.add_argument(
+        "--intra-corr", type=float, default=0.3,
+        help="Within-module base correlation",
+    )
+    parser.add_argument(
+        "--inter-corr", type=float, default=0.05,
+        help="Between-module base correlation",
+    )
+    parser.add_argument(
+        "--uniform-corr", type=float, default=0.15,
+        help="Uniform base correlation for uniform scenarios",
+    )
+    parser.add_argument(
+        "--noise-level", type=float, default=0.05,
+        help="Noise level for effect variability",
+    )
+    parser.add_argument(
         "--seed", type=int, default=42,
         help="Random seed",
     )
@@ -603,11 +843,34 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Output directory",
     )
 
+    # Pre-parse to load YAML defaults if provided.
+    pre_args, _ = parser.parse_known_args(argv)
+    config = None
+    if pre_args.config is not None:
+        config = load_yaml_config(pre_args.config)
+        apply_config_defaults(parser, config)
+
     args = parser.parse_args(argv)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     df_effect = None
     df_sample = None
+
+    tfnbs_options = None
+    nbs_options = None
+    if config:
+        tfnbs_options = config.get("tfnbs_options")
+        nbs_options = config.get("nbs_options")
+    method_configs = get_method_configs(
+        tfnbs_options=tfnbs_options,
+        nbs_options=nbs_options,
+    )
+    if tfnbs_options or nbs_options:
+        print("Using method options from config:")
+        if tfnbs_options:
+            print(f"  tfnbs_options: {tfnbs_options}")
+        if nbs_options:
+            print(f"  nbs_options: {nbs_options}")
 
     # Run effect size analysis
     if args.mode in ["effect-size", "both"]:
@@ -619,16 +882,22 @@ def main(argv: Optional[List[str]] = None) -> int:
             n_repeats=args.n_repeats,
             n_nodes=args.n_nodes,
             n_modules=args.n_modules,
+            time_points=args.time_points,
             n_permutations=args.n_permutations,
             alpha=args.alpha,
             use_mp=args.use_mp,
             seed=args.seed,
+            intra_corr=args.intra_corr,
+            inter_corr=args.inter_corr,
+            uniform_corr=args.uniform_corr,
+            noise_level=args.noise_level,
+            method_configs=method_configs,
         )
         df_effect.to_csv(args.output_dir / "power_vs_effect_size.csv", index=False)
 
         # Summary
         summary_effect = summarize_power_results(
-            df_effect, ["method", "scenario", "effect_size"]
+            df_effect, ["method", "method_params", "scenario", "effect_size"]
         )
         summary_effect.to_csv(args.output_dir / "power_vs_effect_size_summary.csv", index=False)
 
@@ -642,16 +911,22 @@ def main(argv: Optional[List[str]] = None) -> int:
             n_repeats=args.n_repeats,
             n_nodes=args.n_nodes,
             n_modules=args.n_modules,
+            time_points=args.time_points,
             n_permutations=args.n_permutations,
             alpha=args.alpha,
             use_mp=args.use_mp,
             seed=args.seed,
+            intra_corr=args.intra_corr,
+            inter_corr=args.inter_corr,
+            uniform_corr=args.uniform_corr,
+            noise_level=args.noise_level,
+            method_configs=method_configs,
         )
         df_sample.to_csv(args.output_dir / "power_vs_sample_size.csv", index=False)
 
         # Summary
         summary_sample = summarize_power_results(
-            df_sample, ["method", "scenario", "n_samples"]
+            df_sample, ["method", "method_params", "scenario", "n_samples"]
         )
         summary_sample.to_csv(args.output_dir / "power_vs_sample_size_summary.csv", index=False)
 
