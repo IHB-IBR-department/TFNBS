@@ -29,10 +29,14 @@ Usage:
     # Use YAML config
     python power_analysis.py --config sweep_config_power.yaml
 
+    # Resume interrupted run
+    python power_analysis.py --config sweep_config_power.yaml --resume
+
 Output:
     - results/power_analysis/power_vs_effect_size.csv
     - results/power_analysis/power_vs_sample_size.csv
     - results/power_analysis/power_curves.png
+    - results/power_analysis/checkpoint_*.csv (for resume)
 """
 
 from __future__ import annotations
@@ -245,6 +249,59 @@ def _expand_options(base: dict, overrides: dict) -> List[dict]:
     return configs
 
 
+# =============================================================================
+# CHECKPOINTING
+# =============================================================================
+
+def save_checkpoint(results: List[PowerResult], checkpoint_path: Path) -> None:
+    """Save intermediate results to checkpoint file."""
+    df = pd.DataFrame([vars(r) for r in results])
+    df.to_csv(checkpoint_path, index=False)
+
+
+def load_checkpoint(checkpoint_path: Path) -> Tuple[List[PowerResult], set]:
+    """Load results from checkpoint and return completed run keys."""
+    if not checkpoint_path.exists():
+        return [], set()
+
+    df = pd.read_csv(checkpoint_path)
+    results = []
+    completed = set()
+
+    for _, row in df.iterrows():
+        result = PowerResult(
+            method=row["method"],
+            method_params=row["method_params"],
+            scenario=row["scenario"],
+            effect_size=float(row["effect_size"]),
+            n_samples=int(row["n_samples"]),
+            repeat_id=int(row["repeat_id"]),
+            n_true=int(row["n_true"]),
+            n_null=int(row["n_null"]),
+            TP=int(row["TP"]),
+            FP=int(row["FP"]),
+            FN=int(row["FN"]),
+            TN=int(row["TN"]),
+            TPR=float(row["TPR"]),
+            FPR=float(row["FPR"]),
+            precision=float(row["precision"]),
+            FDR=float(row["FDR"]),
+            elapsed_time=float(row["elapsed_time"]),
+        )
+        results.append(result)
+        # Key: (method, method_params, scenario, effect_size, n_samples, repeat_id)
+        completed.add((
+            row["method"],
+            row["method_params"],
+            row["scenario"],
+            float(row["effect_size"]),
+            int(row["n_samples"]),
+            int(row["repeat_id"]),
+        ))
+
+    return results, completed
+
+
 def _format_method_params(method: str, method_kwargs: dict) -> str:
     if not method_kwargs:
         return ""
@@ -333,69 +390,116 @@ def run_power_vs_effect_size(
     uniform_corr: float = 0.15,
     noise_level: float = 0.05,
     method_configs: Optional[Dict[str, dict]] = None,
+    checkpoint_dir: Optional[Path] = None,
+    checkpoint_every: int = 10,
+    resume: bool = False,
 ) -> pd.DataFrame:
-    """Run power analysis across effect sizes."""
+    """Run power analysis across effect sizes with checkpointing."""
 
     method_configs = method_configs or get_method_configs()
-    results = []
+
+    # Setup checkpointing
+    checkpoint_path = None
+    if checkpoint_dir is not None:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_path = checkpoint_dir / "checkpoint_effect_size.csv"
+
+    # Load checkpoint if resuming
+    if resume and checkpoint_path and checkpoint_path.exists():
+        results, completed = load_checkpoint(checkpoint_path)
+        print(f"Resuming from checkpoint: {len(completed)} runs already completed")
+    else:
+        results = []
+        completed = set()
 
     method_variants = _iter_method_variants(methods, method_configs)
-    total_runs = len(method_variants) * len(scenarios) * len(effect_sizes) * n_repeats
-    run_count = 0
+
+    # Build task list (skipping completed)
+    tasks = []
+    for scenario in scenarios:
+        for effect_size in effect_sizes:
+            for method, kwargs in method_variants:
+                method_params = _format_method_params(method, kwargs)
+                for repeat_id in range(n_repeats):
+                    key = (method, method_params, scenario, effect_size, n_samples, repeat_id)
+                    if key not in completed:
+                        tasks.append((method, method_params, kwargs, scenario, effect_size, repeat_id))
+
+    total_runs = len(tasks) + len(completed)
+    remaining_runs = len(tasks)
+
+    if remaining_runs == 0:
+        print("All runs already completed!")
+        return pd.DataFrame([vars(r) for r in results])
 
     print(f"=== Power vs Effect Size ===")
     print(f"Methods: {methods} (variants: {len(method_variants)})")
     print(f"Scenarios: {scenarios}")
     print(f"Effect sizes: {effect_sizes}")
     print(f"Repeats per condition: {n_repeats}")
-    print(f"Total runs: {total_runs}")
+    print(f"Total runs: {total_runs}, Remaining: {remaining_runs}")
     print()
 
-    for scenario in scenarios:
-        print(f"\nScenario: {scenario}")
+    start_time = time.time()
+    run_times = []  # Track individual run times for estimation
+    run_count = len(completed)
 
-        for effect_size in effect_sizes:
-            print(f"  Effect size: {effect_size}")
+    for i, (method, method_params, kwargs, scenario, effect_size, repeat_id) in enumerate(tasks):
+        run_start = time.time()
+        run_count += 1
 
-            for method, kwargs in method_variants:
-                method_params = _format_method_params(method, kwargs)
+        result = run_single_power_test(
+            method=method,
+            method_params=method_params,
+            scenario=scenario,
+            effect_size=effect_size,
+            n_samples=n_samples,
+            repeat_id=repeat_id,
+            n_nodes=n_nodes,
+            n_modules=n_modules,
+            time_points=time_points,
+            n_permutations=n_permutations,
+            alpha=alpha,
+            use_mp=use_mp,
+            seed_base=seed,
+            method_kwargs=kwargs,
+            intra_corr=intra_corr,
+            inter_corr=inter_corr,
+            uniform_corr=uniform_corr,
+            noise_level=noise_level,
+        )
+        results.append(result)
 
-                for repeat_id in range(n_repeats):
-                    run_count += 1
+        # Track run time
+        run_elapsed = time.time() - run_start
+        run_times.append(run_elapsed)
 
-                    result = run_single_power_test(
-                        method=method,
-                        method_params=method_params,
-                        scenario=scenario,
-                        effect_size=effect_size,
-                        n_samples=n_samples,
-                        repeat_id=repeat_id,
-                        n_nodes=n_nodes,
-                        n_modules=n_modules,
-                        time_points=time_points,
-                        n_permutations=n_permutations,
-                        alpha=alpha,
-                        use_mp=use_mp,
-                        seed_base=seed,
-                        method_kwargs=kwargs,
-                        intra_corr=intra_corr,
-                        inter_corr=inter_corr,
-                        uniform_corr=uniform_corr,
-                        noise_level=noise_level,
-                    )
-                    results.append(result)
+        # Progress and ETA (every checkpoint_every runs or on last run)
+        if (i + 1) % checkpoint_every == 0 or (i + 1) == remaining_runs:
+            elapsed = time.time() - start_time
+            avg_time = np.mean(run_times[-50:])  # Rolling average of last 50 runs
+            eta_seconds = avg_time * (remaining_runs - i - 1)
 
-                # Print progress
-                method_results = [
-                    r for r in results
-                    if r.method == method
-                    and r.method_params == method_params
-                    and r.scenario == scenario
-                    and r.effect_size == effect_size
-                ]
-                mean_tpr = np.mean([r.TPR for r in method_results])
-                label = f"{method} [{method_params}]" if method_params else method
-                print(f"    {label}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
+            # Method stats for current scenario/effect_size
+            method_results = [
+                r for r in results
+                if r.method == method
+                and r.method_params == method_params
+                and r.scenario == scenario
+                and r.effect_size == effect_size
+            ]
+            mean_tpr = np.mean([r.TPR for r in method_results]) if method_results else 0.0
+            label = f"{method} [{method_params}]" if method_params else method
+
+            print(
+                f"  [{run_count}/{total_runs}] {scenario} ES={effect_size} {label}: "
+                f"TPR={mean_tpr:.3f} | {run_elapsed:.1f}s/run | "
+                f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
+            )
+
+            # Save checkpoint
+            if checkpoint_path:
+                save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -418,15 +522,47 @@ def run_power_vs_sample_size(
     uniform_corr: float = 0.15,
     noise_level: float = 0.05,
     method_configs: Optional[Dict[str, dict]] = None,
+    checkpoint_dir: Optional[Path] = None,
+    checkpoint_every: int = 10,
+    resume: bool = False,
 ) -> pd.DataFrame:
-    """Run power analysis across sample sizes."""
+    """Run power analysis across sample sizes with checkpointing."""
 
     method_configs = method_configs or get_method_configs()
-    results = []
+
+    # Setup checkpointing
+    checkpoint_path = None
+    if checkpoint_dir is not None:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_path = checkpoint_dir / "checkpoint_sample_size.csv"
+
+    # Load checkpoint if resuming
+    if resume and checkpoint_path and checkpoint_path.exists():
+        results, completed = load_checkpoint(checkpoint_path)
+        print(f"Resuming from checkpoint: {len(completed)} runs already completed")
+    else:
+        results = []
+        completed = set()
 
     method_variants = _iter_method_variants(methods, method_configs)
-    total_runs = len(method_variants) * len(scenarios) * len(sample_sizes) * n_repeats
-    run_count = 0
+
+    # Build task list (skipping completed)
+    tasks = []
+    for scenario in scenarios:
+        for n_samples in sample_sizes:
+            for method, kwargs in method_variants:
+                method_params = _format_method_params(method, kwargs)
+                for repeat_id in range(n_repeats):
+                    key = (method, method_params, scenario, effect_size, n_samples, repeat_id)
+                    if key not in completed:
+                        tasks.append((method, method_params, kwargs, scenario, n_samples, repeat_id))
+
+    total_runs = len(tasks) + len(completed)
+    remaining_runs = len(tasks)
+
+    if remaining_runs == 0:
+        print("All runs already completed!")
+        return pd.DataFrame([vars(r) for r in results])
 
     print(f"=== Power vs Sample Size ===")
     print(f"Methods: {methods} (variants: {len(method_variants)})")
@@ -434,52 +570,69 @@ def run_power_vs_sample_size(
     print(f"Sample sizes: {sample_sizes}")
     print(f"Effect size: {effect_size}")
     print(f"Repeats per condition: {n_repeats}")
+    print(f"Total runs: {total_runs}, Remaining: {remaining_runs}")
     print()
 
-    for scenario in scenarios:
-        print(f"\nScenario: {scenario}")
+    start_time = time.time()
+    run_times = []  # Track individual run times for estimation
+    run_count = len(completed)
 
-        for n_samples in sample_sizes:
-            print(f"  Sample size: {n_samples}")
+    for i, (method, method_params, kwargs, scenario, n_samples, repeat_id) in enumerate(tasks):
+        run_start = time.time()
+        run_count += 1
 
-            for method, kwargs in method_variants:
-                method_params = _format_method_params(method, kwargs)
+        result = run_single_power_test(
+            method=method,
+            method_params=method_params,
+            scenario=scenario,
+            effect_size=effect_size,
+            n_samples=n_samples,
+            repeat_id=repeat_id,
+            n_nodes=n_nodes,
+            n_modules=n_modules,
+            time_points=time_points,
+            n_permutations=n_permutations,
+            alpha=alpha,
+            use_mp=use_mp,
+            seed_base=seed,
+            method_kwargs=kwargs,
+            intra_corr=intra_corr,
+            inter_corr=inter_corr,
+            uniform_corr=uniform_corr,
+            noise_level=noise_level,
+        )
+        results.append(result)
 
-                for repeat_id in range(n_repeats):
-                    run_count += 1
+        # Track run time
+        run_elapsed = time.time() - run_start
+        run_times.append(run_elapsed)
 
-                    result = run_single_power_test(
-                        method=method,
-                        method_params=method_params,
-                        scenario=scenario,
-                        effect_size=effect_size,
-                        n_samples=n_samples,
-                        repeat_id=repeat_id,
-                        n_nodes=n_nodes,
-                        n_modules=n_modules,
-                        time_points=time_points,
-                        n_permutations=n_permutations,
-                        alpha=alpha,
-                        use_mp=use_mp,
-                        seed_base=seed,
-                        method_kwargs=kwargs,
-                        intra_corr=intra_corr,
-                        inter_corr=inter_corr,
-                        uniform_corr=uniform_corr,
-                        noise_level=noise_level,
-                    )
-                    results.append(result)
+        # Progress and ETA (every checkpoint_every runs or on last run)
+        if (i + 1) % checkpoint_every == 0 or (i + 1) == remaining_runs:
+            elapsed = time.time() - start_time
+            avg_time = np.mean(run_times[-50:])  # Rolling average of last 50 runs
+            eta_seconds = avg_time * (remaining_runs - i - 1)
 
-                method_results = [
-                    r for r in results
-                    if r.method == method
-                    and r.method_params == method_params
-                    and r.scenario == scenario
-                    and r.n_samples == n_samples
-                ]
-                mean_tpr = np.mean([r.TPR for r in method_results])
-                label = f"{method} [{method_params}]" if method_params else method
-                print(f"    {label}: TPR={mean_tpr:.3f} ({run_count}/{total_runs})")
+            # Method stats for current scenario/n_samples
+            method_results = [
+                r for r in results
+                if r.method == method
+                and r.method_params == method_params
+                and r.scenario == scenario
+                and r.n_samples == n_samples
+            ]
+            mean_tpr = np.mean([r.TPR for r in method_results]) if method_results else 0.0
+            label = f"{method} [{method_params}]" if method_params else method
+
+            print(
+                f"  [{run_count}/{total_runs}] {scenario} N={n_samples} {label}: "
+                f"TPR={mean_tpr:.3f} | {run_elapsed:.1f}s/run | "
+                f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
+            )
+
+            # Save checkpoint
+            if checkpoint_path:
+                save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -492,6 +645,7 @@ def summarize_power_results(df: pd.DataFrame, groupby_cols: List[str]) -> pd.Dat
         "FPR": ["mean", "std"],
         "precision": ["mean", "std"],
         "FDR": ["mean", "std"],
+        "elapsed_time": ["mean", "std"],
     }).reset_index()
 
     # Flatten column names
@@ -680,6 +834,204 @@ def plot_power_curves(
     print(f"Saved plots to {output_dir}")
 
 
+def _clean_method_params_for_display(params) -> str:
+    """Clean method params string for plot legend by removing start_thres and n."""
+    if pd.isna(params) or not params:
+        return "default"
+    params = str(params)
+    # Remove start_thres and n parameters for cleaner display
+    parts = params.split(",")
+    cleaned = [p for p in parts if not p.strip().startswith(("start_thres=", "n="))]
+    return ",".join(cleaned) if cleaned else "default"
+
+
+def plot_power_curves_per_method(
+    df_effect: pd.DataFrame,
+    df_sample: pd.DataFrame,
+    output_dir: Path,
+):
+    """Create separate power curve plots for each base method."""
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except ImportError:
+        print("matplotlib/seaborn not available, skipping plots")
+        return
+
+    df_effect_plot = df_effect.copy()
+    df_sample_plot = df_sample.copy() if df_sample is not None else None
+
+    # Add method_display column (cleaned for better readability)
+    if "method_params" in df_effect_plot.columns:
+        df_effect_plot["method_display"] = df_effect_plot["method_params"].apply(
+            _clean_method_params_for_display
+        )
+    else:
+        df_effect_plot["method_display"] = "default"
+
+    if df_sample_plot is not None:
+        if "method_params" in df_sample_plot.columns:
+            df_sample_plot["method_display"] = df_sample_plot["method_params"].apply(
+                _clean_method_params_for_display
+            )
+        else:
+            df_sample_plot["method_display"] = "default"
+
+    # Get unique base methods and scenarios
+    base_methods = df_effect_plot["method"].unique()
+    scenarios = df_effect_plot["scenario"].unique()
+    n_scenarios = len(scenarios)
+
+    # Create per-method subdirectory
+    per_method_dir = output_dir / "per_method"
+    per_method_dir.mkdir(parents=True, exist_ok=True)
+
+    for method in base_methods:
+        method_df_effect = df_effect_plot[df_effect_plot["method"] == method]
+        method_df_sample = (
+            df_sample_plot[df_sample_plot["method"] == method]
+            if df_sample_plot is not None else None
+        )
+
+        # Get unique variants for this method
+        variants = method_df_effect["method_display"].unique()
+        n_variants = len(variants)
+
+        # Use color palette for variants
+        palette = dict(zip(variants, sns.color_palette("husl", n_variants)))
+
+        # Plot 1: Power vs Effect Size
+        _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+        for idx, scenario in enumerate(scenarios):
+            ax = axes[0, idx]
+            scenario_df = method_df_effect[method_df_effect["scenario"] == scenario]
+
+            for variant in variants:
+                variant_df = scenario_df[scenario_df["method_display"] == variant]
+                if len(variant_df) == 0:
+                    continue
+                summary = variant_df.groupby("effect_size")["TPR"].agg(["mean", "std"]).reset_index()
+                ax.errorbar(
+                    summary["effect_size"], summary["mean"],
+                    yerr=summary["std"],
+                    label=variant, color=palette[variant],
+                    marker="o", capsize=3, linewidth=2,
+                )
+
+            ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5, label="80% power")
+            ax.set_xlabel("Effect Size")
+            ax.set_ylabel("Power (TPR)")
+            ax.set_title(f"{scenario}")
+            ax.set_ylim(0, 1.)
+            ax.legend(loc="lower right", fontsize=7)
+            ax.grid(True, alpha=0.3)
+
+        plt.suptitle(f"{method}: Power vs Effect Size", y=1.02, fontsize=14, fontweight="bold")
+        plt.tight_layout()
+        plt.savefig(per_method_dir / f"power_vs_effect_size_{method}.png", dpi=150, bbox_inches="tight")
+        plt.close()
+
+        # Plot 2: FDR vs Effect Size
+        _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+        for idx, scenario in enumerate(scenarios):
+            ax = axes[0, idx]
+            scenario_df = method_df_effect[method_df_effect["scenario"] == scenario]
+
+            for variant in variants:
+                variant_df = scenario_df[scenario_df["method_display"] == variant]
+                if len(variant_df) == 0:
+                    continue
+                summary = variant_df.groupby("effect_size")["FDR"].agg(["mean", "std"]).reset_index()
+                ax.errorbar(
+                    summary["effect_size"], summary["mean"],
+                    yerr=summary["std"],
+                    label=variant, color=palette[variant],
+                    marker="o", capsize=3, linewidth=2,
+                )
+
+            ax.axhline(0.05, color="gray", linestyle="--", alpha=0.5, label="alpha=0.05")
+            ax.set_xlabel("Effect Size")
+            ax.set_ylabel("False Discovery Rate (FDR)")
+            ax.set_title(f"{scenario}")
+            ax.set_ylim(0, 0.6)
+            ax.legend(loc="upper right", fontsize=7)
+            ax.grid(True, alpha=0.3)
+
+        plt.suptitle(f"{method}: FDR vs Effect Size", y=1.02, fontsize=14, fontweight="bold")
+        plt.tight_layout()
+        plt.savefig(per_method_dir / f"fdr_vs_effect_size_{method}.png", dpi=150, bbox_inches="tight")
+        plt.close()
+
+        # Plot 3: Power vs Sample Size
+        if method_df_sample is not None and len(method_df_sample) > 0:
+            _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+            for idx, scenario in enumerate(scenarios):
+                ax = axes[0, idx]
+                scenario_df = method_df_sample[method_df_sample["scenario"] == scenario]
+
+                for variant in variants:
+                    variant_df = scenario_df[scenario_df["method_display"] == variant]
+                    if len(variant_df) == 0:
+                        continue
+                    summary = variant_df.groupby("n_samples")["TPR"].agg(["mean", "std"]).reset_index()
+                    ax.errorbar(
+                        summary["n_samples"], summary["mean"],
+                        yerr=summary["std"],
+                        label=variant, color=palette[variant],
+                        marker="o", capsize=3, linewidth=2,
+                    )
+
+                ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5)
+                ax.set_xlabel("Sample Size (per group)")
+                ax.set_ylabel("Power (TPR)")
+                ax.set_title(f"{scenario}")
+                ax.set_ylim(0, 1.)
+                ax.legend(loc="lower right", fontsize=7)
+                ax.grid(True, alpha=0.3)
+
+            plt.suptitle(f"{method}: Power vs Sample Size", y=1.02, fontsize=14, fontweight="bold")
+            plt.tight_layout()
+            plt.savefig(per_method_dir / f"power_vs_sample_size_{method}.png", dpi=150, bbox_inches="tight")
+            plt.close()
+
+            # Plot 4: FDR vs Sample Size
+            _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
+
+            for idx, scenario in enumerate(scenarios):
+                ax = axes[0, idx]
+                scenario_df = method_df_sample[method_df_sample["scenario"] == scenario]
+
+                for variant in variants:
+                    variant_df = scenario_df[scenario_df["method_display"] == variant]
+                    if len(variant_df) == 0:
+                        continue
+                    summary = variant_df.groupby("n_samples")["FDR"].agg(["mean", "std"]).reset_index()
+                    ax.errorbar(
+                        summary["n_samples"], summary["mean"],
+                        yerr=summary["std"],
+                        label=variant, color=palette[variant],
+                        marker="o", capsize=3, linewidth=2,
+                    )
+
+                ax.axhline(0.05, color="gray", linestyle="--", alpha=0.5, label="alpha=0.05")
+                ax.set_xlabel("Sample Size (per group)")
+                ax.set_ylabel("False Discovery Rate (FDR)")
+                ax.set_title(f"{scenario}")
+                ax.set_ylim(0, 0.6)
+                ax.legend(loc="upper right", fontsize=7)
+                ax.grid(True, alpha=0.3)
+
+            plt.suptitle(f"{method}: FDR vs Sample Size", y=1.02, fontsize=14, fontweight="bold")
+            plt.tight_layout()
+            plt.savefig(per_method_dir / f"fdr_vs_sample_size_{method}.png", dpi=150, bbox_inches="tight")
+            plt.close()
+
+    print(f"Saved per-method plots to {per_method_dir}")
+
+
 def compute_required_sample_size(
     df: pd.DataFrame,
     target_power: float = 0.8,
@@ -842,6 +1194,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         default=Path(__file__).parent.parent / "results" / "power_analysis",
         help="Output directory",
     )
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Resume from checkpoint if available",
+    )
+    parser.add_argument(
+        "--checkpoint-every", type=int, default=10,
+        help="Save checkpoint every N runs",
+    )
 
     # Pre-parse to load YAML defaults if provided.
     pre_args, _ = parser.parse_known_args(argv)
@@ -892,6 +1252,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             uniform_corr=args.uniform_corr,
             noise_level=args.noise_level,
             method_configs=method_configs,
+            checkpoint_dir=args.output_dir,
+            checkpoint_every=args.checkpoint_every,
+            resume=args.resume,
         )
         df_effect.to_csv(args.output_dir / "power_vs_effect_size.csv", index=False)
 
@@ -921,6 +1284,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             uniform_corr=args.uniform_corr,
             noise_level=args.noise_level,
             method_configs=method_configs,
+            checkpoint_dir=args.output_dir,
+            checkpoint_every=args.checkpoint_every,
+            resume=args.resume,
         )
         df_sample.to_csv(args.output_dir / "power_vs_sample_size.csv", index=False)
 
@@ -937,6 +1303,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Create plots
     if df_effect is not None:
         plot_power_curves(df_effect, df_sample, args.output_dir)
+
+    # Clean up checkpoints on successful completion
+    checkpoint_effect = args.output_dir / "checkpoint_effect_size.csv"
+    checkpoint_sample = args.output_dir / "checkpoint_sample_size.csv"
+    if checkpoint_effect.exists():
+        checkpoint_effect.unlink()
+        print("Removed effect size checkpoint (run completed)")
+    if checkpoint_sample.exists():
+        checkpoint_sample.unlink()
+        print("Removed sample size checkpoint (run completed)")
 
     print(f"\nResults saved to {args.output_dir}")
     return 0
