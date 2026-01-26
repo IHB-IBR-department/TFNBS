@@ -1,0 +1,129 @@
+# TFNBS Power Analysis Configuration
+#
+# Perforns power analysis using given parameters without batch format (.yaml)
+# 
+# Usage:
+#   python examples/power_test/power_analysis.py --mode both
+#
+# Or with custom parameters:
+#   python examples/power_test/power_analysis.py \
+#     --effect-sizes 0.10 0.15 0.20 0.25 0.30 0.40 0.50 \
+#     --sample-sizes 10 15 20 30 50 100 \
+#     --n-repeats 100 \
+#     --n-permutations 1000
+
+# =============================================================================
+# POWER VS EFFECT SIZE ANALYSIS
+# =============================================================================
+
+# Effect sizes to test (Cohen's d equivalent)
+effect_sizes:
+  - 0.10   # Very weak
+  - 0.15   # Weak
+  - 0.20   # Weak-moderate
+  - 0.25   # Moderate
+  - 0.30   # Moderate-strong
+  - 0.40   # Strong
+  - 0.50   # Very strong
+
+# Fixed sample size for effect size analysis
+n_samples: 20
+
+# =============================================================================
+# POWER VS SAMPLE SIZE ANALYSIS
+# =============================================================================
+
+# Sample sizes to test (per group)
+sample_sizes:
+  - 10
+  - 15
+  - 20
+  - 30
+  - 50
+  - 100
+
+# Fixed effect size for sample size analysis
+effect_size: 0.25
+
+# =============================================================================
+# SCENARIOS FOR POWER ANALYSIS
+# =============================================================================
+
+# Representative scenarios covering different topologies
+scenarios:
+  - within_module_dense      # Block-coherent (favors cNBS/FBC)
+  - chain                    # Topological (favors NBS/TFNBS)
+  - hub                      # Focal (star topology)
+  - scattered_cross_block    # Heterogeneous (stress test)
+
+# =============================================================================
+# METHODS TO COMPARE
+# =============================================================================
+
+methods:
+  - tstat          # Baseline (no enhancement)
+  - tfnbs          # Standard TFNBS
+  - ni_tfnbs       # Network-Informed TFNBS
+  - fbc_tfnbs      # Functional Block Clustering TFNBS
+  - nbs_extent     # Classical NBS (extent)
+  - cnbs           # Constrained NBS
+
+# =============================================================================
+# SIMULATION PARAMETERS
+# =============================================================================
+
+# Repeats per condition (for power estimation stability)
+# Higher = more stable estimates but slower
+n_repeats: 50
+
+# Permutations per statistical test
+# Higher = more accurate p-values but slower
+n_permutations: 500
+
+# Significance threshold
+alpha: 0.05
+
+# =============================================================================
+# NETWORK STRUCTURE
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+
+# Covariance structure
+intra_corr: 0.3      # Within-module correlation
+inter_corr: 0.05     # Between-module correlation
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION OPTIONS
+# =============================================================================
+
+seed: 42
+use_mp: true
+
+output_dir: results/power_analysis
+
+# =============================================================================
+# TARGET POWER FOR SAMPLE SIZE RECOMMENDATIONS
+# =============================================================================
+
+# Standard target power levels
+target_powers:
+  - 0.80   # Standard threshold
+  - 0.90   # Conservative threshold
+
+# =============================================================================
+# EXPECTED COMPUTATION TIME
+# =============================================================================
+#
+# Quick test (n_repeats=10, n_permutations=200):
+#   ~30 min on 8-core machine
+#
+# Standard analysis (n_repeats=50, n_permutations=500):
+#   ~4-8 hours on 8-core machine
+#
+# Publication quality (n_repeats=100, n_permutations=1000):
+#   ~12-24 hours on 8-core machine
+#
+# Use --use-mp flag for parallel permutation testing

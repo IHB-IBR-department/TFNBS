@@ -1,0 +1,138 @@
+# TFNBS Parameter Sensitivity Analysis Configuration
+#
+# This config sweeps over TFNBS parameters (E, H) to understand
+# their effect on method performance.
+#
+# Usage:
+#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config_param_sensitivity.yaml
+#
+# Note: In batch mode, e and h are PAIRED (not grid), so each run uses (e[i], h[i])
+
+# =============================================================================
+# DATA GENERATION PARAMETERS
+# =============================================================================
+
+effect_size:
+  - 0.25
+
+time_points:
+  - 50
+
+n_samples:
+  - 20
+
+n_permutations:
+  - 200
+
+# =============================================================================
+# SCENARIOS FOR SENSITIVITY ANALYSIS
+# =============================================================================
+
+# Test on representative scenarios
+scenarios:
+  - within_module_dense      # Block-coherent (favors cNBS/FBC)
+  - chain                    # Topological (favors NBS/TFNBS)
+  - scattered_cross_block    # Heterogeneous (stress test)
+  - hub                      # Focal (star topology)
+
+# =============================================================================
+# TFNBS PARAMETER SWEEP
+# =============================================================================
+
+# Option 1: For PAIRED batch mode (faster, 3D output)
+# e and h must have EQUAL LENGTH - since paired
+# batch_tfnbs_params: true
+# e:
+#   - 0.3
+#   - 0.4
+#   - 0.5
+#   - 0.6
+# h:
+#   - 2.0
+#   - 2.0
+#   - 2.0
+#   - 2.0
+
+# Option 2: For GRID sweep (standard mode - creates separate runs)
+# This creates 4 x 4 = 16 parameter combinations
+
+# Extent exponent sweep
+e:
+  - 0.3    # More emphasis on small clusters
+  - 0.4
+  - 0.5    # Default
+  - 0.6    # More emphasis on large clusters
+
+# Height exponent sweep
+h:
+  - 1.5    # Less emphasis on t-stat magnitude
+  - 2.0    # Default
+  - 2.5
+  - 3.0    # More emphasis on strong effects
+
+# Threshold integration steps
+n_thresholds:
+  - 50
+
+# Starting threshold
+start_thres:
+  - 1.65   # p < 0.05 one-tailed
+
+# =============================================================================
+# NBS THRESHOLD SWEEP
+# =============================================================================
+
+nbs_threshold:
+  - 1.5    # Liberal (larger clusters, more FP risk)
+  - 2.0    # Standard
+  - 2.5
+  - 3.0    # Conservative (smaller clusters, more FN risk)
+
+# =============================================================================
+# FBC PARAMETERS
+# =============================================================================
+
+fbc_min_cluster:
+  - 2      # More permissive
+  - 3      # Default
+  - 5      # More stringent
+
+# =============================================================================
+# NETWORK STRUCTURE (fixed)
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+
+intra_corr: 0.3
+inter_corr: 0.05
+uniform_corr: 0.15
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION OPTIONS
+# =============================================================================
+
+seed: 42
+alpha: 0.05
+use_mp: true
+
+output_dir: output/param_sensitivity
+
+# =============================================================================
+# ALTERNATIVE: BATCH TFNBS MODE
+# =============================================================================
+# Uncomment below for faster e/h sweep (produces 3D p-maps, no plots)
+# batch_tfnbs_params: true
+#
+# For batch mode, use paired e/h values:
+# e:
+#   - 0.3
+#   - 0.4
+#   - 0.5
+#   - 0.6
+# h:
+#   - 2.0
+#   - 2.0
+#   - 2.0
+#   - 2.0
