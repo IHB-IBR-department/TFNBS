@@ -8,7 +8,7 @@ This script computes statistical power curves for all methods across:
 Power is defined as the proportion of true edges that are detected
 (True Positive Rate / Sensitivity) at the nominal alpha level.
 
-Scenario names follow examples/sim_methods/sim_topology_examples.py so power analysis
+Scenario names follow syntetic_experiments/sim_methods/sim_topology_examples.py so power analysis
 matches the method-comparison topologies exactly.
 
 Usage:

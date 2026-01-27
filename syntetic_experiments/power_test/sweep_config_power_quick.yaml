@@ -4,7 +4,7 @@
 # Reduced n_repeats and n_permutations for faster execution.
 #
 # Usage:
-#   python examples/power_test/power_analysis.py --config examples/power_test/sweep_config_power_quick.yaml
+#   python syntetic_experiments/power_test/power_analysis.py --config syntetic_experiments/power_test/sweep_config_power_quick.yaml
 #
 # TFNBS parameter sweep: e=[0.4, 1.0] x h=[1.0, 4.0] = 4 variants
 # NBS threshold sweep: [1.5, 2.0, 2.5] = 3 variants
@@ -75,8 +75,8 @@ nbs_options:
 # SIMULATION PARAMETERS (REDUCED FOR SPEED)
 # =============================================================================
 
-n_repeats: 20
-n_permutations: 500
+n_repeats: 2
+n_permutations: 50
 alpha: 0.05
 
 # =============================================================================

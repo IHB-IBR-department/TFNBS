@@ -1,7 +1,7 @@
 # TFNBS Parameter Sweep - Batch Mode Configuration
 #
 # Usage:
-#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config_batch_tfnbs.yaml
+#   python syntetic_experiments/sim_method_comparisons/batch_sweep_runner.py --config syntetic_experiments/sim_method_comparisons/sweep_config_batch_tfnbs.yaml
 #
 # Uses batch mode to efficiently sweep TFNBS (e, h) parameters.
 # IMPORTANT: e and h must have EQUAL LENGTH - they are paired!
@@ -71,4 +71,4 @@ alpha: 0.05
 
 # Execution
 use_mp: true
-output_dir: examples/output/batch_tfnbs_sweep
+output_dir: syntetic_experiments/output/batch_tfnbs_sweep

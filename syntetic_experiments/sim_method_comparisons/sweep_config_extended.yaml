@@ -4,7 +4,7 @@
 # method comparison and publication.
 #
 # Usage:
-#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config_extended.yaml
+#   python syntetic_experiments/sim_method_comparisons/batch_sweep_runner.py --config syntetic_experiments/sim_method_comparisons/sweep_config_extended.yaml
 #
 # =============================================================================
 # DATA GENERATION PARAMETERS

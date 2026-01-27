@@ -9,7 +9,7 @@ and visualizes:
 It is meant for quick qualitative inspection of how different topological patterns
 look in matrix space, before running full permutation-based inference.
 
-Outputs are saved into `examples/output/` by default (no images are committed).
+Outputs are saved into `syntetic_experiments/output/` by default (no images are committed).
 
 Note on effect size vs t-stat magnitude
 --------------------------------------

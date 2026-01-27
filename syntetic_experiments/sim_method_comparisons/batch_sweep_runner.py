@@ -70,7 +70,7 @@ try:
 except ImportError:
     HAS_YAML = False
 
-# Add parent to path for imports when running from examples/.
+# Add parent to path for imports when running from syntetic_experiments/.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 

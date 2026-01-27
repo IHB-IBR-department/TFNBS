@@ -4,7 +4,7 @@
 # their effect on method performance.
 #
 # Usage:
-#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config_param_sensitivity.yaml
+#   python syntetic_experiments/sim_method_comparisons/batch_sweep_runner.py --config syntetic_experiments/sim_method_comparisons/sweep_config_param_sensitivity.yaml
 #
 # Note: In batch mode, e and h are PAIRED (not grid), so each run uses (e[i], h[i])
 

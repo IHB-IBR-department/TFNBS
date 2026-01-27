@@ -2,7 +2,7 @@
 #
 # This config runs only TFNBS with a small sweep over (e, h).
 # Run with: 
-#     python examples/power_test/power_analysis.py --config examples/power_test/sweep_config_power_quick_tfnbs.yaml
+#     python syntetic_experiments/power_test/power_analysis.py --config syntetic_experiments/power_test/sweep_config_power_quick_tfnbs.yaml
 
 effect_sizes:
   - 0.20

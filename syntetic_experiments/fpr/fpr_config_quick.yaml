@@ -3,7 +3,7 @@
 # This config is ideal for testing before full scale computation.
 # 
 # Usage:
-#   python examples/fpr/fpr_calibration.py --config examples/fpr/fpr_config_quick.yaml
+#   python syntetic_experiments/fpr/fpr_calibration.py --config syntetic_experiments/fpr/fpr_config_quick.yaml
 #
 # Estimated runtime: ~2-5 min (depends on hardware)
 
@@ -14,10 +14,7 @@
 methods:
   - tstat           # Baseline: uncorrected t-statistics
   - tfnbs           # Threshold-free NBS
-  - ni_tfnbs        # Network-Informed TFNBS
-  - fbc_tfnbs       # FBC-weighted TFNBS
   - nbs_extent      # Classical NBS (cluster extent)
-  - nbs_intensity   # Classical NBS (cluster intensity)
   - cnbs            # Constrained NBS (block-based)
 
 # =============================================================================

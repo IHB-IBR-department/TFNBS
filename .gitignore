@@ -206,3 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 datasets/data_tmfc/
+
+# Claude Code helper files (local only)
+.claude/
+AGENTS.md

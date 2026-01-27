@@ -1,0 +1,95 @@
+# Topology Dataset Generation Configuration
+#
+# This config generates synthetic functional connectivity datasets
+# with specific topological effect patterns for TFNBS benchmarking.
+#
+# Usage:
+#   python syntetic_experiments/generate_topology_example.py --config syntetic_experiments/topology_config.yaml
+#
+# Output:
+#   - {topology}_es{effect_size}_n{n_samples}_group1_z.npy  (Fisher z-transformed)
+#   - {topology}_es{effect_size}_n{n_samples}_group2_z.npy
+#   - {topology}_es{effect_size}_n{n_samples}_effect_mask.npy
+#   - {topology}_es{effect_size}_n{n_samples}_net_labels.npy
+#   - {topology}_es{effect_size}_n{n_samples}_metadata.json
+
+# =============================================================================
+# TOPOLOGIES TO GENERATE
+# =============================================================================
+# Available topologies:
+#   - within_module_dense      : Dense effect within one module
+#   - between_modules_dense    : Dense effect between two modules
+#   - within_plus_between      : Combined within + between module effects
+#   - hub                      : Star topology centered on one node
+#   - chain                    : Linear path through nodes
+#   - scattered_cross_block    : Sparse edges across all blocks
+#   - perfect_matching_within_module : Disconnected edges in same module
+#   - cross_block_connected_chain    : Chain crossing module boundaries
+#   - gradient_core_periphery_within_module : Gradient effect (strong core)
+#   - gradient_effect_chain    : Chain with decreasing effect strength
+#   - rich_club                : Dense clique among hub nodes
+#   - fragmented_within_module : Sparse random within-module edges
+
+topologies:
+  - within_module_dense
+  - hub
+  - scattered_cross_block
+  - gradient_core_periphery_within_module
+
+# =============================================================================
+# EFFECT SIZES
+# =============================================================================
+# Generate datasets at multiple effect sizes for power analysis
+
+effect_sizes:
+  - 0.15
+  - 0.25
+
+# =============================================================================
+# SAMPLE SIZE
+# =============================================================================
+# Number of subjects per group
+
+n_samples: 20
+
+# =============================================================================
+# NETWORK STRUCTURE
+# =============================================================================
+
+n_nodes: 60           # Number of ROIs
+n_modules: 4          # Number of functional modules
+intra_corr: 0.3       # Base correlation within modules
+inter_corr: 0.05      # Base correlation between modules
+noise_level: 0.05     # Inter-subject variability
+
+# =============================================================================
+# SIMULATION PARAMETERS
+# =============================================================================
+
+time_points: 50       # Time series length per subject (affects noise)
+seed: 42              # Random seed for reproducibility
+save_raw: true        # Also save raw correlations (not just Fisher z)
+
+# =============================================================================
+# OUTPUT
+# =============================================================================
+
+output_dir: syntetic_experiments/output/generated_data
+
+# =============================================================================
+# SCENARIO-SPECIFIC PARAMETERS (OPTIONAL)
+# =============================================================================
+# Override default parameters for specific topologies
+
+scenario_params:
+  hub:
+    n_spokes: 40
+  chain:
+    length: 30
+  scattered_cross_block:
+    n_edges_per_block: 6
+  gradient_core_periphery_within_module:
+    n_core: 6
+    core_weight: 1.0
+    core_to_periphery_weight: 0.4
+    periphery_weight: 0.1

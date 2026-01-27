@@ -1,7 +1,7 @@
 # TFNBS Method Comparison - Full Parameter Sweep Configuration
 #
 # Usage:
-#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config.yaml
+#   python syntetic_experiments/sim_method_comparisons/batch_sweep_runner.py --config syntetic_experiments/sim_method_comparisons/sweep_config.yaml
 #
 # This config runs a comprehensive comparison across:
 # - Multiple effect sizes (difficulty levels)
@@ -159,7 +159,7 @@ use_mp: true
 # n_processes: 4  # Uncomment to limit processes
 
 # Output directory
-output_dir: examples/output/full_comparison
+output_dir: syntetic_experiments/output/full_comparison
 
 # =============================================================================
 # BATCH MODE (optional - for TFNBS parameter sweeps)

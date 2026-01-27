@@ -31,7 +31,59 @@ TFNOS toolbox can be installed using:
 
 For more information on TFNBS's features, modules and usage, please refer to the [official documentation](https://IHB-IBR-department.github.io/TFNBS/). 
 
-Examples of usage on fMRI and EEG data are avaialble in [notebooks]() and [data](). 
+Examples of usage on fMRI and EEG data are avaialble in [notebooks]() and [data]().
+
+## Project structure
+
+```
+TFNBS/
+  tfnbs/                         # core library modules (scores, stats, utils)
+  tests/                         # unit tests (unittest)
+  syntetic_experiments/          # synthetic data experiments and scripts
+    generate_topology_example.py
+    sim_topology_examples.py
+    sim_method_comparisons/
+    power_test/
+    fpr/
+    output/
+  datasets/                      # sample data files
+  docs/                          # Sphinx docs source
+```
+
+## Synthetic experiments
+
+Generate a single topology dataset (saves z-matrices, effect mask, t-stats, and a PNG visualization):
+```bash
+python syntetic_experiments/generate_topology_example.py \
+  --topology within_module_dense \
+  --effect-size 0.25 \
+  --n-samples 20 \
+  --output-dir syntetic_experiments/output/my_data
+```
+
+Generate multiple datasets from a config:
+```bash
+python syntetic_experiments/generate_topology_example.py \
+  --config syntetic_experiments/topology_config.yaml
+```
+
+Method comparison sweep (quick config available in the folder):
+```bash
+python syntetic_experiments/sim_method_comparisons/sim_method_comparisons.py \
+  --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
+```
+
+Power analysis sweep:
+```bash
+python syntetic_experiments/power_test/power_analysis.py \
+  --config syntetic_experiments/power_test/sweep_config_power_quick.yaml
+```
+
+FPR calibration:
+```bash
+python syntetic_experiments/fpr/fpr_calibration.py \
+  --config syntetic_experiments/fpr/fpr_config_quick.yaml
+```
 
 ## Permutation p-values (`compute_p_val`)
 
@@ -70,9 +122,9 @@ Notes:
 
 ## Synthetic method-comparison example
 
-See `examples/sim_method_comparisons.py` which compares all methods via `compute_p_val` and saves GT/t-stat/`1-p` heatmaps:
+See `syntetic_experiments/sim_method_comparisons/sim_method_comparisons.py` which compares all methods via `compute_p_val` and saves GT/t-stat/`1-p` heatmaps:
 ```bash
-python examples/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
+python syntetic_experiments/sim_method_comparisons/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
 ```
 
 
@@ -83,7 +135,6 @@ To cite the toolbox, you can use: [doi]() and refer to the paper [paper_doi]()
 ```
 
 For further discussions or reports on bugs, please contact [ashish@ireddy.ru]()
-
 
 
 

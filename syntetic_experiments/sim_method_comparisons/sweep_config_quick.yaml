@@ -1,7 +1,7 @@
 # TFNBS Method Comparison - Quick Test Configuration
 #
 # Usage:
-#   python examples/sim_method_comparisons/batch_sweep_runner.py --config examples/sim_method_comparisons/sweep_config_quick.yaml
+#   python syntetic_experiments/sim_method_comparisons/batch_sweep_runner.py --config syntetic_experiments/sim_method_comparisons/sweep_config_quick.yaml
 #
 # Quick test to verify code functionality
 # Estimated runtime: ~2-5 min
@@ -45,4 +45,4 @@ n_modules: 4
 seed: 42
 alpha: 0.05
 
-output_dir: examples/output/quick_test
+output_dir: syntetic_experiments/output/quick_test

@@ -4,13 +4,13 @@
 #
 # Usage:
 #   # For full run (all methods, 1000 null datasets)
-#   python examples/fpr/fpr_calibration.py --config examples/fpr/fpr_config.yaml
+#   python syntetic_experiments/fpr/fpr_calibration.py --config syntetic_experiments/fpr/fpr_config.yaml
 #
 #   # Resume interrupted run
-#   python examples/fpr/fpr_calibration.py --config examples/fpr/fpr_config.yaml --resume
+#   python syntetic_experiments/fpr/fpr_calibration.py --config syntetic_experiments/fpr/fpr_config.yaml --resume
 #
 #   # Override specific parameters
-#   python examples/fpr/fpr_calibration.py --config examples/fpr/fpr_config.yaml --n-null 500
+#   python syntetic_experiments/fpr/fpr_calibration.py --config syntetic_experiments/fpr/fpr_config.yaml --n-null 500
 #
 # Estimated runtime: ~4-8 hours with n_jobs=-1 (depending on hardware)
 # Code consists of checkpointing, allowing for interruption and resumtion of computations.

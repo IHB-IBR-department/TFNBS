@@ -3,10 +3,10 @@
 # Perforns power analysis using given parameters without batch format (.yaml)
 # 
 # Usage:
-#   python examples/power_test/power_analysis.py --mode both
+#   python syntetic_experiments/power_test/power_analysis.py --mode both
 #
 # Or with custom parameters:
-#   python examples/power_test/power_analysis.py \
+#   python syntetic_experiments/power_test/power_analysis.py \
 #     --effect-sizes 0.10 0.15 0.20 0.25 0.30 0.40 0.50 \
 #     --sample-sizes 10 15 20 30 50 100 \
 #     --n-repeats 100 \
