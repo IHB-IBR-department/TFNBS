@@ -44,7 +44,7 @@ import pandas as pd
 import yaml
 
 # Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tfnbs.pairwise_stats import compute_p_val
 from tfnbs.synth_datasets import ModularDatasetGenerator

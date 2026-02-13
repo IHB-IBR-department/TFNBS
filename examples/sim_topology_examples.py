@@ -21,10 +21,11 @@ this demo script, not a statistical guarantee).
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
-import os
+
 import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path

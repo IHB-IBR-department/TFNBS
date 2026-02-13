@@ -1,0 +1,162 @@
+# TFNBS Power Analysis Configuration
+#
+# Perforns power analysis using given parameters without batch format (.yaml)
+# 
+# Usage:
+#   python examples/power_test/power_analysis.py --config examples/power_test/sweep_config_power_server.yaml
+#
+# Or with custom parameters:
+#   python examples/power_test/power_analysis.py \
+#     --effect-sizes 0.10 0.15 0.20 0.25 0.30 0.40 0.50 \
+#     --sample-sizes 10 15 20 30 50 100 \
+#     --n-repeats 100 \
+#     --n-permutations 1000
+
+# =============================================================================
+# POWER VS EFFECT SIZE ANALYSIS
+# =============================================================================
+
+# Effect sizes to test (Cohen's d equivalent)
+effect_sizes:
+  - 0.10   # Very weak
+  - 0.15   # Weak
+  - 0.20   # Weak-moderate
+  - 0.25   # Moderate
+  - 0.30   # Moderate-strong
+  - 0.40   # Strong
+  - 0.50   # Very strong
+  - 0.60   # 
+
+# Fixed sample size for effect size analysis
+n_samples: 50
+
+# =============================================================================
+# POWER VS SAMPLE SIZE ANALYSIS
+# =============================================================================
+
+# Sample sizes to test (per group)
+sample_sizes:
+  - 10
+  - 15
+  - 20
+  - 25
+  - 30
+  - 40
+  - 50
+  - 100
+
+# Fixed effect size for sample size analysis
+effect_size: 0.25
+
+# =============================================================================
+# SCENARIOS FOR POWER ANALYSIS
+# =============================================================================
+
+# Representative scenarios covering different topologies
+scenarios:
+  - within_module_dense
+  - between_modules_dense
+  - partial_bipartite_between_modules
+  - gradient_core_periphery_within_module
+  - scattered_cross_block
+  - hub
+  - rich_club
+  - cross_block_connected_chain
+  - chain
+  - fragmented_within_module
+
+# =============================================================================
+# METHODS TO COMPARE
+# =============================================================================
+
+methods:
+  - tstat          # Baseline (no enhancement)
+  - tfnbs          # Standard TFNBS
+  - ni_tfnbs       # Network-Informed TFNBS
+  - fbc_tfnbs      # Functional Block Clustering TFNBS
+  - nbs_extent     # Classical NBS (extent)
+  - nbs_intensity  # NBS (intensity)
+  - cnbs           # Constrained NBS
+
+# =============================================================================
+# METHOD-SPECIFIC OPTIONS (PARAMETER SWEEP)
+# =============================================================================
+
+# TFNBS parameters - lists create sweep combinations:
+# e=[0.4, 1] x h=[1, 4] = 4 variants: (0.4,1), (0.4,4), (1,1), (1,4)
+tfnbs_options: 
+  e: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75,
+    0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50]
+  # 30 e steps
+
+  h: [0.50, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
+  # 20 h steps
+
+  n_thresholds: 30
+
+  start_thres: 1.65
+  fbc_min_cluster_size: 3
+
+# NBS threshold sweep: 6 steps
+nbs_options:
+  threshold: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+
+# =============================================================================
+# SIMULATION PARAMETERS
+# =============================================================================
+
+# Repeats per condition (for power estimation stability)
+# Higher = more stable estimates but slower
+n_repeats: 100
+
+# Permutations per statistical test
+# Higher = more accurate p-values but slower
+n_permutations: 1000
+
+# Significance threshold
+alpha: 0.05
+
+# =============================================================================
+# NETWORK STRUCTURE
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+
+# Covariance structure
+intra_corr: 0.3      # Within-module correlation
+inter_corr: 0.05     # Between-module correlation
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION OPTIONS
+# =============================================================================
+
+seed: 42
+use_mp: true
+
+output_dir: results/power_analysis
+
+# =============================================================================
+# TARGET POWER FOR SAMPLE SIZE RECOMMENDATIONS
+# =============================================================================
+
+# Standard target power levels
+target_powers:
+  - 0.80   # Standard threshold
+  - 0.90   # Conservative threshold
+
+# =============================================================================
+# EXPECTED COMPUTATION TIME
+# =============================================================================
+#
+# Quick test (n_repeats=10, n_permutations=200):
+#   ~30 min on 8-core machine
+#
+# Standard analysis (n_repeats=50, n_permutations=500):
+#   ~4-8 hours on 8-core machine
+#
+# Publication quality (n_repeats=100, n_permutations=1000):
+#   ~12-24 hours on 8-core machine
+#
+# Use --use-mp flag for parallel permutation testing

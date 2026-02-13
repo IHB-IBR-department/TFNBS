@@ -41,6 +41,14 @@ Output:
 
 from __future__ import annotations
 
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+
 import argparse
 import sys
 import time
@@ -62,7 +70,10 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import sim_topology_examples as topo
-from tfnbs.pairwise_stats import compute_p_val
+from tfnbs.pairwise_stats import compute_p_val, get_available_cores
+
+
+import multiprocessing as mp
 
 
 @dataclass
@@ -149,7 +160,7 @@ def run_single_power_test(
             test_type="two-sample",
             method=method_key,
             n_permutations=n_permutations,
-            use_mp=use_mp,
+            use_mp=False,
             random_state=seed,
             **kwargs,
         )
@@ -201,7 +212,21 @@ def run_single_power_test(
         precision=precision, FDR=FDR,
         elapsed_time=elapsed,
     )
-
+def _parallel_worker(task):
+    (method, method_params, kwargs, scenario, effect_size, repeat_id, 
+     n_nodes, n_modules, time_points, n_permutations, alpha, seed, 
+     intra_corr, inter_corr, uniform_corr, noise_level, n_samples) = task
+    
+    return run_single_power_test(
+        method=method, method_params=method_params, scenario=scenario,
+        effect_size=effect_size, n_samples=n_samples, repeat_id=repeat_id,
+        n_nodes=n_nodes, n_modules=n_modules, time_points=time_points,
+        n_permutations=n_permutations, alpha=alpha,
+        use_mp=False,  # CRITICAL: Each core handles one whole test
+        seed_base=seed, method_kwargs=kwargs,
+        intra_corr=intra_corr, inter_corr=inter_corr,
+        uniform_corr=uniform_corr, noise_level=noise_level,
+    )
 
 def _normalize_tfnbs_options(options: Optional[dict]) -> dict:
     if not options:
@@ -439,65 +464,42 @@ def run_power_vs_effect_size(
     print()
 
     start_time = time.time()
-    run_times = []  # Track individual run times for estimation
-    run_count = len(completed)
+    # 1. Prepare the full argument list for the workers
+    # We bundle everything into a list of tuples that _parallel_worker can unpack
+    full_tasks = [
+        (method, method_params, kwargs, scenario, effect_size, repeat_id,
+         n_nodes, n_modules, time_points, n_permutations, alpha, seed,
+         intra_corr, inter_corr, uniform_corr, noise_level, n_samples)
+        for (method, method_params, kwargs, scenario, effect_size, repeat_id) in tasks
+    ]
 
-    for i, (method, method_params, kwargs, scenario, effect_size, repeat_id) in enumerate(tasks):
-        run_start = time.time()
-        run_count += 1
+    # 2. Launch the Pool
+    print(f"Launching parallel execution on {get_available_cores()} cores...")
+    
+    # Use 'spawn' context if you're on Linux to avoid the deadlocks you saw earlier
+    ctx = mp.get_context('spawn')
+    
+    with ctx.Pool(processes=get_available_cores()) as pool:
+        # imap_unordered is the fastest way to get results back
+        for i, result in enumerate(pool.imap_unordered(_parallel_worker, full_tasks), 1):
+            results.append(result)
 
-        result = run_single_power_test(
-            method=method,
-            method_params=method_params,
-            scenario=scenario,
-            effect_size=effect_size,
-            n_samples=n_samples,
-            repeat_id=repeat_id,
-            n_nodes=n_nodes,
-            n_modules=n_modules,
-            time_points=time_points,
-            n_permutations=n_permutations,
-            alpha=alpha,
-            use_mp=use_mp,
-            seed_base=seed,
-            method_kwargs=kwargs,
-            intra_corr=intra_corr,
-            inter_corr=inter_corr,
-            uniform_corr=uniform_corr,
-            noise_level=noise_level,
-        )
-        results.append(result)
+            # Progress Reporting & Checkpointing
+            if i % checkpoint_every == 0 or i == len(full_tasks):
+                elapsed = time.time() - start_time
+                avg_time = elapsed / i
+                eta_seconds = avg_time * (len(full_tasks) - i)
+                
+                # Print progress update
+                print(
+                    f"  [{i + len(completed)}/{total_runs}] "
+                    f"Done: {result.scenario} {result.method} ES={result.effect_size} | "
+                    f"Avg: {avg_time:.2f}s/run | "
+                    f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
+                )
 
-        # Track run time
-        run_elapsed = time.time() - run_start
-        run_times.append(run_elapsed)
-
-        # Progress and ETA (every checkpoint_every runs or on last run)
-        if (i + 1) % checkpoint_every == 0 or (i + 1) == remaining_runs:
-            elapsed = time.time() - start_time
-            avg_time = np.mean(run_times[-50:])  # Rolling average of last 50 runs
-            eta_seconds = avg_time * (remaining_runs - i - 1)
-
-            # Method stats for current scenario/effect_size
-            method_results = [
-                r for r in results
-                if r.method == method
-                and r.method_params == method_params
-                and r.scenario == scenario
-                and r.effect_size == effect_size
-            ]
-            mean_tpr = np.mean([r.TPR for r in method_results]) if method_results else 0.0
-            label = f"{method} [{method_params}]" if method_params else method
-
-            print(
-                f"  [{run_count}/{total_runs}] {scenario} ES={effect_size} {label}: "
-                f"TPR={mean_tpr:.3f} | {run_elapsed:.1f}s/run | "
-                f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
-            )
-
-            # Save checkpoint
-            if checkpoint_path:
-                save_checkpoint(results, checkpoint_path)
+                if checkpoint_path:
+                    save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -572,65 +574,35 @@ def run_power_vs_sample_size(
     print()
 
     start_time = time.time()
-    run_times = []  # Track individual run times for estimation
-    run_count = len(completed)
+    # 1. Prepare the full argument tuples for all workers
+    full_tasks = [
+        (method, method_params, kwargs, scenario, effect_size, repeat_id,
+         n_nodes, n_modules, time_points, n_permutations, alpha, seed,
+         intra_corr, inter_corr, uniform_corr, noise_level, n_samples)
+        for (method, method_params, kwargs, scenario, effect_size, repeat_id) in tasks
+    ]
 
-    for i, (method, method_params, kwargs, scenario, n_samples, repeat_id) in enumerate(tasks):
-        run_start = time.time()
-        run_count += 1
+    print(f"Saturating {get_available_cores()} cores...")
 
-        result = run_single_power_test(
-            method=method,
-            method_params=method_params,
-            scenario=scenario,
-            effect_size=effect_size,
-            n_samples=n_samples,
-            repeat_id=repeat_id,
-            n_nodes=n_nodes,
-            n_modules=n_modules,
-            time_points=time_points,
-            n_permutations=n_permutations,
-            alpha=alpha,
-            use_mp=use_mp,
-            seed_base=seed,
-            method_kwargs=kwargs,
-            intra_corr=intra_corr,
-            inter_corr=inter_corr,
-            uniform_corr=uniform_corr,
-            noise_level=noise_level,
-        )
-        results.append(result)
+    # 2. Use a Pool to run 32 tasks at once
+    # Using 'spawn' context is more stable for long-running heavy math
+    ctx = mp.get_context('spawn')
+    with ctx.Pool(processes=get_available_cores()) as pool:
+        # imap_unordered is the fastest way to stream results back
+        for i, result in enumerate(pool.imap_unordered(_parallel_worker, full_tasks), 1):
+            results.append(result)
 
-        # Track run time
-        run_elapsed = time.time() - run_start
-        run_times.append(run_elapsed)
-
-        # Progress and ETA (every checkpoint_every runs or on last run)
-        if (i + 1) % checkpoint_every == 0 or (i + 1) == remaining_runs:
-            elapsed = time.time() - start_time
-            avg_time = np.mean(run_times[-50:])  # Rolling average of last 50 runs
-            eta_seconds = avg_time * (remaining_runs - i - 1)
-
-            # Method stats for current scenario/n_samples
-            method_results = [
-                r for r in results
-                if r.method == method
-                and r.method_params == method_params
-                and r.scenario == scenario
-                and r.n_samples == n_samples
-            ]
-            mean_tpr = np.mean([r.TPR for r in method_results]) if method_results else 0.0
-            label = f"{method} [{method_params}]" if method_params else method
-
-            print(
-                f"  [{run_count}/{total_runs}] {scenario} N={n_samples} {label}: "
-                f"TPR={mean_tpr:.3f} | {run_elapsed:.1f}s/run | "
-                f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
-            )
-
-            # Save checkpoint
-            if checkpoint_path:
-                save_checkpoint(results, checkpoint_path)
+            # Update your progress bar and checkpointing every N runs
+            if i % checkpoint_every == 0 or i == len(full_tasks):
+                elapsed = time.time() - start_time
+                avg_t = elapsed / i
+                eta = (avg_t * (len(full_tasks) - i)) / 60
+                
+                print(f"  [{i + len(completed)}/{total_runs}] "
+                      f"Completed {result.method} | Avg: {avg_t:.2f}s | ETA: {eta:.1f}min")
+                
+                if checkpoint_path:
+                    save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -1095,14 +1067,42 @@ def apply_config_defaults(parser: argparse.ArgumentParser, config: dict) -> None
     if defaults:
         parser.set_defaults(**defaults)
 
+def setup_multiprocessing():
+    """setup multiprocessing method"""
+    try:
+        mp.set_start_method('spawn', force=True)
+        print(f"Multiprocessing start method set to: 'spawn' (forced)")
+        print(f"   System: {sys.platform}, Default would be: {mp.get_start_method()}")
+    except RuntimeError as e:
+
+        current = mp.get_start_method()
+        print(f"ℹMultiprocessing start method already set to: '{current}'")
+        print(f"   (Attempted to set 'spawn' but was ignored)")
 
 def main(argv: Optional[List[str]] = None) -> int:
+    print('check if this is working')
+    print('thread settings:')
+    for var in ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", 
+                "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"]:
+        value = os.environ.get(var, 'NOT SET')
+        print(f"{var}: {value}")
+
+    print(f'available cores: {get_available_cores()}')
+
+    setup_multiprocessing()
+
+    try:
+        mp.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
+
+
     parser = argparse.ArgumentParser(
         description="Power analysis for TFNBS methods",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-
+    
     parser.add_argument(
         "--config", type=Path, default=None,
         help="Load power analysis configuration from YAML file.",
@@ -1243,7 +1243,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             time_points=args.time_points,
             n_permutations=args.n_permutations,
             alpha=args.alpha,
-            use_mp=args.use_mp,
+            use_mp=False,
             seed=args.seed,
             intra_corr=args.intra_corr,
             inter_corr=args.inter_corr,
@@ -1275,7 +1275,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             time_points=args.time_points,
             n_permutations=args.n_permutations,
             alpha=args.alpha,
-            use_mp=args.use_mp,
+            use_mp=False,
             seed=args.seed,
             intra_corr=args.intra_corr,
             inter_corr=args.inter_corr,
@@ -1317,4 +1317,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

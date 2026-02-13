@@ -94,5 +94,5 @@ noise_level: 0.05
 # =============================================================================
 
 seed: 42
-use_mp: true
+use_mp: false
 output_dir: results/power_analysis_quick

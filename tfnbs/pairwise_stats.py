@@ -14,7 +14,7 @@ compute_null_dist : Compute null distribution via permutation testing
 """
 
 from __future__ import annotations
-
+import os
 import logging
 import multiprocessing
 from enum import Enum
@@ -31,7 +31,7 @@ from .tfnbs_score import (
     get_network_informed_tfnbs_score,
     get_fbc_tfnbs_score,
     DEFAULT_START_THRESHOLD,
-    DEFAULT_MIN_CLUSTER_SIZE,
+    DEFAULT_MIN_CLUSTER_SIZE
 )
 
 
@@ -430,6 +430,20 @@ def _score_fbc_tfnbs_two_sample(
 
 
 # =============================================================================
+# Helper function for setting up available threads
+# =============================================================================
+
+def get_available_cores():
+    try:
+        # Linux
+        affinity = os.sched_getaffinity(0)
+        return len(affinity)
+    except AttributeError:
+        # Fallback Windows/Mac
+        return multiprocessing.cpu_count()
+
+
+# =============================================================================
 # Null distribution computation
 # =============================================================================
 
@@ -523,11 +537,12 @@ def compute_null_dist(
     # Generate seeds for reproducibility
     rng = np.random.RandomState(random_state)
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
-
+    
     if use_mp:
         # Parallel computation
+        #n_processes = None
         if n_processes is None:
-            n_processes = multiprocessing.cpu_count()
+            n_processes = get_available_cores()
         n_processes = min(n_processes, n_permutations)
 
         with Pool(processes=n_processes) as pool:
@@ -621,7 +636,7 @@ def compute_p_val(
         Type of statistical test.
     method : {'tfnbs', 'tstat', 'nbs', 'cnbs', 'ni_tfnbs', 'fbc_tfnbs'} or StatMethod, default='tfnbs'
         Statistical method to use for scoring.
-    use_mp : bool, default=True
+    use_mp : bool, default=False
         Use multiprocessing for permutation testing.
     random_state : int, optional
         Random seed for reproducibility.
@@ -796,7 +811,7 @@ def compute_p_val(
         group1, group2_for_null, t_func,
         n_permutations=n_permutations,
         test_type=test_type,
-        use_mp=use_mp,
+        use_mp=False,
         random_state=random_state,
         n_processes=n_processes,
         **null_kwargs
