@@ -53,6 +53,8 @@ __all__ = [
     "compute_t_stat_diff",
     "compute_t_stat_ind",
     "compute_diffs",
+    "get_available_cores",
+    "_is_worker_process",
 ]
 
 logger = logging.getLogger(__name__)
@@ -430,8 +432,17 @@ def _score_fbc_tfnbs_two_sample(
 
 
 # =============================================================================
-# Helper function for setting up available threads
+# Helper functions for multiprocessing
 # =============================================================================
+
+def _is_worker_process() -> bool:
+    """Check if running inside a multiprocessing worker.
+
+    Returns True when the current process was spawned by a Pool,
+    preventing nested Pool creation which causes deadlocks.
+    """
+    return multiprocessing.current_process().name != 'MainProcess'
+
 
 def get_available_cores():
     try:
@@ -455,7 +466,7 @@ def compute_null_dist(
     test_type: Union[str, TestType] = TestType.PAIRED,
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
-    use_mp: bool = False,
+    use_mp: bool = True,
     **func_kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
@@ -465,7 +476,7 @@ def compute_null_dist(
 
     - Fixed indexing bug in sequential mode
     - Efficient result collection
-    - Better memory management for multiprocessing
+    - Context-aware multiprocessing (auto-disables inside worker processes)
 
     Parameters
     ----------
@@ -483,8 +494,9 @@ def compute_null_dist(
         Seed for reproducibility.
     n_processes : int, optional
         Number of parallel processes. Defaults to CPU count.
-    use_mp : bool, default=False
-        Whether to use multiprocessing.
+    use_mp : bool, default=True
+        Whether to use multiprocessing. Automatically disabled when called
+        from inside a multiprocessing worker to prevent nested pools.
     **func_kwargs
         Additional keyword arguments passed to func.
 
@@ -538,9 +550,11 @@ def compute_null_dist(
     rng = np.random.RandomState(random_state)
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
     
-    if use_mp:
-        # Parallel computation
-        #n_processes = None
+    # Context-aware multiprocessing: disable inside worker processes
+    # to prevent nested pools that cause deadlocks
+    _use_mp = use_mp and not _is_worker_process()
+
+    if _use_mp:
         if n_processes is None:
             n_processes = get_available_cores()
         n_processes = min(n_processes, n_permutations)
@@ -636,8 +650,9 @@ def compute_p_val(
         Type of statistical test.
     method : {'tfnbs', 'tstat', 'nbs', 'cnbs', 'ni_tfnbs', 'fbc_tfnbs'} or StatMethod, default='tfnbs'
         Statistical method to use for scoring.
-    use_mp : bool, default=False
-        Use multiprocessing for permutation testing.
+    use_mp : bool, default=True
+        Use multiprocessing for permutation testing. Automatically disabled
+        when called from inside a multiprocessing worker to prevent deadlocks.
     random_state : int, optional
         Random seed for reproducibility.
     n_processes : int, optional
@@ -811,7 +826,7 @@ def compute_p_val(
         group1, group2_for_null, t_func,
         n_permutations=n_permutations,
         test_type=test_type,
-        use_mp=False,
+        use_mp=use_mp,
         random_state=random_state,
         n_processes=n_processes,
         **null_kwargs

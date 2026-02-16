@@ -42,11 +42,26 @@ Output:
 from __future__ import annotations
 
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+# Pin each worker process to 1 BLAS/LAPACK thread.
+# MUST be set before `import numpy` — libraries read these at load time only.
+#
+# Why: mp.Pool spawns N workers doing NumPy math. Without this, each worker
+# spawns its own BLAS thread pool (default = all cores), causing
+# N_workers × N_cores threads fighting for N_cores CPUs.
+# With these = 1: N workers × 1 thread = N threads on N cores (optimal).
+#
+# OMP_NUM_THREADS      — OpenMP (covers GCC/Clang BLAS, most Linux distros)
+# OPENBLAS_NUM_THREADS — OpenBLAS (common NumPy backend on Linux servers)
+# MKL_NUM_THREADS      — Intel MKL (conda-installed NumPy on Intel CPUs)
+# VECLIB_MAXIMUM_THREADS — Apple Accelerate (macOS only)
+# NUMBA_NUM_THREADS    — Numba's own thread pool (prange, parallel=True)
+_SINGLE_THREAD = "1"
+os.environ["OMP_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["OPENBLAS_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["MKL_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["VECLIB_MAXIMUM_THREADS"] = _SINGLE_THREAD
+os.environ["NUMBA_NUM_THREADS"] = _SINGLE_THREAD
 
 
 import argparse
@@ -213,10 +228,10 @@ def run_single_power_test(
         elapsed_time=elapsed,
     )
 def _parallel_worker(task):
-    (method, method_params, kwargs, scenario, effect_size, repeat_id, 
-     n_nodes, n_modules, time_points, n_permutations, alpha, seed, 
+    (method, method_params, kwargs, scenario, effect_size, repeat_id,
+     n_nodes, n_modules, time_points, n_permutations, alpha, seed,
      intra_corr, inter_corr, uniform_corr, noise_level, n_samples) = task
-    
+
     return run_single_power_test(
         method=method, method_params=method_params, scenario=scenario,
         effect_size=effect_size, n_samples=n_samples, repeat_id=repeat_id,
@@ -226,6 +241,231 @@ def _parallel_worker(task):
         seed_base=seed, method_kwargs=kwargs,
         intra_corr=intra_corr, inter_corr=inter_corr,
         uniform_corr=uniform_corr, noise_level=noise_level,
+    )
+
+
+# =============================================================================
+# BATCHED WORKER — generates data once, computes all (e,h) variants at once
+# =============================================================================
+
+TFNBS_METHODS = {"tfnbs", "ni_tfnbs", "fbc_tfnbs"}
+
+
+def run_single_power_test_batched(
+    method: str,
+    all_method_params: List[Tuple[str, dict]],
+    scenario: str,
+    effect_size: float,
+    n_samples: int,
+    repeat_id: int,
+    n_nodes: int = 60,
+    n_modules: int = 4,
+    time_points: int = 30,
+    n_permutations: int = 500,
+    alpha: float = 0.05,
+    seed_base: int = 42,
+    intra_corr: float = 0.3,
+    inter_corr: float = 0.05,
+    uniform_corr: float = 0.15,
+    noise_level: float = 0.05,
+) -> List[PowerResult]:
+    """Run a single power simulation with batched (e,h) parameter variants.
+
+    For TFNBS-family methods, generates data once and calls compute_p_val
+    with all (e,h) pairs as lists, producing 3D p-value output.
+    For other methods, runs each variant separately (usually just 1).
+
+    Parameters
+    ----------
+    method : str
+        Method name (e.g. 'tfnbs', 'ni_tfnbs', 'nbs_extent').
+    all_method_params : list of (str, dict)
+        List of (param_label, kwargs) pairs to batch.
+    scenario : str
+        Topology scenario name.
+    effect_size : float
+        Effect size for data generation.
+    n_samples : int
+        Samples per group.
+    repeat_id : int
+        Repeat identifier (used for seeding).
+    Other parameters match run_single_power_test.
+
+    Returns
+    -------
+    list of PowerResult
+        One result per parameter variant.
+    """
+    start_time = time.time()
+
+    # Generate data ONCE
+    seed = seed_base + repeat_id * 1000
+    generator = topo.TopologyDatasetGenerator(
+        n_nodes=n_nodes,
+        n_modules=n_modules,
+        intra_corr=intra_corr,
+        inter_corr=inter_corr,
+        uniform_corr=uniform_corr,
+        noise_level=noise_level,
+        seed=seed,
+    )
+    dataset = generator.generate(
+        scenario,
+        effect_size=effect_size,
+        n_samples=n_samples,
+        time_points=time_points,
+    )
+    group1_z, group2_z = dataset.fisher_z()
+    effect_mask = dataset.effect_mask
+    net_labels = dataset.net_labels
+    triu_idx = np.triu_indices(n_nodes, k=1)
+    mask_upper = effect_mask[triu_idx] != 0
+    n_true = int(np.sum(mask_upper))
+    n_null = int(np.sum(~mask_upper))
+
+    results = []
+    method_key = method.split("_")[0] if method.startswith("nbs_") else method
+
+    if method in TFNBS_METHODS and len(all_method_params) > 1:
+        # BATCHED: collect all (e,h) pairs into lists for 3D mode
+        e_list = [kw["e"] for _, kw in all_method_params]
+        h_list = [kw["h"] for _, kw in all_method_params]
+        # Non-e/h params should be consistent across variants
+        base_kw = {k: v for k, v in all_method_params[0][1].items()
+                   if k not in ("e", "h")}
+        if method in ("cnbs", "ni_tfnbs", "fbc_tfnbs"):
+            base_kw["net_labels"] = net_labels
+
+        try:
+            p_vals = compute_p_val(
+                group1_z, group2_z,
+                test_type="two-sample",
+                method=method_key,
+                n_permutations=n_permutations,
+                use_mp=False,
+                random_state=seed,
+                e=e_list, h=h_list,
+                **base_kw,
+            )
+            elapsed = time.time() - start_time
+            avg_elapsed = elapsed / len(all_method_params)
+
+            p_pos_3d = np.array(p_vals["g2>g1"])  # (N, N, n_params)
+
+            for i, (param_label, _) in enumerate(all_method_params):
+                if p_pos_3d.ndim == 3:
+                    p_upper = p_pos_3d[:, :, i][triu_idx]
+                else:
+                    # Scalar fallback (single param)
+                    p_upper = p_pos_3d[triu_idx]
+
+                sig_mask = p_upper < alpha
+                TP = int(np.sum(sig_mask & mask_upper))
+                FP = int(np.sum(sig_mask & ~mask_upper))
+                FN = int(np.sum(~sig_mask & mask_upper))
+                TN = int(np.sum(~sig_mask & ~mask_upper))
+                TPR = TP / n_true if n_true > 0 else 0.0
+                FPR = FP / n_null if n_null > 0 else 0.0
+                precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
+                FDR = FP / (TP + FP) if (TP + FP) > 0 else 0.0
+
+                results.append(PowerResult(
+                    method=method, method_params=param_label,
+                    scenario=scenario, effect_size=effect_size,
+                    n_samples=n_samples, repeat_id=repeat_id,
+                    n_true=n_true, n_null=n_null,
+                    TP=TP, FP=FP, FN=FN, TN=TN,
+                    TPR=TPR, FPR=FPR,
+                    precision=precision, FDR=FDR,
+                    elapsed_time=avg_elapsed,
+                ))
+
+        except Exception as exc:
+            print(f"  ERROR in batched {method} repeat {repeat_id}: {exc}")
+            elapsed = time.time() - start_time
+            for param_label, _ in all_method_params:
+                results.append(PowerResult(
+                    method=method, method_params=param_label,
+                    scenario=scenario, effect_size=effect_size,
+                    n_samples=n_samples, repeat_id=repeat_id,
+                    n_true=n_true, n_null=n_null,
+                    TP=0, FP=0, FN=n_true, TN=n_null,
+                    TPR=0.0, FPR=0.0, precision=0.0, FDR=0.0,
+                    elapsed_time=elapsed / len(all_method_params),
+                ))
+    else:
+        # NON-BATCHED: run each variant separately (tstat, nbs, cnbs, or single-param TFNBS)
+        for param_label, kwargs in all_method_params:
+            kw = dict(kwargs)
+            if method.startswith("nbs_"):
+                kw["nbs_stat"] = method.split("_")[1]
+            if method in ("cnbs", "ni_tfnbs", "fbc_tfnbs"):
+                kw["net_labels"] = net_labels
+
+            try:
+                p_vals = compute_p_val(
+                    group1_z, group2_z,
+                    test_type="two-sample",
+                    method=method_key,
+                    n_permutations=n_permutations,
+                    use_mp=False,
+                    random_state=seed,
+                    **kw,
+                )
+                p_pos = np.array(p_vals["g2>g1"])
+                p_upper = p_pos[triu_idx]
+                sig_mask = p_upper < alpha
+                TP = int(np.sum(sig_mask & mask_upper))
+                FP = int(np.sum(sig_mask & ~mask_upper))
+                FN = int(np.sum(~sig_mask & mask_upper))
+                TN = int(np.sum(~sig_mask & ~mask_upper))
+                TPR = TP / n_true if n_true > 0 else 0.0
+                FPR = FP / n_null if n_null > 0 else 0.0
+                precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
+                FDR = FP / (TP + FP) if (TP + FP) > 0 else 0.0
+            except Exception as exc:
+                print(f"  ERROR in {method} repeat {repeat_id}: {exc}")
+                TP, FP, FN, TN = 0, 0, n_true, n_null
+                TPR, FPR, precision, FDR = 0.0, 0.0, 0.0, 0.0
+
+            elapsed = time.time() - start_time
+            results.append(PowerResult(
+                method=method, method_params=param_label,
+                scenario=scenario, effect_size=effect_size,
+                n_samples=n_samples, repeat_id=repeat_id,
+                n_true=n_true, n_null=n_null,
+                TP=TP, FP=FP, FN=FN, TN=TN,
+                TPR=TPR, FPR=FPR,
+                precision=precision, FDR=FDR,
+                elapsed_time=elapsed,
+            ))
+
+    return results
+
+
+def _parallel_worker_batched(task):
+    """Unpack a batched task tuple and call run_single_power_test_batched."""
+    (method, all_method_params, scenario, effect_size, repeat_id,
+     n_nodes, n_modules, time_points, n_permutations, alpha, seed,
+     intra_corr, inter_corr, uniform_corr, noise_level, n_samples) = task
+
+    return run_single_power_test_batched(
+        method=method,
+        all_method_params=all_method_params,
+        scenario=scenario,
+        effect_size=effect_size,
+        n_samples=n_samples,
+        repeat_id=repeat_id,
+        n_nodes=n_nodes,
+        n_modules=n_modules,
+        time_points=time_points,
+        n_permutations=n_permutations,
+        alpha=alpha,
+        seed_base=seed,
+        intra_corr=intra_corr,
+        inter_corr=inter_corr,
+        uniform_corr=uniform_corr,
+        noise_level=noise_level,
     )
 
 def _normalize_tfnbs_options(options: Optional[dict]) -> dict:
@@ -395,6 +635,40 @@ def _iter_method_variants(
     return variants
 
 
+def _group_variants_for_batching(
+    method_variants: List[Tuple[str, dict]],
+) -> List[Tuple[str, List[Tuple[str, dict]]]]:
+    """Group method variants for batched execution.
+
+    TFNBS-family methods (tfnbs, ni_tfnbs, fbc_tfnbs) are grouped by base method,
+    so all (e,h) parameter combos run in a single compute_p_val call (3D mode).
+    Other methods remain as individual tasks (group of 1).
+
+    Returns
+    -------
+    list of (method, [(param_label, kwargs), ...])
+        Each element is a method with its list of parameter variants.
+    """
+    from collections import OrderedDict
+
+    groups: Dict[str, List[Tuple[str, dict]]] = OrderedDict()
+
+    for method, kwargs in method_variants:
+        if method in TFNBS_METHODS:
+            key = method  # group all variants of same TFNBS method
+        else:
+            # Each non-TFNBS variant is its own group
+            param_label = _format_method_params(method, kwargs)
+            key = f"{method}|{param_label}"
+
+        if key not in groups:
+            groups[key] = (method, [])
+        param_label = _format_method_params(method, kwargs)
+        groups[key][1].append((param_label, kwargs))
+
+    return [(method, params) for method, params in groups.values()]
+
+
 def run_power_vs_effect_size(
     methods: List[str],
     scenarios: List[str],
@@ -436,65 +710,71 @@ def run_power_vs_effect_size(
         completed = set()
 
     method_variants = _iter_method_variants(methods, method_configs)
+    batched_groups = _group_variants_for_batching(method_variants)
 
-    # Build task list (skipping completed)
+    # Build batched task list (skipping completed)
     tasks = []
+    total_result_count = 0
     for scenario in scenarios:
         for effect_size in effect_sizes:
-            for method, kwargs in method_variants:
-                method_params = _format_method_params(method, kwargs)
+            for method, param_list in batched_groups:
                 for repeat_id in range(n_repeats):
-                    key = (method, method_params, scenario, effect_size, n_samples, repeat_id)
-                    if key not in completed:
-                        tasks.append((method, method_params, kwargs, scenario, effect_size, repeat_id))
+                    # Filter out already-completed parameter variants
+                    pending_params = []
+                    for param_label, kwargs in param_list:
+                        key = (method, param_label, scenario, effect_size, n_samples, repeat_id)
+                        if key not in completed:
+                            pending_params.append((param_label, kwargs))
+                    total_result_count += len(param_list)
+                    if pending_params:
+                        tasks.append((method, pending_params, scenario, effect_size, repeat_id))
 
-    total_runs = len(tasks) + len(completed)
-    remaining_runs = len(tasks)
+    total_runs = total_result_count
+    remaining_results = sum(len(params) for _, params, _, _, _ in tasks)
 
-    if remaining_runs == 0:
+    if remaining_results == 0:
         print("All runs already completed!")
         return pd.DataFrame([vars(r) for r in results])
 
-    print(f"=== Power vs Effect Size ===")
+    print(f"=== Power vs Effect Size (BATCHED) ===")
     print(f"Methods: {methods} (variants: {len(method_variants)})")
+    print(f"Batched groups: {len(batched_groups)} "
+          f"({', '.join(f'{m}[{len(p)}]' for m, p in batched_groups)})")
     print(f"Scenarios: {scenarios}")
     print(f"Effect sizes: {effect_sizes}")
     print(f"Repeats per condition: {n_repeats}")
-    print(f"Total runs: {total_runs}, Remaining: {remaining_runs}")
+    print(f"Total results: {total_runs}, Remaining: {remaining_results}")
+    print(f"Batched tasks: {len(tasks)} (vs {remaining_results} unbatched)")
     print()
 
     start_time = time.time()
-    # 1. Prepare the full argument list for the workers
-    # We bundle everything into a list of tuples that _parallel_worker can unpack
     full_tasks = [
-        (method, method_params, kwargs, scenario, effect_size, repeat_id,
+        (method, pending_params, scenario, effect_size, repeat_id,
          n_nodes, n_modules, time_points, n_permutations, alpha, seed,
          intra_corr, inter_corr, uniform_corr, noise_level, n_samples)
-        for (method, method_params, kwargs, scenario, effect_size, repeat_id) in tasks
+        for (method, pending_params, scenario, effect_size, repeat_id) in tasks
     ]
 
-    # 2. Launch the Pool
     print(f"Launching parallel execution on {get_available_cores()} cores...")
-    
-    # Use 'spawn' context if you're on Linux to avoid the deadlocks you saw earlier
-    ctx = mp.get_context('spawn')
-    
-    with ctx.Pool(processes=get_available_cores()) as pool:
-        # imap_unordered is the fastest way to get results back
-        for i, result in enumerate(pool.imap_unordered(_parallel_worker, full_tasks), 1):
-            results.append(result)
 
-            # Progress Reporting & Checkpointing
+    ctx = mp.get_context('spawn')
+    completed_results = 0
+
+    with ctx.Pool(processes=get_available_cores()) as pool:
+        for i, batch_results in enumerate(pool.imap_unordered(_parallel_worker_batched, full_tasks), 1):
+            results.extend(batch_results)
+            completed_results += len(batch_results)
+
             if i % checkpoint_every == 0 or i == len(full_tasks):
                 elapsed = time.time() - start_time
                 avg_time = elapsed / i
                 eta_seconds = avg_time * (len(full_tasks) - i)
-                
-                # Print progress update
+
                 print(
-                    f"  [{i + len(completed)}/{total_runs}] "
-                    f"Done: {result.scenario} {result.method} ES={result.effect_size} | "
-                    f"Avg: {avg_time:.2f}s/run | "
+                    f"  [tasks {i}/{len(full_tasks)}, results {completed_results}/{remaining_results}] "
+                    f"Done: {batch_results[0].scenario} {batch_results[0].method} "
+                    f"ES={batch_results[0].effect_size} ({len(batch_results)} variants) | "
+                    f"Avg: {avg_time:.2f}s/task | "
                     f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
                 )
 
@@ -545,62 +825,70 @@ def run_power_vs_sample_size(
         completed = set()
 
     method_variants = _iter_method_variants(methods, method_configs)
+    batched_groups = _group_variants_for_batching(method_variants)
 
-    # Build task list (skipping completed)
+    # Build batched task list (skipping completed)
     tasks = []
+    total_result_count = 0
     for scenario in scenarios:
         for n_samples in sample_sizes:
-            for method, kwargs in method_variants:
-                method_params = _format_method_params(method, kwargs)
+            for method, param_list in batched_groups:
                 for repeat_id in range(n_repeats):
-                    key = (method, method_params, scenario, effect_size, n_samples, repeat_id)
-                    if key not in completed:
-                        tasks.append((method, method_params, kwargs, scenario, n_samples, repeat_id))
+                    pending_params = []
+                    for param_label, kwargs in param_list:
+                        key = (method, param_label, scenario, effect_size, n_samples, repeat_id)
+                        if key not in completed:
+                            pending_params.append((param_label, kwargs))
+                    total_result_count += len(param_list)
+                    if pending_params:
+                        tasks.append((method, pending_params, scenario, n_samples, repeat_id))
 
-    total_runs = len(tasks) + len(completed)
-    remaining_runs = len(tasks)
+    total_runs = total_result_count
+    remaining_results = sum(len(params) for _, params, _, _, _ in tasks)
 
-    if remaining_runs == 0:
+    if remaining_results == 0:
         print("All runs already completed!")
         return pd.DataFrame([vars(r) for r in results])
 
-    print(f"=== Power vs Sample Size ===")
+    print(f"=== Power vs Sample Size (BATCHED) ===")
     print(f"Methods: {methods} (variants: {len(method_variants)})")
+    print(f"Batched groups: {len(batched_groups)} "
+          f"({', '.join(f'{m}[{len(p)}]' for m, p in batched_groups)})")
     print(f"Scenarios: {scenarios}")
     print(f"Sample sizes: {sample_sizes}")
     print(f"Effect size: {effect_size}")
     print(f"Repeats per condition: {n_repeats}")
-    print(f"Total runs: {total_runs}, Remaining: {remaining_runs}")
+    print(f"Total results: {total_runs}, Remaining: {remaining_results}")
+    print(f"Batched tasks: {len(tasks)} (vs {remaining_results} unbatched)")
     print()
 
     start_time = time.time()
-    # 1. Prepare the full argument tuples for all workers
     full_tasks = [
-        (method, method_params, kwargs, scenario, effect_size, repeat_id,
+        (method, pending_params, scenario, effect_size, repeat_id,
          n_nodes, n_modules, time_points, n_permutations, alpha, seed,
          intra_corr, inter_corr, uniform_corr, noise_level, n_samples)
-        for (method, method_params, kwargs, scenario, effect_size, repeat_id) in tasks
+        for (method, pending_params, scenario, n_samples, repeat_id) in tasks
     ]
 
-    print(f"Saturating {get_available_cores()} cores...")
+    print(f"Launching parallel execution on {get_available_cores()} cores...")
 
-    # 2. Use a Pool to run 32 tasks at once
-    # Using 'spawn' context is more stable for long-running heavy math
     ctx = mp.get_context('spawn')
-    with ctx.Pool(processes=get_available_cores()) as pool:
-        # imap_unordered is the fastest way to stream results back
-        for i, result in enumerate(pool.imap_unordered(_parallel_worker, full_tasks), 1):
-            results.append(result)
+    completed_results = 0
 
-            # Update your progress bar and checkpointing every N runs
+    with ctx.Pool(processes=get_available_cores()) as pool:
+        for i, batch_results in enumerate(pool.imap_unordered(_parallel_worker_batched, full_tasks), 1):
+            results.extend(batch_results)
+            completed_results += len(batch_results)
+
             if i % checkpoint_every == 0 or i == len(full_tasks):
                 elapsed = time.time() - start_time
                 avg_t = elapsed / i
                 eta = (avg_t * (len(full_tasks) - i)) / 60
-                
-                print(f"  [{i + len(completed)}/{total_runs}] "
-                      f"Completed {result.method} | Avg: {avg_t:.2f}s | ETA: {eta:.1f}min")
-                
+
+                print(f"  [tasks {i}/{len(full_tasks)}, results {completed_results}/{remaining_results}] "
+                      f"Completed {batch_results[0].method} ({len(batch_results)} variants) | "
+                      f"Avg: {avg_t:.2f}s/task | ETA: {eta:.1f}min")
+
                 if checkpoint_path:
                     save_checkpoint(results, checkpoint_path)
 
@@ -1080,21 +1368,15 @@ def setup_multiprocessing():
         print(f"   (Attempted to set 'spawn' but was ignored)")
 
 def main(argv: Optional[List[str]] = None) -> int:
-    print('check if this is working')
-    print('thread settings:')
-    for var in ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", 
-                "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"]:
+    print('Thread pinning (1 BLAS thread per worker):')
+    for var in ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+                "VECLIB_MAXIMUM_THREADS", "NUMBA_NUM_THREADS"]:
         value = os.environ.get(var, 'NOT SET')
-        print(f"{var}: {value}")
+        print(f"  {var}: {value}")
 
-    print(f'available cores: {get_available_cores()}')
+    print(f'Available cores: {get_available_cores()}')
 
     setup_multiprocessing()
-
-    try:
-        mp.set_start_method('spawn', force=True)
-    except RuntimeError:
-        pass
 
 
     parser = argparse.ArgumentParser(

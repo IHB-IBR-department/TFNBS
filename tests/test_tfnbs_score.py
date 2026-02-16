@@ -6,7 +6,8 @@ from tfnbs.tfnbs_score import (
     get_tfnbs_score_networkx,
     get_tfnbs_score,
     get_tfnbs_score_baseline,
-    get_network_informed_tfnbs_score
+    get_network_informed_tfnbs_score,
+    HAS_NUMBA,
 )
 from tfnbs.synth_datasets import generate_fc_matrices, ModularDatasetGenerator
 from tfnbs.pairwise_stats import compute_t_stat_ind
@@ -356,3 +357,138 @@ class TestNetworkInformedTFNBS(TestCase):
 
         self.assertEqual(result.shape, (self.N, self.N))
         self.assertFalse(np.any(np.isnan(result)))
+
+
+class TestTFNBSNumbaBackend(TestCase):
+    """Test that numba backend produces identical results to scipy."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.small_matrix = np.array([[0, 2.1, 0.5], [2.1, 0, 2.5], [0.5, 2.5, 0]])
+
+        # Generate a realistic t-stat matrix
+        effect_size = 0.2
+        group1, group2, (cov1, cov2) = generate_fc_matrices(
+            60, effect_size, n_samples_group1=30, n_samples_group2=20, seed=42
+        )
+        t_stat = compute_t_stat(
+            fisher_r_to_z(group1), fisher_r_to_z(group2), test_type='two-sample'
+        )
+        cls.t_stat_60 = t_stat
+
+        # Large matrix for scale test
+        group1_l, group2_l, _ = generate_fc_matrices(
+            200, effect_size, n_samples_group1=30, n_samples_group2=20, seed=99
+        )
+        t_stat_l = compute_t_stat(
+            fisher_r_to_z(group1_l), fisher_r_to_z(group2_l), test_type='two-sample'
+        )
+        cls.t_stat_200 = t_stat_l
+
+    def _compare_backends(self, t_stats, e, h, n, start_thres=1.65, atol=1e-10):
+        """Helper: compare scipy vs numba backends."""
+        result_scipy = get_tfnbs_score(t_stats, e, h, n, start_thres=start_thres, backend='scipy')
+        result_numba = get_tfnbs_score(t_stats, e, h, n, start_thres=start_thres, backend='numba')
+        np.testing.assert_allclose(result_scipy, result_numba, atol=atol,
+                                   err_msg=f"Mismatch for e={e}, h={h}, n={n}")
+        return result_scipy, result_numba
+
+    def test_scalar_small_matrix(self):
+        """Scalar (e, h) on small 3x3 matrix."""
+        self._compare_backends(self.small_matrix, e=0.5, h=2.0, n=10, start_thres=0)
+
+    def test_scalar_realistic_matrix(self):
+        """Scalar (e, h) on realistic 60-node t-stat matrix."""
+        self._compare_backends(self.t_stat_60['g2>g1'], e=0.4, h=3.0, n=30)
+
+    def test_3d_multi_param(self):
+        """3D multi-param (e=[list], h=[list]) produce identical output."""
+        e_list = [0.3, 0.5, 0.7, 1.0]
+        h_list = [1.5, 2.0, 3.0, 4.0]
+        r_scipy, r_numba = self._compare_backends(
+            self.t_stat_60['g2>g1'], e=e_list, h=h_list, n=20
+        )
+        self.assertEqual(r_scipy.shape, (60, 60, 4))
+        self.assertEqual(r_numba.shape, (60, 60, 4))
+
+    def test_zero_matrix(self):
+        """Zero matrix returns zeros."""
+        t = np.zeros((10, 10))
+        self._compare_backends(t, e=0.5, h=2.0, n=10, start_thres=0)
+
+    def test_all_below_threshold(self):
+        """All values below start_thres returns zeros."""
+        t = np.ones((10, 10)) * 0.5
+        np.fill_diagonal(t, 0)
+        r_scipy, r_numba = self._compare_backends(t, e=0.5, h=2.0, n=10, start_thres=1.65)
+        np.testing.assert_allclose(r_scipy, 0)
+        np.testing.assert_allclose(r_numba, 0)
+
+    def test_single_edge(self):
+        """Single edge above threshold."""
+        t = np.zeros((5, 5))
+        t[0, 1] = t[1, 0] = 2.5
+        self._compare_backends(t, e=0.5, h=2.0, n=10)
+
+    def test_fully_connected(self):
+        """Fully connected matrix above threshold."""
+        t = np.ones((8, 8)) * 3.0
+        np.fill_diagonal(t, 0)
+        self._compare_backends(t, e=0.5, h=2.0, n=10)
+
+    def test_asymmetric_matrix(self):
+        """Asymmetric (directed) matrix."""
+        np.random.seed(123)
+        t = np.abs(np.random.randn(10, 10)) * 3
+        np.fill_diagonal(t, 0)
+        # Make asymmetric
+        t[0, 1] = 5.0
+        t[1, 0] = 1.0
+        self._compare_backends(t, e=0.5, h=2.0, n=20, start_thres=1.0)
+
+    def test_large_matrix_200(self):
+        """N=200 matrix for correctness at scale."""
+        self._compare_backends(self.t_stat_200['g2>g1'], e=0.4, h=3.0, n=30)
+
+    def test_large_matrix_200_3d(self):
+        """N=200 matrix with multiple parameter pairs."""
+        e_list = [0.3, 0.5, 1.0]
+        h_list = [2.0, 3.0, 5.0]
+        self._compare_backends(self.t_stat_200['g2>g1'], e=e_list, h=h_list, n=20)
+
+    def test_backend_fallback_without_numba(self):
+        """Test that backend='numba' gracefully falls back when numba unavailable."""
+        import tfnbs.tfnbs_score as mod
+        original = mod.HAS_NUMBA
+        try:
+            mod.HAS_NUMBA = False
+            # Should fall back to scipy and produce correct results
+            t = self.small_matrix
+            result = get_tfnbs_score(t, e=0.5, h=2.0, n=10, start_thres=0, backend='numba')
+            expected = get_tfnbs_score(t, e=0.5, h=2.0, n=10, start_thres=0, backend='scipy')
+            np.testing.assert_allclose(result, expected, atol=1e-10)
+        finally:
+            mod.HAS_NUMBA = original
+
+    @unittest.skipUnless(HAS_NUMBA, "Numba not installed")
+    def test_numba_speedup(self):
+        """When numba is installed, it should be faster than scipy on large matrices."""
+        t = self.t_stat_200['g2>g1']
+        # Warmup JIT
+        get_tfnbs_score(t, e=0.4, h=3.0, n=30, backend='numba')
+
+        n_runs = 5
+        scipy_times = []
+        numba_times = []
+        for _ in range(n_runs):
+            start = time.perf_counter()
+            get_tfnbs_score(t, e=0.4, h=3.0, n=30, backend='scipy')
+            scipy_times.append(time.perf_counter() - start)
+
+            start = time.perf_counter()
+            get_tfnbs_score(t, e=0.4, h=3.0, n=30, backend='numba')
+            numba_times.append(time.perf_counter() - start)
+
+        speedup = min(scipy_times) / min(numba_times)
+        print(f"\nNumba speedup: {speedup:.2f}x (scipy={min(scipy_times)*1000:.1f}ms, numba={min(numba_times)*1000:.1f}ms)")
+        self.assertGreater(speedup, 1.0, "Numba should be at least as fast as scipy")
