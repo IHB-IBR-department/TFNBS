@@ -32,7 +32,18 @@ Output:
 
 from __future__ import annotations
 
+import os
+
+# Pin each worker to 1 BLAS/LAPACK thread (must be before numpy import).
+_SINGLE_THREAD = "1"
+os.environ["OMP_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["OPENBLAS_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["MKL_NUM_THREADS"] = _SINGLE_THREAD
+os.environ["VECLIB_MAXIMUM_THREADS"] = _SINGLE_THREAD
+os.environ["NUMBA_NUM_THREADS"] = _SINGLE_THREAD
+
 import argparse
+import multiprocessing as mp
 import sys
 import time
 from dataclasses import dataclass, asdict
@@ -46,7 +57,7 @@ import yaml
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from tfnbs.pairwise_stats import compute_p_val
+from tfnbs.pairwise_stats import compute_p_val, get_available_cores
 from tfnbs.synth_datasets import ModularDatasetGenerator
 
 
@@ -393,73 +404,52 @@ def run_fpr_calibration(
         return pd.DataFrame([asdict(r) for r in results])
 
     total_runs = len(tasks)
+    n_cores = config.n_jobs if config.n_jobs > 0 else get_available_cores()
+    use_parallel = config.n_jobs != 1 and total_runs > 1
+
     print(f"=== FPR Calibration Test ===")
     print(f"Methods: {config.methods}")
     print(f"Null datasets per method: {config.n_null}")
     print(f"Permutations per test: {config.n_permutations}")
     print(f"Alpha: {config.alpha}")
-    print(f"Parallel jobs: {config.n_jobs}")
+    print(f"Parallel: {'yes' if use_parallel else 'no'} ({n_cores} cores)")
     print(f"Remaining runs: {total_runs}")
     print(f"Expected FPR: {config.alpha:.3f} +/- {1.96 * np.sqrt(config.alpha * (1-config.alpha) / config.n_null):.3f}")
     print()
 
-    # Check if joblib is available for parallel execution
-    use_parallel = config.n_jobs != 1 and total_runs > 1
-    if use_parallel:
-        try:
-            from joblib import Parallel, delayed
-        except ImportError:
-            print("joblib not available, falling back to sequential execution")
-            use_parallel = False
-
     start_time = time.time()
 
     if use_parallel:
-        # Parallel execution with progress updates
-        n_jobs = config.n_jobs if config.n_jobs > 0 else -1
+        ctx = mp.get_context('spawn')
+        with ctx.Pool(processes=n_cores) as pool:
+            for i, result in enumerate(pool.imap_unordered(_run_null_test_wrapper, tasks), 1):
+                results.append(result)
 
-        # Process in batches for checkpointing
-        batch_size = config.checkpoint_every * len(config.methods)
+                if i % config.checkpoint_every == 0 or i == total_runs:
+                    elapsed = time.time() - start_time
+                    eta = elapsed / i * (total_runs - i)
+                    print(f"  [{i}/{total_runs}] {result.method} run={result.null_run_id} | "
+                          f"Elapsed: {elapsed/60:.1f}min | ETA: {eta/60:.1f}min")
 
-        for batch_start in range(0, len(tasks), batch_size):
-            batch_tasks = tasks[batch_start:batch_start + batch_size]
+                    # Per-method running FPR
+                    for method in config.methods:
+                        method_results = [r for r in results if r.method == method]
+                        if method_results:
+                            fpr = np.mean([r.any_significant for r in method_results])
+                            print(f"    {method}: FPR = {fpr:.4f} (n={len(method_results)})")
 
-            batch_results = Parallel(n_jobs=n_jobs, verbose=0)(
-                delayed(_run_null_test_wrapper)(task) for task in batch_tasks
-            )
-
-            results.extend(batch_results)
-
-            # Progress update
-            completed_count = len(results)
-            elapsed = time.time() - start_time
-            eta = elapsed / completed_count * (total_runs + len(completed) - completed_count)
-
-            # Compute current FPR per method
-            print(f"\n[{completed_count}/{total_runs + len(completed)}] Elapsed: {elapsed/60:.1f}min, ETA: {eta/60:.1f}min")
-            for method in config.methods:
-                method_results = [r for r in results if r.method == method]
-                if method_results:
-                    fpr = np.mean([r.any_significant for r in method_results])
-                    print(f"  {method}: FPR = {fpr:.4f} (n={len(method_results)})")
-
-            # Save checkpoint
-            save_checkpoint(results, checkpoint_path)
-
+                    save_checkpoint(results, checkpoint_path)
     else:
-        # Sequential execution with progress
-        for i, (method, null_id, cfg) in enumerate(tasks):
-            result = run_single_null_test(method, null_id, cfg)
+        for i, task in enumerate(tasks, 1):
+            result = _run_null_test_wrapper(task)
             results.append(result)
 
-            if (i + 1) % config.checkpoint_every == 0:
+            if i % config.checkpoint_every == 0 or i == total_runs:
                 elapsed = time.time() - start_time
-                eta = elapsed / (i + 1) * (total_runs - i - 1)
-                method_results = [r for r in results if r.method == method]
+                eta = elapsed / i * (total_runs - i)
+                method_results = [r for r in results if r.method == result.method]
                 fpr = np.mean([r.any_significant for r in method_results])
-                print(f"  [{i + 1}/{total_runs}] {method} FPR={fpr:.3f}, ETA={eta/60:.1f}min")
-
-                # Save checkpoint
+                print(f"  [{i}/{total_runs}] {result.method} FPR={fpr:.3f} | ETA={eta/60:.1f}min")
                 save_checkpoint(results, checkpoint_path)
 
     # Final checkpoint save
@@ -844,6 +834,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Create output directory
     config.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Setup multiprocessing
+    try:
+        mp.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
 
     # Run calibration
     df = run_fpr_calibration(config, resume=args.resume)

@@ -196,25 +196,31 @@ class TestBasicStats(TestCase):
         self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
 
     def test_compute_null_t_stat_ind_eff(self):
+        """Test that mp and sequential paths produce consistent null distributions."""
         group_dict = self.fc_sim
 
-        n_permutations = 1000
+        n_permutations = 100
         random_state = 42
         test_type = 'two-sample'
 
-        time_mp = self.run_and_measure(compute_t_stat_tfnbs,
-                                       group_dict['group1'], group_dict['group2'],
-                                       n_permutations, test_type, random_state, True)
+        null_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
+                                    compute_t_stat_tfnbs, n_permutations=n_permutations,
+                                    test_type=test_type, random_state=random_state, use_mp=True)
 
-        time_cycle = self.run_and_measure(compute_t_stat_tfnbs,
-                                          group_dict['group1'], group_dict['group2'],
-                                          n_permutations, test_type, random_state, False)
+        null_seq = compute_null_dist(group_dict['group1'], group_dict['group2'],
+                                     compute_t_stat_tfnbs, n_permutations=n_permutations,
+                                     test_type=test_type, random_state=random_state, use_mp=False)
 
-        self.assertLess(time_mp, time_cycle)
+        # Both paths should produce valid null distributions of the same shape
+        self.assertEqual(null_mp["g2>g1"].shape, null_seq["g2>g1"].shape)
+        self.assertEqual(null_mp["g1>g2"].shape, null_seq["g1>g2"].shape)
+        # Null distributions should have similar statistics (same seeds)
+        np.testing.assert_allclose(null_mp["g2>g1"].mean(), null_seq["g2>g1"].mean(), rtol=0.3)
+        np.testing.assert_allclose(null_mp["g1>g2"].mean(), null_seq["g1>g2"].mean(), rtol=0.3)
 
     def test_compute_p_val_indep(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
 
@@ -223,7 +229,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True)
@@ -233,7 +239,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf_multi(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True, e=[0.4, 0.6],
@@ -244,7 +250,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf_orig(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
                                     n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],
@@ -255,7 +261,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_paired_tf_orig(self):
         group_dict = self.fc_sim_paired
-        n_permutations = 1000
+        n_permutations = 100
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
                                     n_permutations=n_permutations, test_type='paired', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],

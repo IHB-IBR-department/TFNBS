@@ -1,42 +1,65 @@
 """
 Power Analysis for TFNBS Methods.
 
-This script computes statistical power curves for all methods across:
-1. Effect sizes (at fixed sample size)
-2. Sample sizes (at fixed effect size)
+Computes statistical power (TPR), FDR, precision, and FPR for all methods
+across effect sizes and/or sample sizes using synthetic modular networks
+with known ground-truth effects.
 
-Power is defined as the proportion of true edges that are detected
-(True Positive Rate / Sensitivity) at the nominal alpha level.
+Methods compared:
+    tstat, tfnbs, ni_tfnbs, fbc_tfnbs, nbs_extent, nbs_intensity, cnbs
 
-Scenario names follow examples/sim_methods/sim_topology_examples.py so power analysis
-matches the method-comparison topologies exactly.
+Key features:
+    - Batched 3D mode: TFNBS methods compute all (e,h) parameter combos
+      in a single compute_p_val call (e.g. 176 combos with no extra cost).
+    - Numba-accelerated TFNBS scoring (auto backend).
+    - Parallel execution via mp.Pool with spawn context and BLAS thread
+      pinning (1 thread per worker) to avoid mutex deadlocks.
+    - Checkpointing with --resume support for interrupted runs.
+    - Per-scenario CSV output for easy downstream analysis.
+
+Scenarios are defined in examples/sim_topology_examples.py (e.g.
+within_module_dense, hub, chain, scattered_cross_block, etc.).
 
 Usage:
-    # Power vs Effect Size
-    python power_analysis.py --mode effect-size \
-        --effect-sizes 0.10 0.15 0.20 0.25 0.30 0.40 0.50 \
-        --n-repeats 50 --n-permutations 500
+    # Run both analyses with a YAML config (recommended)
+    python examples/power_test/power_analysis.py \\
+        --config examples/power_test/sweep_config_power_local.yaml
 
-    # Power vs Sample Size
-    python power_analysis.py --mode sample-size \
-        --sample-sizes 10 15 20 30 50 \
-        --effect-size 0.25 \
-        --n-repeats 50
+    # Power vs effect size only
+    python examples/power_test/power_analysis.py \\
+        --config examples/power_test/sweep_config_power_local.yaml \\
+        --mode effect-size
 
-    # Both analyses
-    python power_analysis.py --mode both
+    # Power vs sample size only
+    python examples/power_test/power_analysis.py \\
+        --config examples/power_test/sweep_config_power_local.yaml \\
+        --mode sample-size
 
-    # Use YAML config
-    python power_analysis.py --config sweep_config_power.yaml
+    # Resume an interrupted run
+    python examples/power_test/power_analysis.py \\
+        --config examples/power_test/sweep_config_power_local.yaml --resume
 
-    # Resume interrupted run
-    python power_analysis.py --config sweep_config_power.yaml --resume
+    # CLI overrides (no YAML)
+    python examples/power_test/power_analysis.py \\
+        --effect-sizes 0.15 0.25 0.50 \\
+        --sample-sizes 10 30 50 \\
+        --scenarios within_module_dense hub \\
+        --methods tstat tfnbs nbs_extent \\
+        --n-repeats 10 --n-permutations 500
 
-Output:
-    - results/power_analysis/power_vs_effect_size.csv
-    - results/power_analysis/power_vs_sample_size.csv
-    - results/power_analysis/power_curves.png
-    - results/power_analysis/checkpoint_*.csv (for resume)
+Output (saved to --output-dir, default results/power_analysis):
+    power_vs_effect_size.csv          — raw results (all methods × scenarios × repeats)
+    power_vs_effect_size_summary.csv  — aggregated mean/std per condition
+    power_vs_sample_size.csv          — raw results
+    power_vs_sample_size_summary.csv  — aggregated mean/std per condition
+    required_sample_sizes.csv         — min N for 80% power per method/scenario
+    per_scenario/                     — one CSV per scenario for each mode
+    checkpoint_*.csv                  — intermediate (removed on completion)
+
+Plotting:
+    Use plot_power_analysis_results.py to visualize results:
+        python examples/power_test/plot_power_analysis_results.py \\
+            results/power_analysis_local
 """
 
 from __future__ import annotations
@@ -78,8 +101,10 @@ import pandas as pd
 try:
     import yaml
     HAS_YAML = True
-except ImportError:  
+except ImportError:
     HAS_YAML = False
+
+from tqdm import tqdm
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -468,6 +493,85 @@ def _parallel_worker_batched(task):
         noise_level=noise_level,
     )
 
+# =============================================================================
+# TIME ESTIMATION — benchmarked with numba backend, 60 nodes, n_thresholds=30
+# =============================================================================
+
+# Per-task seconds at 100 permutations (measured on Apple M-series, numba)
+_BENCH_PERMS = 100
+_TASK_SECS = {
+    "tstat": 0.9,
+    "tfnbs": 5.5,           # batched 176 (e,h) combos
+    "ni_tfnbs": 4.8,        # batched 176 (e,h) combos
+    "fbc_tfnbs": 4.7,       # batched 176 (e,h) combos
+    "nbs_extent": 1.2,      # per threshold variant
+    "nbs_intensity": 1.5,   # per threshold variant
+    "cnbs": 1.3,
+}
+
+
+def estimate_runtime(
+    batched_groups: List[Tuple[str, list]],
+    n_conditions: int,
+    n_permutations: int,
+    n_cores: int,
+) -> Tuple[float, float]:
+    """Estimate sequential and parallel runtime in seconds.
+
+    Parameters
+    ----------
+    batched_groups : list of (method, param_list)
+        Output from _group_variants_for_batching.
+    n_conditions : int
+        Number of (scenario × sweep_value × repeat) combinations.
+    n_permutations : int
+        Permutations per test.
+    n_cores : int
+        Available CPU cores for parallel execution.
+
+    Returns
+    -------
+    (sequential_seconds, parallel_seconds)
+    """
+    perm_scale = n_permutations / _BENCH_PERMS
+
+    total_task_secs = 0.0
+    for method, param_list in batched_groups:
+        base_time = _TASK_SECS.get(method, 2.0)
+        total_task_secs += base_time * perm_scale
+
+    sequential = total_task_secs * n_conditions
+    n_tasks = n_conditions * len(batched_groups)
+    parallel = sequential / max(n_cores, 1)
+
+    return sequential, parallel
+
+
+def print_time_estimate(
+    mode: str,
+    batched_groups: List[Tuple[str, list]],
+    n_conditions: int,
+    n_tasks: int,
+    n_permutations: int,
+    n_cores: int,
+):
+    """Print estimated runtime before launching."""
+    seq, par = estimate_runtime(batched_groups, n_conditions, n_permutations, n_cores)
+
+    def _fmt(secs):
+        if secs < 120:
+            return f"{secs:.0f}s"
+        elif secs < 7200:
+            return f"{secs/60:.0f}min"
+        else:
+            return f"{secs/3600:.1f}h"
+
+    print(f"Estimated runtime ({mode}):")
+    print(f"  {n_tasks} tasks, {n_conditions} conditions, {n_permutations} perms")
+    print(f"  Sequential: {_fmt(seq)} | Parallel ({n_cores} cores): {_fmt(par)}")
+    print()
+
+
 def _normalize_tfnbs_options(options: Optional[dict]) -> dict:
     if not options:
         return {}
@@ -747,7 +851,11 @@ def run_power_vs_effect_size(
     print(f"Batched tasks: {len(tasks)} (vs {remaining_results} unbatched)")
     print()
 
-    start_time = time.time()
+    n_conditions = len(scenarios) * len(effect_sizes) * n_repeats
+    n_cores = get_available_cores()
+    print_time_estimate("effect-size", batched_groups, n_conditions,
+                        len(tasks), n_permutations, n_cores)
+
     full_tasks = [
         (method, pending_params, scenario, effect_size, repeat_id,
          n_nodes, n_modules, time_points, n_permutations, alpha, seed,
@@ -755,31 +863,27 @@ def run_power_vs_effect_size(
         for (method, pending_params, scenario, effect_size, repeat_id) in tasks
     ]
 
-    print(f"Launching parallel execution on {get_available_cores()} cores...")
+    print(f"Launching parallel execution on {n_cores} cores...")
 
     ctx = mp.get_context('spawn')
-    completed_results = 0
 
-    with ctx.Pool(processes=get_available_cores()) as pool:
-        for i, batch_results in enumerate(pool.imap_unordered(_parallel_worker_batched, full_tasks), 1):
+    with ctx.Pool(processes=n_cores) as pool:
+        pbar = tqdm(
+            pool.imap_unordered(_parallel_worker_batched, full_tasks),
+            total=len(full_tasks),
+            desc="Effect-size",
+            unit="task",
+            miniters=1,
+        )
+        for i, batch_results in enumerate(pbar, 1):
             results.extend(batch_results)
-            completed_results += len(batch_results)
+            pbar.set_postfix_str(
+                f"{batch_results[0].scenario[:12]} {batch_results[0].method} "
+                f"ES={batch_results[0].effect_size}"
+            )
 
-            if i % checkpoint_every == 0 or i == len(full_tasks):
-                elapsed = time.time() - start_time
-                avg_time = elapsed / i
-                eta_seconds = avg_time * (len(full_tasks) - i)
-
-                print(
-                    f"  [tasks {i}/{len(full_tasks)}, results {completed_results}/{remaining_results}] "
-                    f"Done: {batch_results[0].scenario} {batch_results[0].method} "
-                    f"ES={batch_results[0].effect_size} ({len(batch_results)} variants) | "
-                    f"Avg: {avg_time:.2f}s/task | "
-                    f"Elapsed: {elapsed/60:.1f}min | ETA: {eta_seconds/60:.1f}min"
-                )
-
-                if checkpoint_path:
-                    save_checkpoint(results, checkpoint_path)
+            if checkpoint_path and (i % checkpoint_every == 0 or i == len(full_tasks)):
+                save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -862,7 +966,11 @@ def run_power_vs_sample_size(
     print(f"Batched tasks: {len(tasks)} (vs {remaining_results} unbatched)")
     print()
 
-    start_time = time.time()
+    n_conditions = len(scenarios) * len(sample_sizes) * n_repeats
+    n_cores = get_available_cores()
+    print_time_estimate("sample-size", batched_groups, n_conditions,
+                        len(tasks), n_permutations, n_cores)
+
     full_tasks = [
         (method, pending_params, scenario, effect_size, repeat_id,
          n_nodes, n_modules, time_points, n_permutations, alpha, seed,
@@ -870,27 +978,27 @@ def run_power_vs_sample_size(
         for (method, pending_params, scenario, n_samples, repeat_id) in tasks
     ]
 
-    print(f"Launching parallel execution on {get_available_cores()} cores...")
+    print(f"Launching parallel execution on {n_cores} cores...")
 
     ctx = mp.get_context('spawn')
-    completed_results = 0
 
-    with ctx.Pool(processes=get_available_cores()) as pool:
-        for i, batch_results in enumerate(pool.imap_unordered(_parallel_worker_batched, full_tasks), 1):
+    with ctx.Pool(processes=n_cores) as pool:
+        pbar = tqdm(
+            pool.imap_unordered(_parallel_worker_batched, full_tasks),
+            total=len(full_tasks),
+            desc="Sample-size",
+            unit="task",
+            miniters=1,
+        )
+        for i, batch_results in enumerate(pbar, 1):
             results.extend(batch_results)
-            completed_results += len(batch_results)
+            pbar.set_postfix_str(
+                f"{batch_results[0].scenario[:12]} {batch_results[0].method} "
+                f"N={batch_results[0].n_samples}"
+            )
 
-            if i % checkpoint_every == 0 or i == len(full_tasks):
-                elapsed = time.time() - start_time
-                avg_t = elapsed / i
-                eta = (avg_t * (len(full_tasks) - i)) / 60
-
-                print(f"  [tasks {i}/{len(full_tasks)}, results {completed_results}/{remaining_results}] "
-                      f"Completed {batch_results[0].method} ({len(batch_results)} variants) | "
-                      f"Avg: {avg_t:.2f}s/task | ETA: {eta:.1f}min")
-
-                if checkpoint_path:
-                    save_checkpoint(results, checkpoint_path)
+            if checkpoint_path and (i % checkpoint_every == 0 or i == len(full_tasks)):
+                save_checkpoint(results, checkpoint_path)
 
     return pd.DataFrame([vars(r) for r in results])
 
@@ -913,381 +1021,6 @@ def summarize_power_results(df: pd.DataFrame, groupby_cols: List[str]) -> pd.Dat
     ]
 
     return summary
-
-
-def plot_power_curves(
-    df_effect: pd.DataFrame,
-    df_sample: pd.DataFrame,
-    output_dir: Path,
-):
-    """Create power curve plots."""
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-    except ImportError:
-        print("matplotlib/seaborn not available, skipping plots")
-        return
-
-    df_effect_plot = df_effect.copy()
-    df_sample_plot = df_sample.copy() if df_sample is not None else None
-    if "method_params" in df_effect_plot.columns:
-        df_effect_plot["method_display"] = df_effect_plot.apply(
-            lambda row: f"{row['method']} [{row['method_params']}]" if row["method_params"] else row["method"],
-            axis=1,
-        )
-    else:
-        df_effect_plot["method_display"] = df_effect_plot["method"]
-    if df_sample_plot is not None:
-        if "method_params" in df_sample_plot.columns:
-            df_sample_plot["method_display"] = df_sample_plot.apply(
-                lambda row: f"{row['method']} [{row['method_params']}]" if row["method_params"] else row["method"],
-                axis=1,
-            )
-        else:
-            df_sample_plot["method_display"] = df_sample_plot["method"]
-
-    # Color palette for method variants
-    method_labels = df_effect_plot["method_display"].unique()
-    palette = dict(zip(method_labels, sns.color_palette("husl", len(method_labels))))
-
-    scenarios = df_effect_plot["scenario"].unique()
-
-    # Plot 1: Power vs Effect Size (one subplot per scenario)
-    n_scenarios = len(scenarios)
-    fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-    for idx, scenario in enumerate(scenarios):
-        ax = axes[0, idx]
-        scenario_df = df_effect_plot[df_effect_plot["scenario"] == scenario]
-
-        for label in method_labels:
-            method_df = scenario_df[scenario_df["method_display"] == label]
-            summary = method_df.groupby("effect_size")["TPR"].agg(["mean", "std"]).reset_index()
-            ax.errorbar(
-                summary["effect_size"], summary["mean"],
-                yerr=summary["std"],
-                label=label, color=palette[label],
-                marker="o", capsize=3, linewidth=2,
-            )
-
-        ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5, label="80% power")
-        ax.set_xlabel("Effect Size")
-        ax.set_ylabel("Power (TPR)")
-        ax.set_title(f"{scenario}")
-        ax.set_ylim(0, 1.)
-        ax.legend(loc="lower right", fontsize=8)
-        ax.grid(True, alpha=0.3)
-
-    plt.suptitle("Power vs Effect Size by Scenario", y=1.02)
-    plt.tight_layout()
-    plt.savefig(output_dir / "power_vs_effect_size.png", dpi=150, bbox_inches="tight")
-    plt.close()
-
-    # Plot 1b: FDR vs Effect Size (one subplot per scenario)
-    fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-    for idx, scenario in enumerate(scenarios):
-        ax = axes[0, idx]
-        scenario_df = df_effect_plot[df_effect_plot["scenario"] == scenario]
-
-        for label in method_labels:
-            method_df = scenario_df[scenario_df["method_display"] == label]
-            summary = method_df.groupby("effect_size")["FDR"].agg(["mean", "std"]).reset_index()
-            ax.errorbar(
-                summary["effect_size"], summary["mean"],
-                yerr=summary["std"],
-                label=label, color=palette[label],
-                marker="o", capsize=3, linewidth=2,
-            )
-
-        ax.set_xlabel("Effect Size")
-        ax.set_ylabel("False Discovery Rate (FDR)")
-        ax.set_title(f"{scenario}")
-        ax.set_ylim(0, 0.5)
-        ax.legend(loc="upper right", fontsize=8)
-        ax.grid(True, alpha=0.3)
-
-    plt.suptitle("FDR vs Effect Size by Scenario", y=1.02)
-    plt.tight_layout()
-    plt.savefig(output_dir / "fdr_vs_effect_size.png", dpi=150, bbox_inches="tight")
-    plt.close()
-
-    # Plot 2: Power vs Sample Size
-    if df_sample_plot is not None and len(df_sample_plot) > 0:
-        fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-        for idx, scenario in enumerate(scenarios):
-            ax = axes[0, idx]
-            scenario_df = df_sample_plot[df_sample_plot["scenario"] == scenario]
-
-            for label in method_labels:
-                method_df = scenario_df[scenario_df["method_display"] == label]
-                summary = method_df.groupby("n_samples")["TPR"].agg(["mean", "std"]).reset_index()
-                ax.errorbar(
-                    summary["n_samples"], summary["mean"],
-                    yerr=summary["std"],
-                    label=label, color=palette[label],
-                    marker="o", capsize=3, linewidth=2,
-                )
-
-            ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5)
-            ax.set_xlabel("Sample Size (per group)")
-            ax.set_ylabel("Power (TPR)")
-            ax.set_title(f"{scenario}")
-            ax.set_ylim(0, 1.)
-            ax.legend(loc="lower right", fontsize=8)
-            ax.grid(True, alpha=0.3)
-
-        plt.suptitle("Power vs Sample Size by Scenario", y=1.02)
-        plt.tight_layout()
-        plt.savefig(output_dir / "power_vs_sample_size.png", dpi=150, bbox_inches="tight")
-        plt.close()
-
-        # Plot 2b: FDR vs Sample Size
-        fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-        for idx, scenario in enumerate(scenarios):
-            ax = axes[0, idx]
-            scenario_df = df_sample_plot[df_sample_plot["scenario"] == scenario]
-
-            for label in method_labels:
-                method_df = scenario_df[scenario_df["method_display"] == label]
-                summary = method_df.groupby("n_samples")["FDR"].agg(["mean", "std"]).reset_index()
-                ax.errorbar(
-                    summary["n_samples"], summary["mean"],
-                    yerr=summary["std"],
-                    label=label, color=palette[label],
-                    marker="o", capsize=3, linewidth=2,
-                )
-
-            ax.set_xlabel("Sample Size (per group)")
-            ax.set_ylabel("False Discovery Rate (FDR)")
-            ax.set_title(f"{scenario}")
-            ax.set_ylim(0, 0.5)
-            ax.legend(loc="upper right", fontsize=8)
-            ax.grid(True, alpha=0.3)
-
-        plt.suptitle("FDR vs Sample Size by Scenario", y=1.02)
-        plt.tight_layout()
-        plt.savefig(output_dir / "fdr_vs_sample_size.png", dpi=150, bbox_inches="tight")
-        plt.close()
-
-    # Plot 3: Combined summary heatmap (FDR by method x scenario at ES=0.25)
-    if "effect_size" in df_effect_plot.columns:
-        pivot_df = df_effect_plot[df_effect_plot["effect_size"] == 0.25].groupby(
-            ["method_display", "scenario"]
-        )["FDR"].mean().unstack()
-
-        if not pivot_df.empty:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.heatmap(
-                pivot_df, annot=True, fmt=".2f", cmap="Reds",
-                vmin=0, vmax=1, ax=ax, cbar_kws={"label": "FDR"}
-            )
-            ax.set_title("FDR by Method and Scenario (Effect Size = 0.25)")
-            plt.tight_layout()
-            plt.savefig(output_dir / "fdr_heatmap.png", dpi=150, bbox_inches="tight")
-            plt.close()
-
-    print(f"Saved plots to {output_dir}")
-
-
-def _clean_method_params_for_display(params) -> str:
-    """Clean method params string for plot legend by removing start_thres and n."""
-    if pd.isna(params) or not params:
-        return "default"
-    params = str(params)
-    # Remove start_thres and n parameters for cleaner display
-    parts = params.split(",")
-    cleaned = [p for p in parts if not p.strip().startswith(("start_thres=", "n="))]
-    return ",".join(cleaned) if cleaned else "default"
-
-
-def plot_power_curves_per_method(
-    df_effect: pd.DataFrame,
-    df_sample: pd.DataFrame,
-    output_dir: Path,
-):
-    """Create separate power curve plots for each base method."""
-    try:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-    except ImportError:
-        print("matplotlib/seaborn not available, skipping plots")
-        return
-
-    df_effect_plot = df_effect.copy()
-    df_sample_plot = df_sample.copy() if df_sample is not None else None
-
-    # Add method_display column (cleaned for better readability)
-    if "method_params" in df_effect_plot.columns:
-        df_effect_plot["method_display"] = df_effect_plot["method_params"].apply(
-            _clean_method_params_for_display
-        )
-    else:
-        df_effect_plot["method_display"] = "default"
-
-    if df_sample_plot is not None:
-        if "method_params" in df_sample_plot.columns:
-            df_sample_plot["method_display"] = df_sample_plot["method_params"].apply(
-                _clean_method_params_for_display
-            )
-        else:
-            df_sample_plot["method_display"] = "default"
-
-    # Get unique base methods and scenarios
-    base_methods = df_effect_plot["method"].unique()
-    scenarios = df_effect_plot["scenario"].unique()
-    n_scenarios = len(scenarios)
-
-    # Create per-method subdirectory
-    per_method_dir = output_dir / "per_method"
-    per_method_dir.mkdir(parents=True, exist_ok=True)
-
-    for method in base_methods:
-        method_df_effect = df_effect_plot[df_effect_plot["method"] == method]
-        method_df_sample = (
-            df_sample_plot[df_sample_plot["method"] == method]
-            if df_sample_plot is not None else None
-        )
-
-        # Get unique variants for this method
-        variants = method_df_effect["method_display"].unique()
-        n_variants = len(variants)
-
-        # Use color palette for variants
-        palette = dict(zip(variants, sns.color_palette("husl", n_variants)))
-
-        # Plot 1: Power vs Effect Size
-        _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-        for idx, scenario in enumerate(scenarios):
-            ax = axes[0, idx]
-            scenario_df = method_df_effect[method_df_effect["scenario"] == scenario]
-
-            for variant in variants:
-                variant_df = scenario_df[scenario_df["method_display"] == variant]
-                if len(variant_df) == 0:
-                    continue
-                summary = variant_df.groupby("effect_size")["TPR"].agg(["mean", "std"]).reset_index()
-                ax.errorbar(
-                    summary["effect_size"], summary["mean"],
-                    yerr=summary["std"],
-                    label=variant, color=palette[variant],
-                    marker="o", capsize=3, linewidth=2,
-                )
-
-            ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5, label="80% power")
-            ax.set_xlabel("Effect Size")
-            ax.set_ylabel("Power (TPR)")
-            ax.set_title(f"{scenario}")
-            ax.set_ylim(0, 1.)
-            ax.legend(loc="lower right", fontsize=7)
-            ax.grid(True, alpha=0.3)
-
-        plt.suptitle(f"{method}: Power vs Effect Size", y=1.02, fontsize=14, fontweight="bold")
-        plt.tight_layout()
-        plt.savefig(per_method_dir / f"power_vs_effect_size_{method}.png", dpi=150, bbox_inches="tight")
-        plt.close()
-
-        # Plot 2: FDR vs Effect Size
-        _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-        for idx, scenario in enumerate(scenarios):
-            ax = axes[0, idx]
-            scenario_df = method_df_effect[method_df_effect["scenario"] == scenario]
-
-            for variant in variants:
-                variant_df = scenario_df[scenario_df["method_display"] == variant]
-                if len(variant_df) == 0:
-                    continue
-                summary = variant_df.groupby("effect_size")["FDR"].agg(["mean", "std"]).reset_index()
-                ax.errorbar(
-                    summary["effect_size"], summary["mean"],
-                    yerr=summary["std"],
-                    label=variant, color=palette[variant],
-                    marker="o", capsize=3, linewidth=2,
-                )
-
-            ax.axhline(0.05, color="gray", linestyle="--", alpha=0.5, label="alpha=0.05")
-            ax.set_xlabel("Effect Size")
-            ax.set_ylabel("False Discovery Rate (FDR)")
-            ax.set_title(f"{scenario}")
-            ax.set_ylim(0, 0.6)
-            ax.legend(loc="upper right", fontsize=7)
-            ax.grid(True, alpha=0.3)
-
-        plt.suptitle(f"{method}: FDR vs Effect Size", y=1.02, fontsize=14, fontweight="bold")
-        plt.tight_layout()
-        plt.savefig(per_method_dir / f"fdr_vs_effect_size_{method}.png", dpi=150, bbox_inches="tight")
-        plt.close()
-
-        # Plot 3: Power vs Sample Size
-        if method_df_sample is not None and len(method_df_sample) > 0:
-            _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-            for idx, scenario in enumerate(scenarios):
-                ax = axes[0, idx]
-                scenario_df = method_df_sample[method_df_sample["scenario"] == scenario]
-
-                for variant in variants:
-                    variant_df = scenario_df[scenario_df["method_display"] == variant]
-                    if len(variant_df) == 0:
-                        continue
-                    summary = variant_df.groupby("n_samples")["TPR"].agg(["mean", "std"]).reset_index()
-                    ax.errorbar(
-                        summary["n_samples"], summary["mean"],
-                        yerr=summary["std"],
-                        label=variant, color=palette[variant],
-                        marker="o", capsize=3, linewidth=2,
-                    )
-
-                ax.axhline(0.8, color="gray", linestyle="--", alpha=0.5)
-                ax.set_xlabel("Sample Size (per group)")
-                ax.set_ylabel("Power (TPR)")
-                ax.set_title(f"{scenario}")
-                ax.set_ylim(0, 1.)
-                ax.legend(loc="lower right", fontsize=7)
-                ax.grid(True, alpha=0.3)
-
-            plt.suptitle(f"{method}: Power vs Sample Size", y=1.02, fontsize=14, fontweight="bold")
-            plt.tight_layout()
-            plt.savefig(per_method_dir / f"power_vs_sample_size_{method}.png", dpi=150, bbox_inches="tight")
-            plt.close()
-
-            # Plot 4: FDR vs Sample Size
-            _fig, axes = plt.subplots(1, n_scenarios, figsize=(5 * n_scenarios, 4), squeeze=False)
-
-            for idx, scenario in enumerate(scenarios):
-                ax = axes[0, idx]
-                scenario_df = method_df_sample[method_df_sample["scenario"] == scenario]
-
-                for variant in variants:
-                    variant_df = scenario_df[scenario_df["method_display"] == variant]
-                    if len(variant_df) == 0:
-                        continue
-                    summary = variant_df.groupby("n_samples")["FDR"].agg(["mean", "std"]).reset_index()
-                    ax.errorbar(
-                        summary["n_samples"], summary["mean"],
-                        yerr=summary["std"],
-                        label=variant, color=palette[variant],
-                        marker="o", capsize=3, linewidth=2,
-                    )
-
-                ax.axhline(0.05, color="gray", linestyle="--", alpha=0.5, label="alpha=0.05")
-                ax.set_xlabel("Sample Size (per group)")
-                ax.set_ylabel("False Discovery Rate (FDR)")
-                ax.set_title(f"{scenario}")
-                ax.set_ylim(0, 0.6)
-                ax.legend(loc="upper right", fontsize=7)
-                ax.grid(True, alpha=0.3)
-
-            plt.suptitle(f"{method}: FDR vs Sample Size", y=1.02, fontsize=14, fontweight="bold")
-            plt.tight_layout()
-            plt.savefig(per_method_dir / f"fdr_vs_sample_size_{method}.png", dpi=150, bbox_inches="tight")
-            plt.close()
-
-    print(f"Saved per-method plots to {per_method_dir}")
 
 
 def compute_required_sample_size(
@@ -1325,6 +1058,16 @@ def compute_required_sample_size(
         })
 
     return pd.DataFrame(results)
+
+
+def save_per_scenario(df: pd.DataFrame, output_dir: Path, prefix: str) -> None:
+    """Save separate CSV files for each scenario."""
+    scenario_dir = output_dir / "per_scenario"
+    scenario_dir.mkdir(parents=True, exist_ok=True)
+    for scenario, sdf in df.groupby("scenario"):
+        path = scenario_dir / f"{prefix}_{scenario}.csv"
+        sdf.to_csv(path, index=False)
+    print(f"  Saved {df['scenario'].nunique()} per-scenario files to {scenario_dir}/")
 
 
 def load_yaml_config(path: Path) -> dict:
@@ -1537,6 +1280,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             resume=args.resume,
         )
         df_effect.to_csv(args.output_dir / "power_vs_effect_size.csv", index=False)
+        save_per_scenario(df_effect, args.output_dir, "power_vs_effect_size")
 
         # Summary
         summary_effect = summarize_power_results(
@@ -1569,6 +1313,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             resume=args.resume,
         )
         df_sample.to_csv(args.output_dir / "power_vs_sample_size.csv", index=False)
+        save_per_scenario(df_sample, args.output_dir, "power_vs_sample_size")
 
         # Summary
         summary_sample = summarize_power_results(
@@ -1579,10 +1324,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Required sample size
         required_n = compute_required_sample_size(df_sample, target_power=0.8)
         required_n.to_csv(args.output_dir / "required_sample_sizes.csv", index=False)
-
-    # Create plots
-    if df_effect is not None:
-        plot_power_curves(df_effect, df_sample, args.output_dir)
 
     # Clean up checkpoints on successful completion
     checkpoint_effect = args.output_dir / "checkpoint_effect_size.csv"
