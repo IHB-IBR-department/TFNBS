@@ -92,8 +92,8 @@ nbs_options:
 # SIMULATION
 # =============================================================================
 
-n_repeats: 20          # 20 repeats (server: 100)
-n_permutations: 500    # 500 perms (server: 1000) — coarser p-values but 2× faster
+n_repeats: 30          # 20 repeats (server: 100)
+n_permutations: 1000    # 500 perms (server: 1000) — coarser p-values but 2× faster
 alpha: 0.05
 
 # =============================================================================

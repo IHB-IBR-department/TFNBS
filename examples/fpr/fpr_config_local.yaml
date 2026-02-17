@@ -1,0 +1,88 @@
+# FPR Calibration — Local Configuration
+#
+# Parameters aligned with sweep_config_power_local.yaml for consistency:
+# same network structure, methods, and permutation settings.
+#
+# Per-task benchmarks (measured: 60 nodes, numba, 500 perms):
+#   tstat: ~4.5s | tfnbs: ~5s | ni_tfnbs: ~5s | fbc_tfnbs: ~5s
+#   nbs_extent: ~6s | nbs_intensity: ~7.5s | cnbs: ~6.5s
+#
+# Budget: 7 methods × 4 sample sizes × 100 null runs = 2800 tasks
+#   Sequential: ~240 min | Parallel (16 cores): ~16 min
+#
+# Usage:
+#   python examples/fpr/fpr_calibration.py \
+#     --config examples/fpr/fpr_config_local.yaml
+
+# =============================================================================
+# METHODS TO TEST (same as power analysis)
+# =============================================================================
+
+methods:
+  - tstat          # Baseline (no enhancement)
+  - tfnbs          # Standard TFNBS
+  - ni_tfnbs       # Network-Informed TFNBS
+  - fbc_tfnbs      # Functional Block Clustering TFNBS
+  - nbs_extent     # Classical NBS (extent)
+  - nbs_intensity  # NBS (intensity)
+  - cnbs           # Constrained NBS
+
+# =============================================================================
+# NULL SIMULATION PARAMETERS
+# =============================================================================
+
+n_null: 100            # 100 null runs per method (server: 1000)
+n_permutations: 1000   # match power analysis
+alpha: 0.05
+
+# =============================================================================
+# DATA GENERATION (same as sweep_config_power_local.yaml)
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+n_samples: 30          # default (used when sample_sizes not set)
+sample_sizes:          # sweep over sample sizes (match power analysis)
+  - 10
+  - 30
+  - 50
+  - 100
+intra_corr: 0.3
+inter_corr: 0.05
+noise_level: 0.05
+
+# =============================================================================
+# TFNBS PARAMETERS (defaults, not swept — FPR uses single params)
+# =============================================================================
+
+tfnbs_e: 0.5
+tfnbs_h: 2.0
+tfnbs_n: 30             # match power analysis n_thresholds
+tfnbs_start_thres: 1.25 # match power analysis start_thres
+
+# =============================================================================
+# NBS PARAMETERS
+# =============================================================================
+
+nbs_threshold: 2.0
+
+# =============================================================================
+# FBC PARAMETERS
+# =============================================================================
+
+fbc_min_cluster: 3
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+
+seed: 42
+use_mp: false          # mp.Pool at outer level only
+n_jobs: -1             # use all cores
+checkpoint_every: 10
+
+# =============================================================================
+# OUTPUT
+# =============================================================================
+
+output_dir: results/fpr_calibration_local

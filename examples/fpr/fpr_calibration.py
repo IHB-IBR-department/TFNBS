@@ -1,33 +1,38 @@
 """
 False Positive Rate (FPR) Calibration Test for TFNBS Methods.
 
-This script validates that all statistical methods maintain the nominal
-false positive rate (FPR) under the null hypothesis (no true effect).
+Validates that all statistical methods maintain the nominal false positive
+rate (FPR) under the null hypothesis (no true effect).
 
-General protocol:
-1. Generate N null datasets (effect_size=0)
-2. Run each method with full permutation testing
-3. Check if any edge is significant at alpha
-4. Verify FPR = alpha +/- sampling_error
+Protocol:
+  1. Generate N null datasets (effect_size=0)
+  2. Run each method with full permutation testing
+  3. Check if any edge is significant at alpha
+  4. Verify FPR = alpha +/- sampling_error
+
+Supports sweeping over multiple sample sizes to verify calibration
+holds across different sample sizes (like power_analysis.py).
+
+Methods tested:
+  tstat, tfnbs, ni_tfnbs, fbc_tfnbs, nbs_extent, nbs_intensity, cnbs
 
 Usage:
-    # Quick test (20 null runs) - for development
-    python fpr_calibration.py --config fpr_config_quick.yaml
-
-    # Full validation (1000 null runs) - for publication
-    python fpr_calibration.py --config fpr_config.yaml
-
-    # Resume interrupted run
+    python fpr_calibration.py --config fpr_config_local.yaml
     python fpr_calibration.py --config fpr_config.yaml --resume
-
-    # Specific methods only
     python fpr_calibration.py --methods tstat tfnbs cnbs --n-null 100
 
 Output:
-    - results/fpr_calibration/fpr_results.csv
-    - results/fpr_calibration/fpr_summary.csv
-    - results/fpr_calibration/fpr_calibration_plot.png
-    - results/fpr_calibration/checkpoint.csv (for resume)
+    <output_dir>/
+        fpr_results.csv          # All null-run results (combined)
+        fpr_summary.csv          # Per-method (per-n_samples) summary
+        fpr_summary.txt          # Human-readable summary
+        checkpoint.csv           # For --resume (removed on success)
+        per_method/
+            fpr_results_<method>.csv         # Single n_samples mode
+            fpr_results_<method>_n<N>.csv    # Multi n_samples mode
+
+Plotting (separate script):
+    python plot_fpr_results.py <output_dir>
 """
 
 from __future__ import annotations
@@ -53,6 +58,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yaml
+from tqdm import tqdm
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -71,7 +77,8 @@ class FPRResult:
 
     method: str
     null_run_id: int
-    n_edges: int              # Total edges tested (upper triangle)
+    n_samples: int             # Samples per group used in this run
+    n_edges: int               # Total edges tested (upper triangle)
     # Positive direction (g2 > g1)
     any_significant_pos: bool  # Any p < alpha (FWER)
     n_significant_pos: int     # Count of significant edges
@@ -105,6 +112,7 @@ class FPRConfig:
     n_nodes: int = 60
     n_modules: int = 4
     n_samples: int = 20
+    sample_sizes: Optional[List[int]] = None  # Sweep over multiple sample sizes
     intra_corr: float = 0.3
     inter_corr: float = 0.05
     noise_level: float = 0.05
@@ -125,6 +133,13 @@ class FPRConfig:
 
     # Output
     output_dir: Path = Path("results/fpr_calibration")
+
+    @property
+    def effective_sample_sizes(self) -> List[int]:
+        """Return sample_sizes list if set, else [n_samples]."""
+        if self.sample_sizes is not None:
+            return self.sample_sizes
+        return [self.n_samples]
 
     @classmethod
     def from_yaml(cls, path: Path) -> "FPRConfig":
@@ -218,18 +233,20 @@ def generate_null_dataset(
 def run_single_null_test(
     method: str,
     null_run_id: int,
+    n_samples: int,
     config: FPRConfig,
 ) -> FPRResult:
     """Run a single null hypothesis test for one method."""
 
     start_time = time.time()
 
-    # Generate null data with unique seed
-    seed = config.seed + null_run_id * 1000
+    # Generate null data with unique seed (incorporate n_samples to avoid
+    # identical datasets across different sample sizes)
+    seed = config.seed + null_run_id * 1000 + n_samples
     group1, group2, net_labels = generate_null_dataset(
         n_nodes=config.n_nodes,
         n_modules=config.n_modules,
-        n_samples=config.n_samples,
+        n_samples=n_samples,
         intra_corr=config.intra_corr,
         inter_corr=config.inter_corr,
         noise_level=config.noise_level,
@@ -306,6 +323,7 @@ def run_single_null_test(
     return FPRResult(
         method=method,
         null_run_id=null_run_id,
+        n_samples=n_samples,
         n_edges=n_edges,
         any_significant_pos=any_sig_pos,
         n_significant_pos=n_sig_pos,
@@ -324,8 +342,8 @@ def run_single_null_test(
 
 def _run_null_test_wrapper(args: tuple) -> FPRResult:
     """Wrapper for parallel execution."""
-    method, null_run_id, config = args
-    return run_single_null_test(method, null_run_id, config)
+    method, null_run_id, n_samples, config = args
+    return run_single_null_test(method, null_run_id, n_samples, config)
 
 
 # =============================================================================
@@ -338,8 +356,11 @@ def save_checkpoint(results: List[FPRResult], checkpoint_path: Path) -> None:
     df.to_csv(checkpoint_path, index=False)
 
 
-def load_checkpoint(checkpoint_path: Path) -> Tuple[List[FPRResult], set]:
-    """Load results from checkpoint and return completed (method, run_id) pairs."""
+def load_checkpoint(
+    checkpoint_path: Path,
+    default_n_samples: int = 0,
+) -> Tuple[List[FPRResult], set]:
+    """Load results from checkpoint and return completed (method, n_samples, run_id) keys."""
     if not checkpoint_path.exists():
         return [], set()
 
@@ -347,10 +368,15 @@ def load_checkpoint(checkpoint_path: Path) -> Tuple[List[FPRResult], set]:
     results = []
     completed = set()
 
+    # Handle old checkpoints without n_samples column
+    has_n_samples = "n_samples" in df.columns
+
     for _, row in df.iterrows():
+        n_samples = int(row["n_samples"]) if has_n_samples else default_n_samples
         result = FPRResult(
             method=row["method"],
             null_run_id=int(row["null_run_id"]),
+            n_samples=n_samples,
             n_edges=int(row["n_edges"]),
             any_significant_pos=bool(row["any_significant_pos"]),
             n_significant_pos=int(row["n_significant_pos"]),
@@ -366,7 +392,7 @@ def load_checkpoint(checkpoint_path: Path) -> Tuple[List[FPRResult], set]:
             elapsed_time=float(row["elapsed_time"]),
         )
         results.append(result)
-        completed.add((row["method"], int(row["null_run_id"])))
+        completed.add((row["method"], n_samples, int(row["null_run_id"])))
 
     return results, completed
 
@@ -384,9 +410,13 @@ def run_fpr_calibration(
     checkpoint_path = config.output_dir / "checkpoint.csv"
     config.output_dir.mkdir(parents=True, exist_ok=True)
 
+    sample_sizes = config.effective_sample_sizes
+
     # Load checkpoint if resuming
     if resume:
-        results, completed = load_checkpoint(checkpoint_path)
+        results, completed = load_checkpoint(
+            checkpoint_path, default_n_samples=sample_sizes[0]
+        )
         print(f"Resuming from checkpoint: {len(completed)} runs already completed")
     else:
         results = []
@@ -395,9 +425,10 @@ def run_fpr_calibration(
     # Build task list
     tasks = []
     for method in config.methods:
-        for null_id in range(config.n_null):
-            if (method, null_id) not in completed:
-                tasks.append((method, null_id, config))
+        for n_samples in sample_sizes:
+            for null_id in range(config.n_null):
+                if (method, n_samples, null_id) not in completed:
+                    tasks.append((method, null_id, n_samples, config))
 
     if not tasks:
         print("All runs already completed!")
@@ -409,47 +440,44 @@ def run_fpr_calibration(
 
     print(f"=== FPR Calibration Test ===")
     print(f"Methods: {config.methods}")
-    print(f"Null datasets per method: {config.n_null}")
+    print(f"Sample sizes: {sample_sizes}")
+    print(f"Null datasets per (method, n_samples): {config.n_null}")
     print(f"Permutations per test: {config.n_permutations}")
     print(f"Alpha: {config.alpha}")
     print(f"Parallel: {'yes' if use_parallel else 'no'} ({n_cores} cores)")
     print(f"Remaining runs: {total_runs}")
-    print(f"Expected FPR: {config.alpha:.3f} +/- {1.96 * np.sqrt(config.alpha * (1-config.alpha) / config.n_null):.3f}")
+    print(f"Expected FPR: {config.alpha:.3f} +/- "
+          f"{1.96 * np.sqrt(config.alpha * (1-config.alpha) / config.n_null):.3f}")
     print()
-
-    start_time = time.time()
 
     if use_parallel:
         ctx = mp.get_context('spawn')
         with ctx.Pool(processes=n_cores) as pool:
-            for i, result in enumerate(pool.imap_unordered(_run_null_test_wrapper, tasks), 1):
+            pbar = tqdm(
+                pool.imap_unordered(_run_null_test_wrapper, tasks),
+                total=total_runs,
+                desc="FPR calibration",
+                unit="run",
+                miniters=1,
+            )
+            for i, result in enumerate(pbar, 1):
                 results.append(result)
+                pbar.set_postfix_str(
+                    f"{result.method} n={result.n_samples} #{result.null_run_id}"
+                )
 
                 if i % config.checkpoint_every == 0 or i == total_runs:
-                    elapsed = time.time() - start_time
-                    eta = elapsed / i * (total_runs - i)
-                    print(f"  [{i}/{total_runs}] {result.method} run={result.null_run_id} | "
-                          f"Elapsed: {elapsed/60:.1f}min | ETA: {eta/60:.1f}min")
-
-                    # Per-method running FPR
-                    for method in config.methods:
-                        method_results = [r for r in results if r.method == method]
-                        if method_results:
-                            fpr = np.mean([r.any_significant for r in method_results])
-                            print(f"    {method}: FPR = {fpr:.4f} (n={len(method_results)})")
-
                     save_checkpoint(results, checkpoint_path)
     else:
-        for i, task in enumerate(tasks, 1):
+        pbar = tqdm(tasks, desc="FPR calibration", unit="run", miniters=1)
+        for i, task in enumerate(pbar, 1):
             result = _run_null_test_wrapper(task)
             results.append(result)
+            pbar.set_postfix_str(
+                f"{result.method} n={result.n_samples} #{result.null_run_id}"
+            )
 
             if i % config.checkpoint_every == 0 or i == total_runs:
-                elapsed = time.time() - start_time
-                eta = elapsed / i * (total_runs - i)
-                method_results = [r for r in results if r.method == result.method]
-                fpr = np.mean([r.any_significant for r in method_results])
-                print(f"  [{i}/{total_runs}] {result.method} FPR={fpr:.3f} | ETA={eta/60:.1f}min")
                 save_checkpoint(results, checkpoint_path)
 
     # Final checkpoint save
@@ -486,7 +514,7 @@ def clopper_pearson_ci(k: int, n: int, alpha: float = 0.05) -> Tuple[float, floa
 
 def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
     """
-    Compute FPR summary statistics by method.
+    Compute FPR summary statistics by method (and n_samples if present).
 
     Reports two key metrics:
     1. FWER (Family-Wise Error Rate): P(at least 1 FP | H0)
@@ -498,72 +526,61 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
        - For uncorrected tests, this should equal alpha
        - For FWER-controlling methods, this is << alpha
     """
+    from scipy import stats
+
+    # Determine grouping columns
+    has_n_samples = "n_samples" in df.columns
+    multi_n = has_n_samples and df["n_samples"].nunique() > 1
+    group_cols = ["method", "n_samples"] if multi_n else ["method"]
+
     summary_rows = []
 
-    for method in df["method"].unique():
-        method_df = df[df["method"] == method]
+    for group_key, method_df in df.groupby(group_cols):
+        if multi_n:
+            method, n_samples = group_key
+        else:
+            method = group_key if isinstance(group_key, str) else group_key[0]
+            n_samples = int(method_df["n_samples"].iloc[0]) if has_n_samples else None
+
         n_runs = len(method_df)
         n_edges = method_df["n_edges"].iloc[0]
 
-        # =====================================================================
         # FWER: Proportion of runs with ANY significant edge
-        # =====================================================================
-        # Positive direction
         n_runs_with_fp_pos = int(method_df["any_significant_pos"].sum())
         fwer_pos = n_runs_with_fp_pos / n_runs
-
-        # Negative direction
         n_runs_with_fp_neg = int(method_df["any_significant_neg"].sum())
         fwer_neg = n_runs_with_fp_neg / n_runs
-
-        # Either direction (for two-sided test)
         n_runs_with_fp = int(method_df["any_significant"].sum())
         fwer = n_runs_with_fp / n_runs
 
-        # Exact binomial CI for FWER (one-sided, positive direction)
-        fwer_ci_low, fwer_ci_high = clopper_pearson_ci(n_runs_with_fp_pos, n_runs, alpha=0.05)
-
-        # Check if FWER is calibrated (one-sided)
+        fwer_ci_low, fwer_ci_high = clopper_pearson_ci(
+            n_runs_with_fp_pos, n_runs, alpha=0.05
+        )
         fwer_calibrated = fwer_ci_low <= alpha <= fwer_ci_high
 
-        # =====================================================================
-        # Edge-wise FPR: Mean proportion of significant edges
-        # =====================================================================
-        # This is the key metric for edge-wise calibration
+        # Edge-wise FPR
         mean_fpr_pos = method_df["fpr_pos"].mean()
         mean_fpr_neg = method_df["fpr_neg"].mean()
         mean_fpr_total = method_df["fpr_total"].mean()
-
-        # Standard error for edge-wise FPR
         se_fpr_pos = method_df["fpr_pos"].std() / np.sqrt(n_runs)
 
-        # CI for edge-wise FPR (using t-distribution for mean)
-        from scipy import stats
         t_crit = stats.t.ppf(0.975, df=n_runs - 1)
         fpr_ci_low = max(0, mean_fpr_pos - t_crit * se_fpr_pos)
         fpr_ci_high = min(1, mean_fpr_pos + t_crit * se_fpr_pos)
-
-        # Check if edge-wise FPR is calibrated
         fpr_calibrated = fpr_ci_low <= alpha <= fpr_ci_high
 
-        # =====================================================================
-        # Additional metrics
-        # =====================================================================
-        mean_n_fp_pos = method_df["n_significant_pos"].mean()
-        mean_n_fp_neg = method_df["n_significant_neg"].mean()
-
-        summary_rows.append({
+        row = {
             "method": method,
             "n_null_runs": n_runs,
             "n_edges": n_edges,
-            # FWER metrics (one-sided, positive direction)
+            # FWER
             "fwer_pos": fwer_pos,
             "fwer_neg": fwer_neg,
             "fwer_both": fwer,
             "fwer_ci_low": fwer_ci_low,
             "fwer_ci_high": fwer_ci_high,
             "fwer_calibrated": fwer_calibrated,
-            # Edge-wise FPR metrics (one-sided, positive direction)
+            # Edge-wise FPR
             "mean_fpr_pos": mean_fpr_pos,
             "mean_fpr_neg": mean_fpr_neg,
             "mean_fpr_total": mean_fpr_total,
@@ -571,166 +588,31 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
             "fpr_ci_low": fpr_ci_low,
             "fpr_ci_high": fpr_ci_high,
             "fpr_calibrated": fpr_calibrated,
-            # Expected value
             "expected": alpha,
-            # Additional info
-            "mean_n_fp_pos": mean_n_fp_pos,
-            "mean_n_fp_neg": mean_n_fp_neg,
+            # Additional
+            "mean_n_fp_pos": method_df["n_significant_pos"].mean(),
+            "mean_n_fp_neg": method_df["n_significant_neg"].mean(),
             "mean_elapsed_time": method_df["elapsed_time"].mean(),
-        })
+        }
+        if has_n_samples:
+            row["n_samples"] = n_samples
+        summary_rows.append(row)
 
     return pd.DataFrame(summary_rows)
 
 
 # =============================================================================
-# VISUALIZATION
+# PER-METHOD CSV SAVING
 # =============================================================================
 
-def plot_fpr_results(
-    df: pd.DataFrame,
-    summary_df: pd.DataFrame,
-    alpha: float,
-    output_path: Path,
-) -> None:
-    """Create FPR calibration plot with improved visualization."""
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("matplotlib not available, skipping plot")
-        return
-
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-    methods = summary_df["method"].tolist()
-    colors_base = plt.cm.Set2(np.linspace(0, 1, len(methods)))
-
-    # ==========================================================================
-    # Plot 1: FWER by method (top-left)
-    # ==========================================================================
-    ax = axes[0, 0]
-    x = np.arange(len(methods))
-
-    fwer_vals = summary_df["fwer_pos"].tolist()
-    fwer_ci_lows = summary_df["fwer_ci_low"].tolist()
-    fwer_ci_highs = summary_df["fwer_ci_high"].tolist()
-
-    bar_colors = ["#4CAF50" if row["fwer_calibrated"] else "#F44336"
-                  for _, row in summary_df.iterrows()]
-
-    ax.bar(x, fwer_vals, color=bar_colors, alpha=0.7, edgecolor="black", linewidth=1.2)
-    ax.errorbar(
-        x, fwer_vals,
-        yerr=[np.array(fwer_vals) - np.array(fwer_ci_lows),
-              np.array(fwer_ci_highs) - np.array(fwer_vals)],
-        fmt="none", color="black", capsize=5, capthick=1.5, linewidth=1.5,
-    )
-    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Expected = {alpha}")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(methods, rotation=45, ha="right", fontsize=10)
-    ax.set_ylabel("FWER", fontsize=11)
-    ax.set_title("Family-Wise Error Rate (FWER)\nP(any FP | H0)", fontsize=12)
-    ax.legend(loc="upper right", fontsize=9)
-    ax.set_ylim(0, max(0.15, max(fwer_ci_highs) * 1.3))
-    ax.grid(axis="y", alpha=0.3)
-
-    # ==========================================================================
-    # Plot 2: Edge-wise FPR by method (top-right)
-    # ==========================================================================
-    ax = axes[0, 1]
-
-    fpr_vals = summary_df["mean_fpr_pos"].tolist()
-    fpr_ci_lows = summary_df["fpr_ci_low"].tolist()
-    fpr_ci_highs = summary_df["fpr_ci_high"].tolist()
-
-    bar_colors = ["#4CAF50" if row["fpr_calibrated"] else "#F44336"
-                  for _, row in summary_df.iterrows()]
-
-    ax.bar(x, fpr_vals, color=bar_colors, alpha=0.7, edgecolor="black", linewidth=1.2)
-    ax.errorbar(
-        x, fpr_vals,
-        yerr=[np.array(fpr_vals) - np.array(fpr_ci_lows),
-              np.array(fpr_ci_highs) - np.array(fpr_vals)],
-        fmt="none", color="black", capsize=5, capthick=1.5, linewidth=1.5,
-    )
-    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Expected = {alpha}")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(methods, rotation=45, ha="right", fontsize=10)
-    ax.set_ylabel("Edge-wise FPR", fontsize=11)
-    ax.set_title("Edge-wise False Positive Rate\nE[n_FP / n_edges | H0]", fontsize=12)
-    ax.legend(loc="upper right", fontsize=9)
-    ax.set_ylim(0, max(0.15, max(fpr_ci_highs) * 1.3) if max(fpr_ci_highs) > 0 else 0.1)
-    ax.grid(axis="y", alpha=0.3)
-
-    # ==========================================================================
-    # Plot 3: Distribution of minimum p-values (bottom-left)
-    # ==========================================================================
-    ax = axes[1, 0]
-
-    for i, method in enumerate(methods):
-        method_df = df[df["method"] == method]
-        min_ps = method_df["min_p_pos"].values
-
-        counts, bins = np.histogram(min_ps, bins=20, range=(0, 1))
-        counts = counts / counts.sum() if counts.sum() > 0 else counts
-
-        ax.step(bins[:-1], counts, where="post", label=method,
-                color=colors_base[i], linewidth=2, alpha=0.8)
-
-    ax.axvline(alpha, color="red", linestyle="--", linewidth=2, label=f"α = {alpha}")
-    ax.set_xlabel("Minimum p-value", fontsize=11)
-    ax.set_ylabel("Proportion", fontsize=11)
-    ax.set_title("Distribution of Min P-values\nUnder Null Hypothesis", fontsize=12)
-    ax.legend(loc="upper right", fontsize=8, ncol=2)
-    ax.set_xlim(0, 1)
-    ax.grid(alpha=0.3)
-
-    # ==========================================================================
-    # Plot 4: Calibration summary table (bottom-right)
-    # ==========================================================================
-    ax = axes[1, 1]
-    ax.axis("off")
-
-    table_data = []
-    for _, row in summary_df.iterrows():
-        fwer_status = "✓" if row["fwer_calibrated"] else "✗"
-        fpr_status = "✓" if row["fpr_calibrated"] else "✗"
-        table_data.append([
-            row["method"],
-            f"{row['fwer_pos']:.3f}",
-            fwer_status,
-            f"{row['mean_fpr_pos']:.4f}",
-            fpr_status,
-        ])
-
-    table = ax.table(
-        cellText=table_data,
-        colLabels=["Method", "FWER", "Cal.", "Edge FPR", "Cal."],
-        loc="center",
-        cellLoc="center",
-        colWidths=[0.25, 0.18, 0.12, 0.18, 0.12],
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1.2, 1.8)
-
-    for i, (_, row) in enumerate(summary_df.iterrows()):
-        fwer_color = "#C8E6C9" if row["fwer_calibrated"] else "#FFCDD2"
-        fpr_color = "#C8E6C9" if row["fpr_calibrated"] else "#FFCDD2"
-        table[(i + 1, 0)].set_facecolor("#FFFFFF")
-        table[(i + 1, 1)].set_facecolor(fwer_color)
-        table[(i + 1, 2)].set_facecolor(fwer_color)
-        table[(i + 1, 3)].set_facecolor(fpr_color)
-        table[(i + 1, 4)].set_facecolor(fpr_color)
-
-    ax.set_title(f"Calibration Summary (α = {alpha})", fontsize=12, pad=20)
-
-    fig.suptitle("FPR Calibration Results", fontsize=14, fontweight="bold", y=1.02)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"Saved plot to {output_path}")
+def save_per_method(df: pd.DataFrame, output_dir: Path) -> None:
+    """Save one CSV per method (n_samples stays as a column)."""
+    method_dir = output_dir / "per_method"
+    method_dir.mkdir(parents=True, exist_ok=True)
+    for method, mdf in df.groupby("method"):
+        path = method_dir / f"fpr_results_{method}.csv"
+        mdf.to_csv(path, index=False)
+    print(f"  Saved {df['method'].nunique()} per-method files to {method_dir}/")
 
 
 # =============================================================================
@@ -774,7 +656,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument(
         "--n-samples", type=int, default=None,
-        help="Samples per group (overrides config)",
+        help="Samples per group (overrides config, single value)",
+    )
+    parser.add_argument(
+        "--sample-sizes", nargs="+", type=int, default=None,
+        help="Sweep over multiple sample sizes (overrides config)",
     )
     parser.add_argument(
         "--seed", type=int, default=None,
@@ -805,7 +691,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         # Default configuration
         config = FPRConfig(
-            methods=["tstat", "tfnbs", "ni_tfnbs", "fbc_tfnbs", "nbs_extent", "nbs_intensity", "cnbs"],
+            methods=["tstat", "tfnbs", "ni_tfnbs", "fbc_tfnbs",
+                     "nbs_extent", "nbs_intensity", "cnbs"],
         )
 
     # Override config with CLI arguments
@@ -823,6 +710,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         config.n_modules = args.n_modules
     if args.n_samples is not None:
         config.n_samples = args.n_samples
+    if args.sample_sizes is not None:
+        config.sample_sizes = args.sample_sizes
     if args.seed is not None:
         config.seed = args.seed
     if args.use_mp:
@@ -848,48 +737,61 @@ def main(argv: Optional[List[str]] = None) -> int:
     df.to_csv(config.output_dir / "fpr_results.csv", index=False)
     print(f"\nSaved results to {config.output_dir / 'fpr_results.csv'}")
 
+    # Save per-method CSVs
+    save_per_method(df, config.output_dir)
+
     # Compute and save summary
     summary_df = compute_fpr_summary(df, alpha=config.alpha)
     summary_df.to_csv(config.output_dir / "fpr_summary.csv", index=False)
 
     # Print summary
-    print("\n" + "=" * 70)
+    sample_sizes = config.effective_sample_sizes
+    multi_n = len(sample_sizes) > 1
+
+    print("\n" + "=" * 80)
     print("FPR CALIBRATION SUMMARY")
-    print("=" * 70)
+    print("=" * 80)
     print(f"Alpha = {config.alpha}")
     print(f"N edges = {summary_df['n_edges'].iloc[0]}")
+    print(f"Sample sizes = {sample_sizes}")
     print()
 
-    # Header
-    print(f"{'Method':<15} {'FWER':>8} {'95% CI':>20} {'Edge FPR':>10} {'Status':>12}")
-    print("-" * 70)
+    if multi_n:
+        header = (f"{'Method':<15} {'n_samples':>9} {'FWER':>8} "
+                  f"{'95% CI':>20} {'Edge FPR':>10} {'Status':>12}")
+    else:
+        header = (f"{'Method':<15} {'FWER':>8} "
+                  f"{'95% CI':>20} {'Edge FPR':>10} {'Status':>12}")
+    print(header)
+    print("-" * 80)
 
     all_fwer_calibrated = True
-    all_fpr_calibrated = True
     for _, row in summary_df.iterrows():
         fwer_ok = row["fwer_calibrated"]
-        fpr_ok = row["fpr_calibrated"]
         if not fwer_ok:
             all_fwer_calibrated = False
-        if not fpr_ok:
-            all_fpr_calibrated = False
 
         status = "OK" if fwer_ok else "FWER FAIL"
         ci_str = f"[{row['fwer_ci_low']:.3f}, {row['fwer_ci_high']:.3f}]"
-        print(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>20} "
-              f"{row['mean_fpr_pos']:>10.5f} {status:>12}")
+        if multi_n:
+            print(f"  {row['method']:<13} {int(row['n_samples']):>9} "
+                  f"{row['fwer_pos']:>8.4f} {ci_str:>20} "
+                  f"{row['mean_fpr_pos']:>10.5f} {status:>12}")
+        else:
+            print(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>20} "
+                  f"{row['mean_fpr_pos']:>10.5f} {status:>12}")
 
     # Save text summary
     with open(config.output_dir / "fpr_summary.txt", "w") as f:
         f.write("FPR Calibration Summary\n")
-        f.write("=" * 70 + "\n\n")
+        f.write("=" * 80 + "\n\n")
         f.write("Parameters:\n")
         f.write(f"  n_null_runs = {config.n_null}\n")
         f.write(f"  n_permutations = {config.n_permutations}\n")
         f.write(f"  alpha = {config.alpha}\n")
         f.write(f"  n_nodes = {config.n_nodes}\n")
         f.write(f"  n_edges = {summary_df['n_edges'].iloc[0]}\n")
-        f.write(f"  n_samples = {config.n_samples}\n\n")
+        f.write(f"  sample_sizes = {sample_sizes}\n\n")
 
         f.write("Metrics Explained:\n")
         f.write("  FWER: Family-Wise Error Rate = P(any FP | H0)\n")
@@ -898,28 +800,33 @@ def main(argv: Optional[List[str]] = None) -> int:
         f.write("        For uncorrected tests, this should = alpha\n")
         f.write("        For FWER methods, this is << alpha\n\n")
 
-        f.write(f"{'Method':<15} {'FWER':>8} {'95% CI':>22} {'Edge FPR':>12} {'FWER Cal.':>10}\n")
-        f.write("-" * 70 + "\n")
+        if multi_n:
+            hdr = (f"{'Method':<15} {'n_samples':>9} {'FWER':>8} "
+                   f"{'95% CI':>22} {'Edge FPR':>12} {'Cal.':>10}\n")
+        else:
+            hdr = (f"{'Method':<15} {'FWER':>8} "
+                   f"{'95% CI':>22} {'Edge FPR':>12} {'Cal.':>10}\n")
+        f.write(hdr)
+        f.write("-" * 80 + "\n")
         for _, row in summary_df.iterrows():
             status = "OK" if row["fwer_calibrated"] else "FAIL"
             ci_str = f"[{row['fwer_ci_low']:.4f}, {row['fwer_ci_high']:.4f}]"
-            f.write(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>22} "
-                    f"{row['mean_fpr_pos']:>12.6f} {status:>10}\n")
+            if multi_n:
+                f.write(f"  {row['method']:<13} {int(row['n_samples']):>9} "
+                        f"{row['fwer_pos']:>8.4f} {ci_str:>22} "
+                        f"{row['mean_fpr_pos']:>12.6f} {status:>10}\n")
+            else:
+                f.write(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>22} "
+                        f"{row['mean_fpr_pos']:>12.6f} {status:>10}\n")
         f.write(f"\nOverall FWER: {'PASS' if all_fwer_calibrated else 'FAIL'}\n")
 
-    # Create plot
-    plot_fpr_results(
-        df, summary_df, config.alpha,
-        config.output_dir / "fpr_calibration_plot.png"
-    )
-
     print()
-    print("=" * 70)
+    print("=" * 80)
     if all_fwer_calibrated:
         print("OVERALL RESULT: PASS - All methods have calibrated FWER")
     else:
         print("OVERALL RESULT: FAIL - Some methods have miscalibrated FWER")
-    print("=" * 70)
+    print("=" * 80)
 
     # Clean up checkpoint on success
     checkpoint_path = config.output_dir / "checkpoint.csv"
