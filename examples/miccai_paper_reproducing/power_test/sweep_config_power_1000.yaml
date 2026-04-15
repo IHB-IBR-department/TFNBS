@@ -1,0 +1,115 @@
+# TFNBS Power Analysis — Local Configuration
+#
+# Uses numba-accelerated TFNBS scoring (auto backend) and batched 3D mode
+# for the full (e,h) parameter grid (176 combos in a single call).
+#
+# Per-task benchmarks (measured: 60 nodes, numba, n_thresholds=30):
+#   Method         | 100 perms | 500 perms | Notes
+#   tstat          |    0.9s   |    4.5s   | baseline, no enhancement
+#   tfnbs  (×176)  |    5.5s   |   27.5s   | batched 176 (e,h) combos
+#   ni_tfnbs (×176)|    4.8s   |   24s     | batched 176 (e,h) combos
+#   fbc_tfnbs(×176)|    4.7s   |   24s     | batched 176 (e,h) combos
+#   nbs_extent     |    1.2s   |    6s     | per threshold variant
+#   nbs_intensity  |    1.5s   |    7.5s   | per threshold variant
+#   cnbs           |    1.3s   |    6.5s   | single variant
+#   Times scale ~linearly with n_permutations.
+#   power_analysis.py prints a runtime estimate before launching.
+#
+# Usage:
+#   python examples/miccai_paper_reproducing/power_test/power_analysis.py \
+#     --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml
+
+# =============================================================================
+# EFFECT SIZE ANALYSIS
+# =============================================================================
+
+effect_sizes:
+  - 0.15   # Weak — methods start to diverge here
+  - 0.25   # Moderate — key comparison point
+  - 0.50   # Very strong — ceiling effects expected
+
+n_samples: 30
+
+# =============================================================================
+# SAMPLE SIZE ANALYSIS
+# =============================================================================
+
+sample_sizes:
+  - 10     # Minimal
+  - 30     # Moderate
+  - 50     # Large
+  - 100    # Very large (server config, included for comparison)
+
+effect_size: 0.25
+
+# =============================================================================
+# SCENARIOS — 10 representative topologies
+# =============================================================================
+
+# Representative scenarios covering different topologies
+scenarios:
+  - within_module_dense
+  - between_modules_dense
+  - partial_bipartite_between_modules
+  - gradient_core_periphery_within_module
+  - scattered_cross_block
+  - hub
+  - rich_club
+  - cross_block_connected_chain
+  - chain
+  - fragmented_within_module
+
+
+# =============================================================================
+# METHODS
+# =============================================================================
+
+methods:
+  - tstat          # Baseline (no enhancement)
+  - tfnbs          # Standard TFNBS
+  - ni_tfnbs       # Network-Informed TFNBS
+  - fbc_tfnbs      # Functional Block Clustering TFNBS
+  - nbs_extent     # Classical NBS (extent)
+  - nbs_intensity  # NBS (intensity)
+  - cnbs           # Constrained NBS
+
+# =============================================================================
+# TFNBS PARAMETER GRID (batched — does NOT multiply runtime)
+# =============================================================================
+
+tfnbs_options:
+  e: [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.10, 1.20, 1.30, 1.40, 1.50]
+  h: [0.50, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+  # 16 × 11 = 176 combos, all computed in a single batched call per task
+  n_thresholds: 30
+  start_thres: 1.25
+  fbc_min_cluster_size: 3
+
+nbs_options:
+  threshold: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+
+# =============================================================================
+# SIMULATION
+# =============================================================================
+
+n_repeats: 30          # 20 repeats (server: 100)
+n_permutations: 1000    # 500 perms (server: 1000) — coarser p-values but 2× faster
+alpha: 0.05
+
+# =============================================================================
+# NETWORK STRUCTURE (same as server)
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+intra_corr: 0.3
+inter_corr: 0.05
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+
+seed: 42
+use_mp: false          # mp.Pool at outer level only, not inside permutations
+output_dir: results/power_analysis_local

@@ -3,10 +3,10 @@ from unittest import TestCase
 
 import numpy as np
 
-from tfnbs.synth_datasets import generate_fc_matrices
-from tfnbs.pairwise_stats import compute_t_stat
-from tfnbs.nbs_score import get_nbs_score
-from tfnbs.utils import fisher_r_to_z
+from conninfpy.synth_datasets import generate_fc_matrices
+from conninfpy.pairwise_stats import compute_t_stat
+from conninfpy.nbs_score import get_nbs_score
+from conninfpy.utils import fisher_r_to_z
 
 
 class TestNBSScore(TestCase):

@@ -19,7 +19,7 @@ import time
 
 import numpy as np
 
-from tfnbs.glm_stats import compute_p_val_glm
+from conninfpy.glm_stats import compute_p_val_glm
 
 
 def generate_data(N, n_subjects, effect_edge, effect_size, seed=42):

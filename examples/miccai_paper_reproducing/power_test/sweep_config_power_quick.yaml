@@ -1,0 +1,98 @@
+# TFNBS Power Analysis - Quick Configuration
+#
+# Quick config for testing 4 key topologies with TFNBS parameter sweep.
+# Reduced n_repeats and n_permutations for faster execution.
+#
+# Usage:
+#   python examples/miccai_paper_reproducing/power_test/power_analysis.py --config examples/miccai_paper_reproducing/power_test/sweep_config_power_quick.yaml
+#
+# TFNBS parameter sweep: e=[0.4, 1.0] x h=[1.0, 4.0] = 4 variants
+# NBS threshold sweep: [1.5, 2.0, 2.5] = 3 variants
+
+# =============================================================================
+# EFFECT SIZE ANALYSIS
+# =============================================================================
+
+effect_sizes:
+  - 0.15
+  - 0.25
+  - 0.40
+
+n_samples: 20
+
+# =============================================================================
+# SAMPLE SIZE ANALYSIS
+# =============================================================================
+
+sample_sizes:
+  - 15
+  - 25
+  - 35
+
+effect_size: 0.25
+
+# =============================================================================
+# SCENARIOS (4 key topologies)
+# =============================================================================
+
+scenarios:
+  - within_plus_between                    # Combined within + between effects
+  - hub                                    # Hub node connected to many nodes
+  - scattered_cross_block                  # Scattered cross-block edges
+  - gradient_core_periphery_within_module  # Core-periphery gradient
+
+# =============================================================================
+# METHODS (ALL)
+# =============================================================================
+
+methods:
+  - tstat          # Baseline (no enhancement)
+  - tfnbs          # Standard TFNBS
+  - ni_tfnbs       # Network-Informed TFNBS
+  - fbc_tfnbs      # Functional Block Clustering TFNBS
+  - nbs_extent     # Classical NBS (extent)
+  - nbs_intensity  # NBS (intensity)
+  - cnbs           # Constrained NBS
+
+# =============================================================================
+# METHOD-SPECIFIC OPTIONS (PARAMETER SWEEP)
+# =============================================================================
+
+# TFNBS parameters - lists create sweep combinations:
+# e=[0.4, 1] x h=[1, 4] = 4 variants: (0.4,1), (0.4,4), (1,1), (1,4)
+tfnbs_options:
+  e: [0.4, 0.8, 1.0]
+  h: [1.0, 2.0, 4.0]
+  n_thresholds: 30
+  start_thres: 1.65
+  fbc_min_cluster_size: 3
+
+# NBS threshold sweep: 3 variants
+nbs_options:
+  threshold: [1.5, 2.0, 2.5]
+
+# =============================================================================
+# SIMULATION PARAMETERS (REDUCED FOR SPEED)
+# =============================================================================
+
+n_repeats: 20
+n_permutations: 500
+alpha: 0.05
+
+# =============================================================================
+# NETWORK STRUCTURE
+# =============================================================================
+
+n_nodes: 60
+n_modules: 4
+intra_corr: 0.3
+inter_corr: 0.05
+noise_level: 0.05
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+
+seed: 42
+use_mp: false
+output_dir: results/power_analysis_quick

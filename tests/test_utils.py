@@ -1,9 +1,9 @@
 from unittest import TestCase
-from tfnbs.utils import binarize, get_components
-from tfnbs.utils import create_prior_weights
-from tfnbs.synth_datasets import generate_fc_matrices
-from tfnbs.utils import fisher_r_to_z
-from tfnbs.pairwise_stats import compute_t_stat, compute_t_stat_diff
+from conninfpy.utils import binarize, get_components
+from conninfpy.utils import create_prior_weights
+from conninfpy.synth_datasets import generate_fc_matrices
+from conninfpy.utils import fisher_r_to_z
+from conninfpy.pairwise_stats import compute_t_stat, compute_t_stat_diff
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path

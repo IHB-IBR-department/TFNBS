@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
-import tfnbs.eeg_utils as eeg_utils
-from tfnbs.eeg_utils import Electrodes, PairsElectrodes1020, Bands
+import conninfpy.eeg_utils as eeg_utils
+from conninfpy.eeg_utils import Electrodes, PairsElectrodes1020, Bands
 from pathlib import Path
 import pickle
 

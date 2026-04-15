@@ -21,10 +21,11 @@ this demo script, not a statistical guarantee).
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
-import os
+
 import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -35,9 +36,9 @@ import numpy as np
 # Add repo root to path so examples work without installation.
 sys.path.append(str(Path(__file__).parent.parent))
 
-from tfnbs.pairwise_stats import compute_t_stat
-from tfnbs.synth_datasets import ModularDatasetGenerator
-from tfnbs.utils import fisher_r_to_z
+from conninfpy.pairwise_stats import compute_t_stat
+from conninfpy.synth_datasets import ModularDatasetGenerator
+from conninfpy.utils import fisher_r_to_z
 
 
 ArrayF = np.ndarray

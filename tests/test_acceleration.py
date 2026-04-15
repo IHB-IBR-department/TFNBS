@@ -14,15 +14,15 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 
-from tfnbs.acceleration import (
+from conninfpy.acceleration import (
     _fit_gpd_mom,
     _gpd_sf,
     fit_gpd_tail,
     fit_gamma_tail,
     compute_p_values_accelerated,
 )
-from tfnbs.pairwise_stats import compute_p_val
-from tfnbs.glm_stats import compute_p_val_glm
+from conninfpy.pairwise_stats import compute_p_val
+from conninfpy.glm_stats import compute_p_val_glm
 
 
 # =============================================================================

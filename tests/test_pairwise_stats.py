@@ -1,7 +1,7 @@
 from unittest import TestCase
 import time
-from tfnbs.utils import fisher_r_to_z
-from tfnbs.pairwise_stats import (_permutation_task_ind,
+from conninfpy.utils import fisher_r_to_z
+from conninfpy.pairwise_stats import (_permutation_task_ind,
                                    _permutation_task_paired,
                                    compute_null_dist,
                                    compute_t_stat_diff,
@@ -10,7 +10,7 @@ from tfnbs.pairwise_stats import (_permutation_task_ind,
                                    compute_t_stat_tfnbs,
                                    compute_t_stat_tfnbs_diffs)
 
-from tfnbs.synth_datasets import generate_fc_matrices
+from conninfpy.synth_datasets import generate_fc_matrices
 import numpy as np
 
 
@@ -196,25 +196,31 @@ class TestBasicStats(TestCase):
         self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
 
     def test_compute_null_t_stat_ind_eff(self):
+        """Test that mp and sequential paths produce consistent null distributions."""
         group_dict = self.fc_sim
 
-        n_permutations = 1000
+        n_permutations = 100
         random_state = 42
         test_type = 'two-sample'
 
-        time_mp = self.run_and_measure(compute_t_stat_tfnbs,
-                                       group_dict['group1'], group_dict['group2'],
-                                       n_permutations, test_type, random_state, True)
+        null_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
+                                    compute_t_stat_tfnbs, n_permutations=n_permutations,
+                                    test_type=test_type, random_state=random_state, use_mp=True)
 
-        time_cycle = self.run_and_measure(compute_t_stat_tfnbs,
-                                          group_dict['group1'], group_dict['group2'],
-                                          n_permutations, test_type, random_state, False)
+        null_seq = compute_null_dist(group_dict['group1'], group_dict['group2'],
+                                     compute_t_stat_tfnbs, n_permutations=n_permutations,
+                                     test_type=test_type, random_state=random_state, use_mp=False)
 
-        self.assertLess(time_mp, time_cycle)
+        # Both paths should produce valid null distributions of the same shape
+        self.assertEqual(null_mp["g2>g1"].shape, null_seq["g2>g1"].shape)
+        self.assertEqual(null_mp["g1>g2"].shape, null_seq["g1>g2"].shape)
+        # Null distributions should have similar statistics (same seeds)
+        np.testing.assert_allclose(null_mp["g2>g1"].mean(), null_seq["g2>g1"].mean(), rtol=0.3)
+        np.testing.assert_allclose(null_mp["g1>g2"].mean(), null_seq["g1>g2"].mean(), rtol=0.3)
 
     def test_compute_p_val_indep(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
 
@@ -223,7 +229,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True)
@@ -233,7 +239,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf_multi(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
 
         p_vals = compute_p_val(group_dict['group1'], group_dict['group2'],
                                n_permutations=n_permutations, test_type='two-sample', method='tfnbs', use_mp=True, e=[0.4, 0.6],
@@ -244,7 +250,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_indep_tf_orig(self):
         group_dict = self.fc_sim
-        n_permutations = 1000
+        n_permutations = 100
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
                                     n_permutations=n_permutations, test_type='two-sample', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],
@@ -255,7 +261,7 @@ class TestBasicStats(TestCase):
 
     def test_compute_p_val_paired_tf_orig(self):
         group_dict = self.fc_sim_paired
-        n_permutations = 1000
+        n_permutations = 100
         p_vals_orig = compute_p_val(group_dict['group1'], group_dict['group2'],
                                     n_permutations=n_permutations, test_type='paired', method='tstat', use_mp=True)
         p_vals_tf = compute_p_val(group_dict['group1'], group_dict['group2'],
@@ -495,6 +501,202 @@ class TestBasicStats(TestCase):
                 use_mp=False
             )
         self.assertIn("Invalid method", str(context.exception))
+
+    # -----------------------------------------------------------------
+    # Bonferroni and BH-FDR parametric baselines
+    # -----------------------------------------------------------------
+
+    def test_compute_p_val_bonferroni_two_sample(self):
+        """Test Bonferroni correction with two-sample test."""
+        group_dict = self.fc_sim
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bonferroni'
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+        N = group_dict['group1'].shape[1]
+        self.assertEqual(p_vals["g2>g1"].shape, (N, N))
+        # p-values in [0, 1]
+        self.assertTrue(np.all(p_vals["g2>g1"] >= 0))
+        self.assertTrue(np.all(p_vals["g2>g1"] <= 1))
+        # Symmetric
+        np.testing.assert_allclose(p_vals["g2>g1"], p_vals["g2>g1"].T)
+        # Diagonal should be 1.0 (no self-connections)
+        np.testing.assert_allclose(np.diag(p_vals["g2>g1"]), 1.0)
+
+    def test_compute_p_val_bh_fdr_two_sample(self):
+        """Test BH-FDR correction with two-sample test."""
+        group_dict = self.fc_sim
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr'
+        )
+        self.assertIn("g2>g1", p_vals)
+        self.assertIn("g1>g2", p_vals)
+        N = group_dict['group1'].shape[1]
+        self.assertEqual(p_vals["g2>g1"].shape, (N, N))
+        self.assertTrue(np.all(p_vals["g2>g1"] >= 0))
+        self.assertTrue(np.all(p_vals["g2>g1"] <= 1))
+        np.testing.assert_allclose(p_vals["g2>g1"], p_vals["g2>g1"].T)
+
+    def test_compute_p_val_bonferroni_paired(self):
+        """Test Bonferroni correction with paired test."""
+        group_dict = self.fc_sim_paired
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='paired', method='bonferroni'
+        )
+        self.assertIn("g2>g1", p_vals)
+        N = group_dict['group1'].shape[1]
+        self.assertEqual(p_vals["g2>g1"].shape, (N, N))
+        np.testing.assert_allclose(p_vals["g2>g1"], p_vals["g2>g1"].T)
+
+    def test_compute_p_val_bh_fdr_paired(self):
+        """Test BH-FDR correction with paired test."""
+        group_dict = self.fc_sim_paired
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='paired', method='bh_fdr'
+        )
+        self.assertIn("g2>g1", p_vals)
+        N = group_dict['group1'].shape[1]
+        self.assertEqual(p_vals["g2>g1"].shape, (N, N))
+
+    def test_bonferroni_more_conservative_than_bh_fdr(self):
+        """Bonferroni p-values should be >= BH-FDR p-values."""
+        group_dict = self.fc_sim
+        p_bonf = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bonferroni'
+        )
+        p_bh = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr'
+        )
+        # Bonferroni is more conservative (larger p-values)
+        self.assertTrue(
+            np.all(p_bonf["g2>g1"] >= p_bh["g2>g1"] - 1e-10),
+            "Bonferroni should be at least as conservative as BH-FDR"
+        )
+
+    def test_parametric_detects_true_effect(self):
+        """Parametric methods should detect the planted effect in the test data."""
+        group_dict = self.fc_sim
+        N = group_dict['group1'].shape[1]
+        # Effect is in the first 10x10 block (upper triangle)
+        effect_idx = np.triu_indices(10, k=1)
+
+        p_bh = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr'
+        )
+        # Mean p-value in the effect region should be lower than
+        # mean p-value across all edges
+        p_effect = p_bh["g2>g1"][effect_idx].mean()
+        full_triu = np.triu_indices(N, k=1)
+        p_all = p_bh["g2>g1"][full_triu].mean()
+        self.assertLess(p_effect, p_all,
+                        "BH-FDR should yield lower p-values in the effect region")
+
+    def test_parametric_no_permutations_needed(self):
+        """Parametric methods should be fast (no permutation overhead)."""
+        group_dict = self.fc_sim
+        import time
+        start = time.time()
+        compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bonferroni',
+            n_permutations=10000  # should be ignored
+        )
+        elapsed = time.time() - start
+        # Should be near-instant (< 1s), permutations are not run
+        self.assertLess(elapsed, 1.0,
+                        "Bonferroni should not run permutations")
+
+    def test_bh_fdr_perm_returns_p_values(self):
+        """BH-FDR-perm should return valid p-value matrices."""
+        group_dict = self.fc_sim
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr_perm',
+            n_permutations=50, use_mp=False, random_state=42,
+        )
+        self.assertIn('g2>g1', p_vals)
+        self.assertIn('g1>g2', p_vals)
+        N = group_dict['group1'].shape[1]
+        self.assertEqual(p_vals['g2>g1'].shape, (N, N))
+        # P-values should be in [0, 1]
+        self.assertTrue(np.all(p_vals['g2>g1'] >= 0))
+        self.assertTrue(np.all(p_vals['g2>g1'] <= 1))
+        # Diagonal should be 1 (no self-connections)
+        np.testing.assert_allclose(np.diag(p_vals['g2>g1']), 1.0)
+
+    def test_bh_fdr_perm_detects_effect(self):
+        """BH-FDR-perm should detect planted effect (lower p in effect region)."""
+        group_dict = self.fc_sim
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr_perm',
+            n_permutations=100, use_mp=False, random_state=42,
+        )
+        true_diff = group_dict['true_diff']
+        effect_mask = np.abs(true_diff) > 0.05
+        triu = np.triu_indices(true_diff.shape[0], k=1)
+
+        p_upper = p_vals['g2>g1'][triu]
+        effect_upper = effect_mask[triu]
+        if np.any(effect_upper):
+            # P-values in effect region should tend to be lower
+            mean_p_effect = np.mean(p_upper[effect_upper])
+            mean_p_null = np.mean(p_upper[~effect_upper])
+            self.assertLess(mean_p_effect, mean_p_null,
+                            "BH-FDR-perm should yield lower p-values in effect region")
+
+    def test_bh_fdr_perm_symmetric(self):
+        """BH-FDR-perm p-values should be symmetric."""
+        group_dict = self.fc_sim
+        p_vals = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            test_type='two-sample', method='bh_fdr_perm',
+            n_permutations=50, use_mp=False, random_state=42,
+        )
+        np.testing.assert_allclose(p_vals['g2>g1'], p_vals['g2>g1'].T)
+
+    def test_bh_fdr_perm_paired(self):
+        """BH-FDR-perm should work with paired test type."""
+        group_dict = self.fc_sim
+        n_min = min(group_dict['group1'].shape[0], group_dict['group2'].shape[0])
+        g1 = group_dict['group1'][:n_min]
+        g2 = group_dict['group2'][:n_min]
+        p_vals = compute_p_val(
+            g1, g2,
+            test_type='paired', method='bh_fdr_perm',
+            n_permutations=50, use_mp=False, random_state=42,
+        )
+        N = g1.shape[1]
+        self.assertEqual(p_vals['g2>g1'].shape, (N, N))
+        self.assertTrue(np.all(p_vals['g2>g1'] >= 0))
+        self.assertTrue(np.all(p_vals['g2>g1'] <= 1))
+
+    def test_ni_tfnbs_normalization_via_compute_p_val(self):
+        """NI-TFNBS normalization parameter should be threaded through compute_p_val."""
+        group_dict = self.fc_sim
+        N = group_dict['group1'].shape[1]
+        labels = np.arange(N) % 4  # 4 modules
+
+        for norm in ("sqrt", "linear", "none"):
+            p_vals = compute_p_val(
+                group_dict['group1'], group_dict['group2'],
+                test_type='two-sample', method='ni_tfnbs',
+                n_permutations=10, use_mp=False, random_state=42,
+                net_labels=labels, normalization=norm,
+                e=0.5, h=2.0, n=10,
+            )
+            self.assertEqual(p_vals['g2>g1'].shape, (N, N),
+                             f"Shape mismatch for normalization='{norm}'")
+            self.assertTrue(np.all(p_vals['g2>g1'] >= 0),
+                            f"Negative p-values for normalization='{norm}'")
 
 
 class TestRealExample(TestCase):

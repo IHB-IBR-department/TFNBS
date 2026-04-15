@@ -12,8 +12,8 @@ for unweighted and weighted TFCE so you can compare the effect of the priors.
 """
 
 import numpy as np
-from tfnbs.utils import create_prior_weights
-from tfnbs.tfnos import get_tfce_score_scipy
+from conninfpy.utils import create_prior_weights
+from conninfpy.tfnos import get_tfce_score_scipy
 
 
 def make_synthetic_t_stats():

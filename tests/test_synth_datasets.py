@@ -1,5 +1,5 @@
 from unittest import TestCase
-from tfnbs.synth_datasets import (generate_fc_matrices, ModularDatasetGenerator)
+from conninfpy.synth_datasets import (generate_fc_matrices, ModularDatasetGenerator)
 import matplotlib.pyplot as plt
 import numpy as np
 

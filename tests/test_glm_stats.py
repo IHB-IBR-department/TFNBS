@@ -13,7 +13,7 @@ import numpy as np
 import numpy.testing as npt
 from scipy import stats
 
-from tfnbs.glm_stats import (
+from conninfpy.glm_stats import (
     GLMStatType,
     _precompute_ols,
     _compute_reduced_model,
@@ -21,7 +21,7 @@ from tfnbs.glm_stats import (
     compute_p_val_glm,
     build_design_matrix,
 )
-from tfnbs.pairwise_stats import (
+from conninfpy.pairwise_stats import (
     compute_t_stat_ind,
     _extract_max_stats,
 )

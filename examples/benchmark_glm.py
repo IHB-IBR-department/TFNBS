@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 
-from tfnbs.glm_stats import compute_p_val_glm, compute_glm_stat, build_design_matrix
+from conninfpy.glm_stats import compute_p_val_glm, compute_glm_stat, build_design_matrix
 
 
 def generate_data(N, n_subjects, seed=42):
