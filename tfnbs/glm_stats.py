@@ -87,7 +87,7 @@ class GLMStatType(str, Enum):
 
 def _precompute_ols(
     X: npt.NDArray[np.float64],
-) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """
     Precompute OLS quantities that are constant across permutations.
 
@@ -102,12 +102,25 @@ def _precompute_ols(
         Pseudoinverse: (X'X)^{-1} X'.
     XtX_inv_diag : ndarray of shape (p,)
         Diagonal of (X'X)^{-1}, needed for SE computation.
+    XtX_inv : ndarray of shape (p, p)
+        Full (X'X)^{-1}, needed for contrast SE computation.
+
+    Raises
+    ------
+    np.linalg.LinAlgError
+        If X'X is singular (e.g., perfectly collinear regressors).
     """
     XtX = X.T @ X
+    cond = np.linalg.cond(XtX)
+    if cond > 1e12:
+        logger.warning(
+            f"Design matrix is ill-conditioned (cond={cond:.1e}). "
+            f"Results may be numerically unstable."
+        )
     XtX_inv = np.linalg.inv(XtX)
     X_pinv = XtX_inv @ X.T
     XtX_inv_diag = np.diag(XtX_inv)
-    return X_pinv, XtX_inv_diag
+    return X_pinv, XtX_inv_diag, XtX_inv
 
 
 # =============================================================================
@@ -121,6 +134,7 @@ def compute_glm_stat(
     stat_type: Union[str, GLMStatType] = GLMStatType.TSTAT,
     X_pinv: Optional[npt.NDArray[np.float64]] = None,
     XtX_inv_diag: Optional[npt.NDArray[np.float64]] = None,
+    XtX_inv: Optional[npt.NDArray[np.float64]] = None,
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
     Compute edge-wise GLM statistics for connectivity matrices.
@@ -161,7 +175,7 @@ def compute_glm_stat(
 
     # Precompute if not provided
     if X_pinv is None:
-        X_pinv, XtX_inv_diag = _precompute_ols(X)
+        X_pinv, XtX_inv_diag, XtX_inv = _precompute_ols(X)
 
     # Compute betas: (p, N, N)
     # Y reshaped to (n, N*N), then beta = X_pinv @ Y_flat → (p, N*N) → (p, N, N)
@@ -185,7 +199,9 @@ def compute_glm_stat(
         sigma2 = sigma2_flat.reshape(N, N)
 
         # SE of contrast beta: sqrt(c' (X'X)^{-1} c * sigma^2)
-        c_XtX_inv_c = contrast @ np.linalg.inv(X.T @ X) @ contrast  # scalar
+        if XtX_inv is None:
+            XtX_inv = np.linalg.inv(X.T @ X)
+        c_XtX_inv_c = contrast @ XtX_inv @ contrast  # scalar
         se = np.sqrt(c_XtX_inv_c * sigma2)
 
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -292,6 +308,7 @@ def _freedman_lane_permutation_task(
     contrast: npt.NDArray[np.float64],
     X_pinv: npt.NDArray[np.float64],
     XtX_inv_diag: npt.NDArray[np.float64],
+    XtX_inv: npt.NDArray[np.float64],
     reference_shape: Tuple[int, ...],
     stat_type: str,
     enhance_func: Optional[Callable] = None,
@@ -313,7 +330,7 @@ def _freedman_lane_permutation_task(
         Predicted values from reduced model.
     residuals_reduced : ndarray of shape (n_subjects, N, N)
         Residuals from reduced model.
-    X, contrast, X_pinv, XtX_inv_diag : precomputed GLM quantities
+    X, contrast, X_pinv, XtX_inv_diag, XtX_inv : precomputed GLM quantities
     reference_shape : tuple
         Shape (N, N) for _extract_max_stats.
     stat_type : str
@@ -340,6 +357,7 @@ def _freedman_lane_permutation_task(
         stat_type=stat_type,
         X_pinv=X_pinv,
         XtX_inv_diag=XtX_inv_diag,
+        XtX_inv=XtX_inv,
     )
 
     if enhance_func is not None:
@@ -569,6 +587,11 @@ def compute_p_val_glm(
     if np.all(contrast_vec == 0):
         raise ValueError("Contrast vector must have at least one non-zero entry.")
 
+    if acceleration is not None and acceleration not in ("gpd", "gamma"):
+        raise ValueError(
+            f"Invalid acceleration: '{acceleration}'. Must be 'gpd', 'gamma', or None."
+        )
+
     stat_type_str = stat_type.value if isinstance(stat_type, GLMStatType) else stat_type
     method_str = method.value if isinstance(method, StatMethod) else method
 
@@ -607,7 +630,7 @@ def compute_p_val_glm(
     enhance_func = _ENHANCE_MAP[method_enum]
 
     # ---- Precompute OLS ----
-    X_pinv, XtX_inv_diag = _precompute_ols(X)
+    X_pinv, XtX_inv_diag, XtX_inv = _precompute_ols(X)
 
     # ---- Compute observed statistics ----
     emp_stat_dict = compute_glm_stat(
@@ -615,13 +638,14 @@ def compute_p_val_glm(
         stat_type=stat_type_str,
         X_pinv=X_pinv,
         XtX_inv_diag=XtX_inv_diag,
+        XtX_inv=XtX_inv,
     )
     if enhance_func is not None:
         emp_stat_dict = enhance_func(emp_stat_dict, **enhance_kwargs)
 
     # ---- Freedman-Lane: compute reduced model ----
     X_reduced = _compute_reduced_model(X, contrast_vec)
-    X_red_pinv, _ = _precompute_ols(X_reduced)
+    X_red_pinv, _, _ = _precompute_ols(X_reduced)
 
     Y_flat = Y.reshape(n_subjects, -1)
     Y_hat_reduced_flat = X_reduced @ (X_red_pinv @ Y_flat)
@@ -643,6 +667,7 @@ def compute_p_val_glm(
         contrast_vec,
         X_pinv,
         XtX_inv_diag,
+        XtX_inv,
         reference_shape,
         stat_type_str,
         enhance_func,

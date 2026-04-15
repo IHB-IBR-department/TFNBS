@@ -43,7 +43,7 @@ class TestPrecomputeOLS(unittest.TestCase):
         X[:, 0] = 1.0  # intercept
         Y = rng.randn(n, 10)
 
-        X_pinv, XtX_inv_diag = _precompute_ols(X)
+        X_pinv, XtX_inv_diag, XtX_inv = _precompute_ols(X)
         beta_pinv = X_pinv @ Y
 
         beta_lstsq, _, _, _ = np.linalg.lstsq(X, Y, rcond=None)
@@ -54,8 +54,9 @@ class TestPrecomputeOLS(unittest.TestCase):
         """XtX_inv_diag has shape (p,)."""
         rng = np.random.RandomState(42)
         X = rng.randn(40, 3)
-        _, XtX_inv_diag = _precompute_ols(X)
+        _, XtX_inv_diag, XtX_inv = _precompute_ols(X)
         self.assertEqual(XtX_inv_diag.shape, (3,))
+        self.assertEqual(XtX_inv.shape, (3, 3))
 
 
 class TestComputeGLMStat(unittest.TestCase):
@@ -415,7 +416,7 @@ class TestFreedmanLane(unittest.TestCase):
         X, contrast = build_design_matrix(age, confounds=motion)
 
         X_reduced = _compute_reduced_model(X, contrast)
-        X_red_pinv, _ = _precompute_ols(X_reduced)
+        X_red_pinv, _, _ = _precompute_ols(X_reduced)
 
         Y_flat = Y.reshape(n, -1)
         Y_hat_flat = X_reduced @ (X_red_pinv @ Y_flat)
