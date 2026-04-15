@@ -1,0 +1,159 @@
+"""
+Benchmark: GPD/gamma permutation acceleration vs full empirical.
+
+Compares timing and p-value accuracy across:
+- Network sizes: N=10, 30, 50, 90
+- Enhancement methods: tstat, tfnbs, nbs
+- Acceleration: none, gpd, gamma
+- Permutation counts: 200 (accelerated) vs 5000 (reference)
+
+Usage:
+    python examples/benchmark_acceleration.py
+    python examples/benchmark_acceleration.py --quick     # N=10,30 only
+    python examples/benchmark_acceleration.py --full      # includes N=90
+"""
+
+import argparse
+import sys
+import time
+
+import numpy as np
+
+from tfnbs.glm_stats import compute_p_val_glm
+
+
+def generate_data(N, n_subjects, effect_edge, effect_size, seed=42):
+    """Generate synthetic connectivity data with planted effect."""
+    rng = np.random.RandomState(seed)
+    Y = rng.randn(n_subjects, N, N) * 0.5
+    age = rng.randn(n_subjects)
+
+    for s in range(n_subjects):
+        Y[s] = (Y[s] + Y[s].T) / 2
+        np.fill_diagonal(Y[s], 0)
+
+    i, j = effect_edge
+    for s in range(n_subjects):
+        Y[s, i, j] += effect_size * age[s]
+        Y[s, j, i] += effect_size * age[s]
+
+    return Y, age
+
+
+def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel, seed=42):
+    """Run benchmark for one network size."""
+    effect_edge = (1, 2)
+    Y, age = generate_data(N, n_subjects, effect_edge, effect_size=1.5, seed=seed)
+    n_edges = N * (N - 1) // 2
+    triu = np.triu_indices(N, k=1)
+
+    print(f"\n{'='*70}")
+    print(f"Network: {N}x{N} ({n_edges} edges), {n_subjects} subjects")
+    print(f"Reference: {n_perm_ref} perms | Accelerated: {n_perm_accel} perms")
+    print(f"{'='*70}")
+
+    header = f"{'Method':<10} {'Accel':<8} {'Perms':>6} {'Time':>8} {'Speedup':>8} {'r(pos)':>8} {'MAE':>8} {'p_plant':>8}"
+    print(header)
+    print("-" * len(header))
+
+    for method_name, method_kwargs in methods:
+        # Reference: full permutations, no acceleration
+        t0 = time.time()
+        p_ref = compute_p_val_glm(
+            Y, interest=age, method=method_name,
+            n_permutations=n_perm_ref, use_mp=False, random_state=seed,
+            **method_kwargs,
+        )
+        t_ref = time.time() - t0
+        p_planted_ref = p_ref["positive"][effect_edge]
+
+        print(f"{method_name:<10} {'none':<8} {n_perm_ref:>6} {t_ref:>7.2f}s {'1.0x':>8} {'ref':>8} {'ref':>8} {p_planted_ref:>8.4f}")
+
+        # Accelerated variants
+        for accel_name in ["gpd", "gamma"]:
+            t0 = time.time()
+            p_accel = compute_p_val_glm(
+                Y, interest=age, method=method_name,
+                n_permutations=n_perm_accel, use_mp=False, random_state=seed,
+                acceleration=accel_name, **method_kwargs,
+            )
+            t_accel = time.time() - t0
+
+            r = np.corrcoef(
+                p_ref["positive"][triu], p_accel["positive"][triu]
+            )[0, 1]
+            mae = np.mean(
+                np.abs(p_ref["positive"][triu] - p_accel["positive"][triu])
+            )
+            p_planted = p_accel["positive"][effect_edge]
+            speedup = t_ref / t_accel
+
+            print(f"{'':<10} {accel_name:<8} {n_perm_accel:>6} {t_accel:>7.2f}s {speedup:>7.1f}x {r:>8.4f} {mae:>8.4f} {p_planted:>8.4f}")
+
+        # Empirical with same few perms (to compare: is acceleration better?)
+        t0 = time.time()
+        p_emp = compute_p_val_glm(
+            Y, interest=age, method=method_name,
+            n_permutations=n_perm_accel, use_mp=False, random_state=seed,
+            **method_kwargs,
+        )
+        t_emp = time.time() - t0
+
+        r = np.corrcoef(
+            p_ref["positive"][triu], p_emp["positive"][triu]
+        )[0, 1]
+        mae = np.mean(
+            np.abs(p_ref["positive"][triu] - p_emp["positive"][triu])
+        )
+        p_planted = p_emp["positive"][effect_edge]
+        speedup = t_ref / t_emp
+
+        print(f"{'':<10} {'emp':<8} {n_perm_accel:>6} {t_emp:>7.2f}s {speedup:>7.1f}x {r:>8.4f} {mae:>8.4f} {p_planted:>8.4f}")
+
+        print()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Benchmark acceleration methods")
+    parser.add_argument("--quick", action="store_true", help="Quick run (N=10,30)")
+    parser.add_argument("--full", action="store_true", help="Full run (includes N=90)")
+    args = parser.parse_args()
+
+    if args.quick:
+        network_sizes = [10, 30]
+    elif args.full:
+        network_sizes = [10, 30, 50, 90]
+    else:
+        network_sizes = [10, 30, 50]
+
+    methods = [
+        ("tstat", {}),
+        ("tfnbs", {"e": 0.4, "h": 3.0, "n": 10}),
+        ("nbs", {"threshold": 2.0}),
+    ]
+
+    n_subjects = 30
+    n_perm_ref = 5000
+    n_perm_accel = 200
+
+    print("Permutation Acceleration Benchmark")
+    print(f"Methods: {[m[0] for m in methods]}")
+    print(f"Network sizes: {network_sizes}")
+    print(f"Reference perms: {n_perm_ref}, Accelerated perms: {n_perm_accel}")
+
+    for N in network_sizes:
+        run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel)
+
+    print("\n" + "=" * 70)
+    print("KEY: r(pos) = correlation of positive p-values with reference")
+    print("     MAE = mean absolute error vs reference p-values")
+    print("     p_plant = p-value at planted edge (1,2)")
+    print("     Speedup = time(reference) / time(accelerated)")
+    print()
+    print("NOTE: Speedup is ~linear (n_perm_ref / n_perm_accel).")
+    print("GPD/gamma advantage over empirical is in p-value PRECISION,")
+    print("not speed — they resolve small p-values better with few perms.")
+
+
+if __name__ == "__main__":
+    main()
