@@ -51,7 +51,7 @@ def fisher_r_to_z(r: npt.NDArray[np.float64],
     if np.any(bounds_mask):
         warnings.warn(
             "Input contains r = ±1, resulting in infinite z-values. "
-            f"{'Clapped at ±' + str(max_z) if handle_bounds else 'Left as infinity.'}",
+            f"{'Capped at ±' + str(max_z) if handle_bounds else 'Left as infinity.'}",
             UserWarning
         )
         if handle_bounds:

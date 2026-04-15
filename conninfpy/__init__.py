@@ -1,4 +1,4 @@
-__version__ = "1.0.1"
+__version__ = "2.0.0"
 
 from .defaults import (
     DEFAULT_EXTENT_EXPONENT,
