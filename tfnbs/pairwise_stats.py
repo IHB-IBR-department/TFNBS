@@ -14,7 +14,7 @@ compute_null_dist : Compute null distribution via permutation testing
 """
 
 from __future__ import annotations
-
+import os
 import logging
 import multiprocessing
 from enum import Enum
@@ -24,14 +24,23 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
+from scipy import stats
 
-from .nbs_score import DEFAULT_NBS_STAT, DEFAULT_NBS_THRESHOLD, get_cnbs_score, get_nbs_score
+from .defaults import (
+    DEFAULT_EXTENT_EXPONENT,
+    DEFAULT_HEIGHT_EXPONENT,
+    DEFAULT_N_THRESHOLDS_PERMUTATION as DEFAULT_N_THRESHOLDS,
+    DEFAULT_N_PERMUTATIONS,
+    DEFAULT_START_THRESHOLD,
+    DEFAULT_MIN_CLUSTER_SIZE,
+    DEFAULT_NBS_THRESHOLD,
+    DEFAULT_NBS_STAT,
+)
+from .nbs_score import get_cnbs_score, get_nbs_score
 from .tfnbs_score import (
     get_tfnbs_score,
     get_network_informed_tfnbs_score,
     get_fbc_tfnbs_score,
-    DEFAULT_START_THRESHOLD,
-    DEFAULT_MIN_CLUSTER_SIZE,
 )
 
 
@@ -53,6 +62,8 @@ __all__ = [
     "compute_t_stat_diff",
     "compute_t_stat_ind",
     "compute_diffs",
+    "get_available_cores",
+    "_is_worker_process",
 ]
 
 logger = logging.getLogger(__name__)
@@ -96,20 +107,18 @@ class StatMethod(str, Enum):
     FBC_TFNBS = "fbc_tfnbs"
     """Functional Block Clustering TFNBS (block-defined clustering)."""
 
+    BONFERRONI = "bonferroni"
+    """Parametric Bonferroni correction (no permutation testing)."""
+
+    BH_FDR = "bh_fdr"
+    """Parametric Benjamini-Hochberg FDR correction (no permutation testing)."""
+
+    BH_FDR_PERM = "bh_fdr_perm"
+    """Permutation-based BH-FDR correction (per-edge permutation p-values)."""
+
 
 CONSTRAINED_METHODS = {StatMethod.CNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}
-
-DEFAULT_N_PERMUTATIONS: int = 1000
-"""Default number of permutations for null distribution."""
-
-DEFAULT_EXTENT_EXPONENT: float = 0.4
-"""Default extent exponent (E) for TFCE in permutation testing."""
-
-DEFAULT_HEIGHT_EXPONENT: float = 3.0
-"""Default height exponent (H) for TFCE in permutation testing."""
-
-DEFAULT_N_THRESHOLDS: int = 10
-"""Default number of threshold integration steps for TFCE."""
+PARAMETRIC_METHODS = {StatMethod.BONFERRONI, StatMethod.BH_FDR}
 
 
 # =============================================================================
@@ -124,31 +133,30 @@ def _extract_max_stats(
     Extract maximum statistics from a stat dictionary.
 
     Handles both 2D matrices and multi-parameter 3D arrays.
+    Key-agnostic: works with any dictionary keys (e.g., 'g1>g2'/'g2>g1'
+    for t-test pipeline, 'positive'/'negative' for GLM pipeline).
 
     Parameters
     ----------
     stat_dict : dict
-        Dictionary with 'g1>g2' and 'g2>g1' statistic arrays.
+        Dictionary with statistic arrays (any string keys).
     reference_shape : tuple
         Shape of a single sample for determining dimensionality.
 
     Returns
     -------
     dict
-        Dictionary with maximum statistics for each direction.
+        Dictionary with maximum statistics for each key.
     """
-    if stat_dict["g1>g2"].shape == reference_shape:
-        return {
-            "g1>g2": np.max(stat_dict["g1>g2"]).astype(np.float64),
-            "g2>g1": np.max(stat_dict["g2>g1"]).astype(np.float64)
-        }
-    else:
-        # Multi-parameter case: max over spatial dims, keep param dim
-        spatial_axes = tuple(range(stat_dict["g1>g2"].ndim - 1))
-        return {
-            "g1>g2": np.max(stat_dict["g1>g2"], axis=spatial_axes).astype(np.float64),
-            "g2>g1": np.max(stat_dict["g2>g1"], axis=spatial_axes).astype(np.float64)
-        }
+    result = {}
+    for key, arr in stat_dict.items():
+        if arr.shape == reference_shape:
+            result[key] = np.max(arr).astype(np.float64)
+        else:
+            # Multi-parameter case: max over spatial dims, keep param dim
+            spatial_axes = tuple(range(arr.ndim - 1))
+            result[key] = np.max(arr, axis=spatial_axes).astype(np.float64)
+    return result
 
 
 def _permutation_task_ind(
@@ -354,15 +362,18 @@ def _score_ni_tfnbs_from_diffs(
     h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
     n: int = DEFAULT_N_THRESHOLDS,
     start_thres: float = DEFAULT_START_THRESHOLD,
+    normalization: str = "sqrt",
     **kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """Compute NI-TFNBS scores from difference matrices."""
     t_stat_dict = compute_t_stat_diff(diffs)
     score_pos = get_network_informed_tfnbs_score(
-        t_stat_dict["g2>g1"], net_labels, e, h, n, start_thres=start_thres
+        t_stat_dict["g2>g1"], net_labels, e, h, n,
+        start_thres=start_thres, normalization=normalization,
     )
     score_neg = get_network_informed_tfnbs_score(
-        t_stat_dict["g1>g2"], net_labels, e, h, n, start_thres=start_thres
+        t_stat_dict["g1>g2"], net_labels, e, h, n,
+        start_thres=start_thres, normalization=normalization,
     )
     return {"g2>g1": score_pos, "g1>g2": score_neg}
 
@@ -375,12 +386,17 @@ def _score_ni_tfnbs_two_sample(
     e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
     h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
     n: int = DEFAULT_N_THRESHOLDS,
+    normalization: str = "sqrt",
     **kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """Compute NI-TFNBS scores for two-sample test."""
     t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_network_informed_tfnbs_score(t_stat_dict["g2>g1"], net_labels, e, h, n)
-    score_neg = get_network_informed_tfnbs_score(t_stat_dict["g1>g2"], net_labels, e, h, n)
+    score_pos = get_network_informed_tfnbs_score(
+        t_stat_dict["g2>g1"], net_labels, e, h, n, normalization=normalization,
+    )
+    score_neg = get_network_informed_tfnbs_score(
+        t_stat_dict["g1>g2"], net_labels, e, h, n, normalization=normalization,
+    )
     return {"g2>g1": score_pos, "g1>g2": score_neg}
 
 
@@ -430,6 +446,29 @@ def _score_fbc_tfnbs_two_sample(
 
 
 # =============================================================================
+# Helper functions for multiprocessing
+# =============================================================================
+
+def _is_worker_process() -> bool:
+    """Check if running inside a multiprocessing worker.
+
+    Returns True when the current process was spawned by a Pool,
+    preventing nested Pool creation which causes deadlocks.
+    """
+    return multiprocessing.current_process().name != 'MainProcess'
+
+
+def get_available_cores():
+    try:
+        # Linux
+        affinity = os.sched_getaffinity(0)
+        return len(affinity)
+    except AttributeError:
+        # Fallback Windows/Mac
+        return multiprocessing.cpu_count()
+
+
+# =============================================================================
 # Null distribution computation
 # =============================================================================
 
@@ -441,7 +480,7 @@ def compute_null_dist(
     test_type: Union[str, TestType] = TestType.PAIRED,
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
-    use_mp: bool = False,
+    use_mp: bool = True,
     **func_kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
@@ -451,7 +490,7 @@ def compute_null_dist(
 
     - Fixed indexing bug in sequential mode
     - Efficient result collection
-    - Better memory management for multiprocessing
+    - Context-aware multiprocessing (auto-disables inside worker processes)
 
     Parameters
     ----------
@@ -469,8 +508,9 @@ def compute_null_dist(
         Seed for reproducibility.
     n_processes : int, optional
         Number of parallel processes. Defaults to CPU count.
-    use_mp : bool, default=False
-        Whether to use multiprocessing.
+    use_mp : bool, default=True
+        Whether to use multiprocessing. Automatically disabled when called
+        from inside a multiprocessing worker to prevent nested pools.
     **func_kwargs
         Additional keyword arguments passed to func.
 
@@ -523,11 +563,14 @@ def compute_null_dist(
     # Generate seeds for reproducibility
     rng = np.random.RandomState(random_state)
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
+    
+    # Context-aware multiprocessing: disable inside worker processes
+    # to prevent nested pools that cause deadlocks
+    _use_mp = use_mp and not _is_worker_process()
 
-    if use_mp:
-        # Parallel computation
+    if _use_mp:
         if n_processes is None:
-            n_processes = multiprocessing.cpu_count()
+            n_processes = get_available_cores()
         n_processes = min(n_processes, n_permutations)
 
         with Pool(processes=n_processes) as pool:
@@ -537,6 +580,131 @@ def compute_null_dist(
         results = [task_func(seed) for seed in seeds]
 
     return _collect_results_to_arrays(results, n_permutations)
+
+
+# =============================================================================
+# Per-edge permutation helpers (for BH-FDR-perm)
+# =============================================================================
+
+def _permutation_task_ind_full(
+    full_group: npt.NDArray[np.float64],
+    func: Callable[..., Any],
+    n1: int,
+    seed: int,
+    **func_kwargs
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """Return full per-edge t-stats for a single permutation (two-sample)."""
+    rng = np.random.RandomState(seed)
+    idx = rng.permutation(full_group.shape[0])
+    new_group1 = full_group[idx[:n1]]
+    new_group2 = full_group[idx[n1:]]
+    return func(new_group1, new_group2, test_type='two-sample', **func_kwargs)
+
+
+def _permutation_task_paired_full(
+    diffs: npt.NDArray[np.float64],
+    func: Callable[..., Any],
+    seed: Optional[int] = None,
+    **func_kwargs
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """Return full per-edge t-stats for a single permutation (paired/one-sample)."""
+    n_dims = len(diffs.shape) - 1
+    faked_dims = [1] * n_dims
+    rng = np.random.RandomState(seed)
+    signs = rng.choice([1, -1], diffs.shape[0]).reshape(-1, *faked_dims)
+    new_diffs = signs * diffs
+    return func(new_diffs, **func_kwargs)
+
+
+def _compute_bh_fdr_perm_p_values(
+    group1: npt.NDArray[np.float64],
+    group2: Optional[npt.NDArray[np.float64]],
+    test_type_str: str,
+    n_permutations: int,
+    random_state: Optional[int],
+    use_mp: bool,
+    n_processes: Optional[int],
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """
+    Compute BH-FDR corrected p-values using permutation-based per-edge nulls.
+
+    1. Compute observed t-stats per edge.
+    2. For each permutation, compute per-edge t-stats.
+    3. For each edge, p = (# perm t >= observed t) / n_perm.
+    4. Apply BH-FDR correction to per-edge p-values.
+    """
+    # Compute observed t-stats
+    if test_type_str == TestType.PAIRED.value:
+        diffs = compute_diffs(group1, group2)
+        emp_t_dict = compute_t_stat_diff(diffs)
+    elif test_type_str == TestType.ONE_SAMPLE.value:
+        emp_t_dict = compute_t_stat_diff(group1)
+    elif test_type_str == TestType.TWO_SAMPLE.value:
+        emp_t_dict = compute_t_stat(group1, group2, test_type=test_type_str)
+    else:
+        raise ValueError(f"Invalid test_type: '{test_type_str}'")
+
+    N = emp_t_dict["g2>g1"].shape[0]
+    triu_idx = np.triu_indices(N, k=1)
+    n_edges = len(triu_idx[0])
+
+    # Generate seeds
+    rng = np.random.RandomState(random_state)
+    seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
+
+    # Prepare permutation task function (returns full t-stat matrices)
+    if test_type_str == TestType.PAIRED.value:
+        diffs = compute_diffs(group1, group2)
+        task_func = partial(
+            _permutation_task_paired_full, diffs, compute_t_stat_diff
+        )
+    elif test_type_str == TestType.ONE_SAMPLE.value:
+        group2_zeros = np.zeros(group1.shape)
+        diffs = compute_diffs(group1, group2_zeros)
+        task_func = partial(
+            _permutation_task_paired_full, diffs, compute_t_stat_diff
+        )
+    else:  # two-sample
+        full_group = np.concatenate((group1, group2), axis=0)
+        n1 = group1.shape[0]
+        task_func = partial(
+            _permutation_task_ind_full, full_group, compute_t_stat, n1
+        )
+
+    _use_mp = use_mp and not _is_worker_process()
+
+    if _use_mp:
+        if n_processes is None:
+            n_processes = get_available_cores()
+        n_processes = min(n_processes, n_permutations)
+        with Pool(processes=n_processes) as pool:
+            perm_results = pool.map(task_func, seeds)
+    else:
+        perm_results = [task_func(seed) for seed in seeds]
+
+    # Compute per-edge p-values and apply BH correction
+    p_values = {}
+    for key in ("g2>g1", "g1>g2"):
+        emp_upper = emp_t_dict[key][triu_idx]
+
+        # Count how many permutation t-stats >= observed for each edge
+        count_ge = np.zeros(n_edges, dtype=np.float64)
+        for perm_dict in perm_results:
+            perm_upper = perm_dict[key][triu_idx]
+            count_ge += (perm_upper >= emp_upper).astype(np.float64)
+
+        per_edge_p = count_ge / n_permutations
+
+        # Apply BH-FDR correction
+        corrected_p = _bh_fdr_correction(per_edge_p)
+
+        # Reconstruct full symmetric matrix
+        p_mat = np.ones((N, N), dtype=np.float64)
+        p_mat[triu_idx] = corrected_p
+        p_mat[(triu_idx[1], triu_idx[0])] = corrected_p
+        p_values[key] = p_mat
+
+    return p_values
 
 
 # =============================================================================
@@ -584,6 +752,153 @@ def _compute_p_values_from_null(
     return p_values
 
 
+def _compute_degrees_of_freedom(
+    n1: int,
+    n2: int,
+    test_type_str: str
+) -> int:
+    """Compute degrees of freedom for a t-test.
+
+    Parameters
+    ----------
+    n1 : int
+        Number of samples in group 1.
+    n2 : int
+        Number of samples in group 2 (0 for one-sample).
+    test_type_str : str
+        Test type string ('paired', 'one-sample', 'two-sample').
+
+    Returns
+    -------
+    int
+        Degrees of freedom.
+    """
+    if test_type_str == TestType.TWO_SAMPLE.value:
+        return n1 + n2 - 2
+    else:
+        # paired or one-sample: df = n - 1
+        return n1 - 1
+
+
+def _compute_parametric_p_values(
+    group1: npt.NDArray[np.float64],
+    group2: Optional[npt.NDArray[np.float64]],
+    test_type_str: str,
+    method_enum: "StatMethod",
+    alpha: float = 0.05,
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """
+    Compute parametric p-values with Bonferroni or BH-FDR correction.
+
+    Parameters
+    ----------
+    group1 : ndarray of shape (n_subjects, N, N)
+        Connectivity matrices for group 1.
+    group2 : ndarray of shape (n_subjects, N, N), optional
+        Connectivity matrices for group 2.
+    test_type_str : str
+        Test type ('paired', 'one-sample', 'two-sample').
+    method_enum : StatMethod
+        BONFERRONI or BH_FDR.
+    alpha : float, default=0.05
+        Significance level (used for BH-FDR step-up).
+
+    Returns
+    -------
+    dict
+        Dictionary with 'g1>g2' and 'g2>g1' p-value arrays of shape (N, N).
+    """
+    # Compute t-statistics using existing infrastructure
+    if test_type_str == TestType.PAIRED.value:
+        diffs = compute_diffs(group1, group2)
+        t_dict = compute_t_stat_diff(diffs)
+        df = _compute_degrees_of_freedom(group1.shape[0], 0, test_type_str)
+    elif test_type_str == TestType.ONE_SAMPLE.value:
+        t_dict = compute_t_stat_diff(group1)
+        df = _compute_degrees_of_freedom(group1.shape[0], 0, test_type_str)
+    elif test_type_str == TestType.TWO_SAMPLE.value:
+        t_dict = compute_t_stat_ind(group1, group2)
+        df = _compute_degrees_of_freedom(group1.shape[0], group2.shape[0], test_type_str)
+    else:
+        raise ValueError(f"Invalid test_type: '{test_type_str}'")
+
+    p_values = {}
+    for key in ("g1>g2", "g2>g1"):
+        t_vals = t_dict[key]  # Non-negative (one-tailed)
+        N = t_vals.shape[0]
+
+        # Compute one-tailed p-values from t-distribution
+        raw_p = stats.t.sf(t_vals, df)
+
+        # Extract upper triangle (unique edges for symmetric matrices)
+        triu_idx = np.triu_indices(N, k=1)
+        p_upper = raw_p[triu_idx]
+
+        # Number of unique comparisons
+        m = len(p_upper)
+
+        if method_enum == StatMethod.BONFERRONI:
+            # Bonferroni: multiply by number of comparisons, cap at 1.0
+            p_corrected_upper = np.minimum(p_upper * m, 1.0)
+        elif method_enum == StatMethod.BH_FDR:
+            # Benjamini-Hochberg step-up procedure
+            p_corrected_upper = _bh_fdr_correction(p_upper)
+        else:
+            raise ValueError(f"Unsupported parametric method: {method_enum}")
+
+        # Reconstruct full symmetric matrix
+        p_corrected = np.ones((N, N), dtype=np.float64)
+        p_corrected[triu_idx] = p_corrected_upper
+        p_corrected[(triu_idx[1], triu_idx[0])] = p_corrected_upper
+
+        p_values[key] = p_corrected
+
+    return p_values
+
+
+def _bh_fdr_correction(
+    p_values: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """
+    Apply Benjamini-Hochberg FDR correction to a 1D array of p-values.
+
+    Parameters
+    ----------
+    p_values : ndarray of shape (m,)
+        Uncorrected p-values.
+
+    Returns
+    -------
+    ndarray of shape (m,)
+        BH-corrected p-values (adjusted so that thresholding at alpha
+        controls FDR at level alpha).
+    """
+    m = len(p_values)
+    if m == 0:
+        return p_values.copy()
+
+    # Sort p-values and track original indices
+    sorted_idx = np.argsort(p_values)
+    sorted_p = p_values[sorted_idx]
+
+    # BH adjustment: p_adj[i] = p[i] * m / rank[i]
+    ranks = np.arange(1, m + 1, dtype=np.float64)
+    adjusted = sorted_p * m / ranks
+
+    # Enforce monotonicity (step-up): working backwards,
+    # each adjusted p-value must be <= the next one
+    adjusted = np.minimum.accumulate(adjusted[::-1])[::-1]
+
+    # Cap at 1.0
+    adjusted = np.minimum(adjusted, 1.0)
+
+    # Restore original order
+    result = np.empty(m, dtype=np.float64)
+    result[sorted_idx] = adjusted
+
+    return result
+
+
 def compute_p_val(
     group1: npt.NDArray[np.float64],
     group2: Optional[npt.NDArray[np.float64]] = None,
@@ -602,12 +917,33 @@ def compute_p_val(
     n: int = DEFAULT_N_THRESHOLDS,
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
+    normalization: str = "sqrt",
     **kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
     Compute p-values using permutation testing with various network-based methods.
 
-    Supports multiple statistical methods: tfnbs, tstat, nbs, cnbs, ni_tfnbs, fbc_tfnbs.
+    Supports multiple statistical methods: tfnbs, tstat, nbs, cnbs, ni_tfnbs,
+    fbc_tfnbs, bonferroni, bh_fdr, bh_fdr_perm.
+
+    .. note:: **cNBS null distribution**
+
+       This implementation uses the **max-statistic** null distribution for cNBS,
+       where each permutation contributes its global maximum cNBS score to the
+       null. This is the same family-wise error rate (FWER) control strategy used
+       by classical NBS (Zalesky et al. 2010) and TFNBS.
+
+       Noble & Scheinost (2020) originally proposed computing **per-block** null
+       distributions with Bonferroni correction across blocks. The max-statistic
+       approach used here is more conservative (controls FWER globally) but
+       provides a consistent framework across all methods in this package.
+
+    .. note:: **Bonferroni and BH-FDR methods**
+
+       ``StatMethod.BONFERRONI`` and ``StatMethod.BH_FDR`` are parametric baselines
+       that do **not** use permutation testing. They compute p-values from the
+       t-distribution and apply multiple comparison corrections. The
+       ``n_permutations`` parameter is ignored for these methods.
 
     Parameters
     ----------
@@ -622,7 +958,8 @@ def compute_p_val(
     method : {'tfnbs', 'tstat', 'nbs', 'cnbs', 'ni_tfnbs', 'fbc_tfnbs'} or StatMethod, default='tfnbs'
         Statistical method to use for scoring.
     use_mp : bool, default=True
-        Use multiprocessing for permutation testing.
+        Use multiprocessing for permutation testing. Automatically disabled
+        when called from inside a multiprocessing worker to prevent deadlocks.
     random_state : int, optional
         Random seed for reproducibility.
     n_processes : int, optional
@@ -643,6 +980,8 @@ def compute_p_val(
         Starting threshold for TFNBS integration.
     min_cluster_size : int, default=3
         Minimum cluster size for FBC-TFNBS (only used when method='fbc_tfnbs').
+    normalization : {'sqrt', 'linear', 'none'}, default='sqrt'
+        Block density normalization for NI-TFNBS (only used when method='ni_tfnbs').
     **kwargs
         Additional keyword arguments (for future extensions).
 
@@ -701,6 +1040,22 @@ def compute_p_val(
             f"Constrained methods are: {[m.value for m in CONSTRAINED_METHODS]}"
         )
 
+    # Parametric methods: compute p-values directly from t-distribution
+    if method_enum in PARAMETRIC_METHODS:
+        return _compute_parametric_p_values(
+            group1, group2, test_type_str, method_enum
+        )
+
+    # BH-FDR with permutation p-values: separate code path
+    if method_enum == StatMethod.BH_FDR_PERM:
+        return _compute_bh_fdr_perm_p_values(
+            group1, group2, test_type_str,
+            n_permutations=n_permutations,
+            random_state=random_state,
+            use_mp=use_mp,
+            n_processes=n_processes,
+        )
+
     # Select appropriate scorer function based on method and test type
     if test_type_str == TestType.PAIRED.value:
         diffs = compute_diffs(group1, group2)
@@ -724,6 +1079,8 @@ def compute_p_val(
                 scorer_kwargs["net_labels"] = net_labels
             if method_enum == StatMethod.FBC_TFNBS:
                 scorer_kwargs["min_cluster_size"] = min_cluster_size
+            if method_enum == StatMethod.NI_TFNBS:
+                scorer_kwargs["normalization"] = normalization
         elif method_enum == StatMethod.CNBS:
             scorer_kwargs = {"net_labels": net_labels}
 
@@ -750,6 +1107,8 @@ def compute_p_val(
                 scorer_kwargs["net_labels"] = net_labels
             if method_enum == StatMethod.FBC_TFNBS:
                 scorer_kwargs["min_cluster_size"] = min_cluster_size
+            if method_enum == StatMethod.NI_TFNBS:
+                scorer_kwargs["normalization"] = normalization
         elif method_enum == StatMethod.CNBS:
             scorer_kwargs["net_labels"] = net_labels
 
@@ -776,6 +1135,8 @@ def compute_p_val(
                 scorer_kwargs["net_labels"] = net_labels
             if method_enum == StatMethod.FBC_TFNBS:
                 scorer_kwargs["min_cluster_size"] = min_cluster_size
+            if method_enum == StatMethod.NI_TFNBS:
+                scorer_kwargs["normalization"] = normalization
         elif method_enum == StatMethod.CNBS:
             scorer_kwargs = {"net_labels": net_labels}
 
