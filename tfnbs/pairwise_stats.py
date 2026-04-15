@@ -42,6 +42,7 @@ from .tfnbs_score import (
     get_network_informed_tfnbs_score,
     get_fbc_tfnbs_score,
 )
+from .acceleration import compute_p_values_accelerated
 
 
 __all__ = [
@@ -908,6 +909,7 @@ def compute_p_val(
     use_mp: bool = True,
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
+    acceleration: Optional[str] = None,
     # Method-specific parameters
     net_labels: Optional[npt.NDArray[np.int_]] = None,
     threshold: float = DEFAULT_NBS_THRESHOLD,
@@ -1163,6 +1165,10 @@ def compute_p_val(
         **null_kwargs
     )
 
+    if acceleration is not None:
+        return compute_p_values_accelerated(
+            emp_t_dict, max_null_dict, method=acceleration,
+        )
     return _compute_p_values_from_null(emp_t_dict, max_null_dict)
 
 

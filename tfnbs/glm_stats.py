@@ -54,6 +54,7 @@ from .pairwise_stats import (
     StatMethod,
     CONSTRAINED_METHODS,
 )
+from .acceleration import compute_p_values_accelerated
 
 
 __all__ = [
@@ -459,6 +460,7 @@ def compute_p_val_glm(
     method: Union[str, StatMethod] = StatMethod.TFNBS,
     n_permutations: int = DEFAULT_N_PERMUTATIONS,
     two_tailed: bool = False,
+    acceleration: Optional[str] = None,
     use_mp: bool = True,
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
@@ -504,6 +506,12 @@ def compute_p_val_glm(
     two_tailed : bool, default=False
         If False (default), per-tail FWER control (separate null for positive
         and negative). If True, joint null from max(max_positive, max_negative).
+    acceleration : {'gpd', 'gamma'} or None, default=None
+        Permutation acceleration method (Winkler et al., 2016). If None,
+        use standard empirical p-values. 'gpd' fits a Generalized Pareto
+        Distribution to the tail of the null distribution. 'gamma' fits
+        a gamma distribution using method of moments. Both allow accurate
+        p-values with fewer permutations (~200 instead of ~5000).
     use_mp : bool, default=True
         Use multiprocessing for permutation testing.
     random_state : int, optional
@@ -667,4 +675,9 @@ def compute_p_val_glm(
             "negative": joint_null,
         }
 
+    # ---- Compute p-values ----
+    if acceleration is not None:
+        return compute_p_values_accelerated(
+            emp_stat_dict, max_null_dict, method=acceleration,
+        )
     return _compute_p_values_from_null(emp_stat_dict, max_null_dict)
