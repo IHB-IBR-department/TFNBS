@@ -2,14 +2,14 @@
 Pairwise statistical testing module for network analysis.
 
 This module provides functions for computing t-statistics and p-values
-using permutation testing with optional TFCE (Threshold-Free Cluster Enhancement)
-transformation.
+using permutation testing, with optional enhancement (TFNBS, NBS, cNBS,
+NI-TFNBS, FBC-TFNBS) applied via shared ``apply_*`` wrappers from
+``conninfpy._enhancement``.
 
 Main Functions
 --------------
-compute_p_val : Compute p-values using permutation testing
+compute_p_val : Compute p-values using permutation testing (with enhancement)
 compute_t_stat : Compute t-statistics for paired, one-sample, or two-sample tests
-compute_t_stat_tfnbs : Compute TFNBS-enhanced t-statistics
 compute_null_dist : Compute null distribution via permutation testing
 """
 
@@ -43,7 +43,6 @@ from ._enhancement import (
     apply_ni_tfnbs,
     apply_tfnbs,
 )
-from .tfnbs_score import get_tfnbs_score  # used by compute_t_stat_tfnbs public API
 from .acceleration import compute_p_values_accelerated
 
 
@@ -58,8 +57,6 @@ __all__ = [
     # Main functions
     "compute_p_val",
     "compute_t_stat",
-    "compute_t_stat_tfnbs",
-    "compute_t_stat_tfnbs_diffs",
     "compute_null_dist",
     # T-statistic functions
     "compute_t_stat_diff",
@@ -1198,80 +1195,6 @@ def compute_p_val(
 # =============================================================================
 # T-statistic computation functions
 # =============================================================================
-
-def compute_t_stat_tfnbs(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: Union[str, TestType] = TestType.TWO_SAMPLE,
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """
-    Compute TFNBS-enhanced t-statistics for independent groups.
-
-    Returns separate scores for positive (g2 > g1) and negative (g1 > g2) effects.
-
-    Parameters
-    ----------
-    group1 : ndarray of shape (n_samples_1, N, N)
-        Data array for group 1.
-    group2 : ndarray of shape (n_samples_2, N, N)
-        Data array for group 2.
-    test_type : {'two-sample'} or TestType, default='two-sample'
-        Statistical test type.
-    e : float or list, default=0.4
-        Extent exponent for TFNBS.
-    h : float or list, default=3
-        Height exponent for TFNBS.
-    n : int, default=10
-        Number of integration steps.
-
-    Returns
-    -------
-    dict
-        Dictionary with 'g2>g1' and 'g1>g2' TFNBS score arrays.
-    """
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_tfnbs_score(t_stat_dict["g2>g1"], e, h, n)
-    score_neg = get_tfnbs_score(t_stat_dict["g1>g2"], e, h, n)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def compute_t_stat_tfnbs_diffs(
-    diffs: npt.NDArray[np.float64],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """
-    Compute TFNBS-enhanced t-statistics from difference matrices.
-
-    Returns separate scores for positive (g2 > g1) and negative (g1 > g2) effects.
-
-    Parameters
-    ----------
-    diffs : ndarray of shape (n_samples, N, N)
-        Array of pairwise differences.
-    e : float or list, default=0.4
-        Extent exponent for TFNBS.
-    h : float or list, default=3
-        Height exponent for TFNBS.
-    n : int, default=10
-        Number of integration steps.
-    start_thres : float, default=1.65
-        Initial threshold for TFNBS.
-
-    Returns
-    -------
-    dict
-        Dictionary with 'g2>g1' and 'g1>g2' TFNBS score arrays.
-    """
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_tfnbs_score(t_stat_dict["g2>g1"], e, h, n, start_thres=start_thres)
-    score_neg = get_tfnbs_score(t_stat_dict["g1>g2"], e, h, n, start_thres=start_thres)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
 
 
 def compute_t_stat(

@@ -27,14 +27,20 @@ from .nbs_score import nbs_bct
 from .pairwise_stats import (
     compute_p_val,
     compute_null_dist,
-    compute_t_stat_tfnbs,
-    compute_t_stat_tfnbs_diffs,
     compute_t_stat,
     compute_diffs,
     compute_t_stat_diff,
     compute_t_stat_ind,
     StatMethod,
     TestType,
+)
+
+from ._enhancement import (
+    apply_tfnbs,
+    apply_nbs,
+    apply_cnbs,
+    apply_ni_tfnbs,
+    apply_fbc_tfnbs,
 )
 
 from .tfnbs_score import (

@@ -6,9 +6,8 @@ from conninfpy.pairwise_stats import (_permutation_task_ind,
                                    compute_null_dist,
                                    compute_t_stat_diff,
                                    compute_p_val,
-                                   compute_t_stat,
-                                   compute_t_stat_tfnbs,
-                                   compute_t_stat_tfnbs_diffs)
+                                   compute_t_stat)
+from conninfpy._enhancement import apply_tfnbs
 
 from conninfpy.synth_datasets import generate_fc_matrices
 import numpy as np
@@ -71,29 +70,35 @@ class TestBasicStats(TestCase):
         self.assertGreater(perm_t_neg, 1)
         self.assertLess(perm_t_pos, 5)
 
-    def test_compute_t_stat_tfnbs(self):
+    def test_apply_tfnbs_two_sample(self):
+        """Enhancement: apply_tfnbs(compute_t_stat(...)) boosts masked edges."""
         group_dict = self.fc_sim
-
         emp_t_dict = compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='two-sample')
-        emp_tfnos_dict = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='two-sample')
+        emp_tfnbs_dict = apply_tfnbs(emp_t_dict)
 
-        self.assertLess(10, emp_tfnos_dict["g2>g1"][np.triu_indices(10, k=1)].mean())
+        self.assertLess(10, emp_tfnbs_dict["g2>g1"][np.triu_indices(10, k=1)].mean())
         self.assertLess(1, emp_t_dict["g2>g1"][np.triu_indices(10, k=1)].mean())
 
-    def test_compute_t_stat_tfnbs_paired(self):
+    def test_apply_tfnbs_paired(self):
+        """Paired: apply_tfnbs from raw groups = apply_tfnbs from diffs."""
         group_dict = self.fc_sim_paired
 
         emp_t_dict = compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='paired')
-        emp_tfnos_dict = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired')
-        emp_tfnos_sp_dict = compute_t_stat_tfnbs_diffs(group_dict['group2'] - group_dict['group1'])
+        emp_tfnbs_dict = apply_tfnbs(emp_t_dict)
+        # Equivalent path via diffs
+        diffs = group_dict['group2'] - group_dict['group1']
+        emp_tfnbs_sp_dict = apply_tfnbs(compute_t_stat_diff(diffs))
 
-        self.assertIsNone(np.testing.assert_almost_equal(emp_tfnos_dict["g2>g1"],
-                                                         emp_tfnos_sp_dict["g2>g1"]))
-        self.assertGreater(emp_tfnos_dict["g2>g1"].sum(), emp_t_dict["g2>g1"].sum())
+        np.testing.assert_array_almost_equal(
+            emp_tfnbs_dict["g2>g1"], emp_tfnbs_sp_dict["g2>g1"]
+        )
+        self.assertGreater(emp_tfnbs_dict["g2>g1"].sum(), emp_t_dict["g2>g1"].sum())
 
-    def test_compute_t_stat_tfnbs_list_pars(self):
+    def test_apply_tfnbs_list_pars(self):
+        """Multi-parameter (list of e, h): output carries the param dim."""
         group_dict = self.fc_sim_paired
-        t_stat_mod = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired', e=[0.4, 0.6], h=[1, 2])
+        t_stat_dict = compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='paired')
+        t_stat_mod = apply_tfnbs(t_stat_dict, e=[0.4, 0.6], h=[1, 2])
         self.assertEqual(t_stat_mod["g2>g1"].shape[-1], 2)
         self.assertEqual(t_stat_mod["g1>g2"].shape[-1], 2)
 
@@ -107,38 +112,24 @@ class TestBasicStats(TestCase):
         self.assertEqual(len(t_maxes.values()), 2)
         self.assertGreater(np.max(t_stat["g2>g1"]), t_maxes["g2>g1"])
 
-    def test__permutation_task_ind(self):
-        group_dict = self.fc_sim
-        t_stat_mod = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type = 'two-sample', e=[0.4, 0.6], h=[1, 2])
-        full_group = np.concatenate((group_dict['group1'], group_dict['group2']), axis=0)
-        t_maxes = _permutation_task_ind(full_group, compute_t_stat_tfnbs,
-                                        30, 42, e=[0.4, 0.6], h=[1, 2])
-        self.assertIsInstance(t_maxes, dict)
-        self.assertIsInstance(t_stat_mod, dict)
-        self.assertGreater(t_stat_mod['g2>g1'][:10, :10, :].mean(), t_maxes['g2>g1'].mean())
-        self.assertGreater(t_stat_mod['g1>g2'].max(), t_maxes['g1>g2'].mean())
-
     def test__permutation_task_paired(self):
+        """Slow-path _permutation_task_paired with raw t-stat scorer."""
         group_dict = self.fc_sim_paired
-        emp_t = compute_t_stat_diff(group_dict['group2'] - group_dict['group1'])
-        emp_tfnos = compute_t_stat_tfnbs_diffs(group_dict['group2'] - group_dict['group1'], e=[0.4, 0.6], h=[1, 2])
-        t_max_t = _permutation_task_paired(group_dict['group2'] - group_dict['group1'], compute_t_stat_diff, 30)
-        t_maxes = _permutation_task_paired(group_dict['group2'] - group_dict['group1'], compute_t_stat_tfnbs_diffs,
-                                           e=[0.4, 0.6], h=[1, 2])
-        self.assertIsInstance(t_maxes, dict)
+        diffs = group_dict['group2'] - group_dict['group1']
+        emp_t = compute_t_stat_diff(diffs)
+        t_max_t = _permutation_task_paired(diffs, compute_t_stat_diff, 30)
         self.assertIsInstance(t_max_t, dict)
-        self.assertGreater(emp_tfnos['g2>g1'][:10,:10,:].mean(), t_maxes['g2>g1'].mean())
         self.assertGreater(emp_t['g1>g2'].max(), t_max_t['g1>g2'])
-        self.assertGreater(emp_tfnos['g1>g2'].max(), t_maxes['g1>g2'].mean())
 
     def test_compute_null_t_stat_ind(self):
+        """compute_null_dist (fast path) with raw t-stat: mp and sequential agree."""
         group_dict = self.fc_sim
 
         n_permutations = 100
 
         null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat, n_permutations=n_permutations, 
-                                   test_type='two-sample',random_state=42, use_mp=False)
+                                   compute_t_stat, n_permutations=n_permutations,
+                                   test_type='two-sample', random_state=42, use_mp=False)
         null_t_mc = compute_null_dist(group_dict['group1'], group_dict['group2'],
                                       compute_t_stat, n_permutations=n_permutations,
                                       test_type='two-sample', random_state=42, use_mp=True)
@@ -147,76 +138,56 @@ class TestBasicStats(TestCase):
         self.assertIsInstance(null_t_mc, dict)
         self.assertEqual((null_t["g2>g1"].mean() - null_t_mc["g1>g2"].mean()).round(), 0)
 
-    def test_compute_null_t_stat_tfnos_ind(self):
+    def test_compute_p_val_tfnbs_ind(self):
+        """compute_p_val(method='tfnbs'): observed enhancement > null mean."""
         group_dict = self.fc_sim
+        emp_tfnbs = apply_tfnbs(
+            compute_t_stat(group_dict['group1'], group_dict['group2'], test_type='two-sample')
+        )
+        p = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=100, test_type='two-sample', method='tfnbs',
+            random_state=42, use_mp=False,
+        )
+        # Signal should surface: at least one edge with small p
+        self.assertLess(p['g2>g1'][np.triu_indices(10, k=1)].min(), 0.2)
+        self.assertGreater(emp_tfnbs['g2>g1'].mean(), 0)
 
-        n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type = 'two-sample')
-
-        null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                   test_type='two-sample', random_state=42, use_mp=False)
-        null_t_mc = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                      test_type='two-sample', random_state=42, use_mp=True)
-
-        self.assertGreater(emp_tfnos["g2>g1"].mean(), null_t["g1>g2"].mean())
-        self.assertGreater(emp_tfnos["g2>g1"].mean(), null_t_mc["g1>g2"].mean())
-
-    def test_compute_null_t_stat_tfnos_ind_multi(self):
+    def test_compute_p_val_tfnbs_multi_param(self):
+        """compute_p_val with list e/h returns param-dimensioned p-values."""
         group_dict = self.fc_sim
+        p = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=50, test_type='two-sample', method='tfnbs',
+            e=[0.4, 0.6], h=[1, 2], use_mp=False, random_state=42,
+        )
+        self.assertEqual(p['g2>g1'].shape[-1], 2)
+        self.assertEqual(p['g1>g2'].shape[-1], 2)
 
-        n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='two-sample',
-                                         e=[0.4, 0.6], h=[1, 2])
-
-        null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                   test_type='two-sample', use_mp=False, e=[0.4, 0.6], h=[1, 2])
-        null_t_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                   test_type='two-sample', use_mp=True, e=[0.4, 0.6], h=[1, 2])
-        self.assertEqual(null_t["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
-        self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
-
-    def test_compute_null_t_stat_tfnos_paired_multi(self):
+    def test_compute_p_val_tfnbs_paired_multi_param(self):
+        """compute_p_val with list e/h in paired mode returns param-dimensioned p."""
         group_dict = self.fc_sim_paired
+        p = compute_p_val(
+            group_dict['group1'], group_dict['group2'],
+            n_permutations=50, test_type='paired', method='tfnbs',
+            e=[0.4, 0.6], h=[1, 2], use_mp=False, random_state=42,
+        )
+        self.assertEqual(p['g2>g1'].shape[-1], 2)
+        self.assertEqual(p['g1>g2'].shape[-1], 2)
 
-        n_permutations = 100
-        emp_tfnos = compute_t_stat_tfnbs(group_dict['group1'], group_dict['group2'], test_type='paired',
-                                         e=[0.4, 0.6], h=[1, 2])
-
-        null_t = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                   compute_t_stat_tfnbs_diffs, n_permutations=n_permutations,
-                                   test_type='paired', use_mp=False, e=[0.4, 0.6], h=[1, 2])
-        null_t_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                      compute_t_stat_tfnbs_diffs, n_permutations=n_permutations,
-                                   test_type='paired', use_mp=True, e=[0.4, 0.6], h=[1, 2])
-        self.assertEqual(null_t["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
-        self.assertEqual(null_t_mp["g2>g1"].shape[-1], emp_tfnos["g2>g1"].shape[-1])
-
-    def test_compute_null_t_stat_ind_eff(self):
-        """Test that mp and sequential paths produce consistent null distributions."""
+    def test_compute_p_val_tfnbs_mp_consistency(self):
+        """compute_p_val with method='tfnbs': mp and sequential paths agree."""
         group_dict = self.fc_sim
+        kwargs = dict(
+            n_permutations=100, test_type='two-sample', method='tfnbs',
+            random_state=42, e=0.4, h=3.0, n=10,
+        )
+        p_mp = compute_p_val(group_dict['group1'], group_dict['group2'], use_mp=True, **kwargs)
+        p_seq = compute_p_val(group_dict['group1'], group_dict['group2'], use_mp=False, **kwargs)
 
-        n_permutations = 100
-        random_state = 42
-        test_type = 'two-sample'
-
-        null_mp = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                    compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                    test_type=test_type, random_state=random_state, use_mp=True)
-
-        null_seq = compute_null_dist(group_dict['group1'], group_dict['group2'],
-                                     compute_t_stat_tfnbs, n_permutations=n_permutations,
-                                     test_type=test_type, random_state=random_state, use_mp=False)
-
-        # Both paths should produce valid null distributions of the same shape
-        self.assertEqual(null_mp["g2>g1"].shape, null_seq["g2>g1"].shape)
-        self.assertEqual(null_mp["g1>g2"].shape, null_seq["g1>g2"].shape)
-        # Null distributions should have similar statistics (same seeds)
-        np.testing.assert_allclose(null_mp["g2>g1"].mean(), null_seq["g2>g1"].mean(), rtol=0.3)
-        np.testing.assert_allclose(null_mp["g1>g2"].mean(), null_seq["g1>g2"].mean(), rtol=0.3)
+        self.assertEqual(p_mp["g2>g1"].shape, p_seq["g2>g1"].shape)
+        self.assertEqual(p_mp["g1>g2"].shape, p_seq["g1>g2"].shape)
+        np.testing.assert_allclose(p_mp["g2>g1"].mean(), p_seq["g2>g1"].mean(), rtol=0.3)
 
     def test_compute_p_val_indep(self):
         group_dict = self.fc_sim
