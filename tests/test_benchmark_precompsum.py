@@ -16,7 +16,11 @@ from unittest import TestCase
 
 import numpy as np
 
+from conninfpy._enhancement import apply_nbs, apply_tfnbs
 from conninfpy.pairwise_stats import (
+    _extract_max_stats,
+    _fast_perm_task_enhanced_ind,
+    _fast_perm_task_enhanced_paired,
     _fast_permutation_task_ind,
     _fast_permutation_task_paired,
     _permutation_task_ind,
@@ -117,6 +121,53 @@ class TestPrecomputedSumsBenchmark(TestCase):
                         t_fast, t_slow,
                         f'fast path should beat slow at N={N}, n_sub={n_sub}, n_perm={n_perm}'
                     )
+
+    def test_enhancement_methods(self):
+        """Enhancement methods (NBS, TFNBS): slow scorer vs fast enhanced perm task.
+
+        Slow emulates the pre-refactor code path: compute_t_stat_diff per perm
+        (slow t-stat) + apply_enhancement. Fast uses the sums trick inside
+        _fast_perm_task_enhanced_paired.
+        """
+        rng = np.random.RandomState(3)
+        enhancers = [
+            ("nbs", apply_nbs, {"threshold": 2.0, "nbs_stat": "extent"}),
+            ("tfnbs", apply_tfnbs, {"e": 0.4, "h": 3.0, "n": 10}),
+        ]
+
+        def slow_task(diffs, enhancer, enh_kwargs, seed):
+            rng_ = np.random.RandomState(seed)
+            signs = rng_.choice([1, -1], diffs.shape[0]).reshape(-1, 1, 1)
+            t_stat_dict = compute_t_stat_diff(signs * diffs)
+            stat_dict = enhancer(t_stat_dict, **enh_kwargs)
+            return _extract_max_stats(stat_dict, diffs[0].shape)
+
+        for method_name, enhancer, enh_kwargs in enhancers:
+            print()
+            print(f'Enhancement method: {method_name}')
+            print(f'{"N":>4} {"n_sub":>6} {"n_perm":>7}   '
+                  f'{"slow (s)":>10} {"fast (s)":>10} {"speedup":>9}')
+            print('-' * 60)
+            for N in N_GRID:
+                for n_sub in NSUB_GRID:
+                    diffs = _make_symmetric_data(n_sub, N, rng)
+                    X, sumsq = _precompute_edge_sums(diffs)
+                    triu_idx = np.triu_indices(N, k=1)
+                    slow_fn = partial(slow_task, diffs, enhancer, enh_kwargs)
+                    fast_fn = partial(
+                        _fast_perm_task_enhanced_paired,
+                        X, sumsq, triu_idx, N, enhancer, enh_kwargs,
+                    )
+                    for n_perm in NPERM_GRID:
+                        seeds = rng.randint(0, 2**31 - 1, size=n_perm)
+                        t_slow = _time_loop(slow_fn, seeds)
+                        t_fast = _time_loop(fast_fn, seeds)
+                        _print_row(N, n_sub, n_perm, t_slow, t_fast)
+                        self.assertLess(
+                            t_fast, t_slow,
+                            f'{method_name}: fast should beat slow at '
+                            f'N={N}, n_sub={n_sub}, n_perm={n_perm}'
+                        )
 
     def test_composed_with_acceleration(self):
         """Pre-computation × GPD acceleration: end-to-end wall-clock.

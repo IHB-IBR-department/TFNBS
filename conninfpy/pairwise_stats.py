@@ -36,12 +36,14 @@ from .defaults import (
     DEFAULT_NBS_THRESHOLD,
     DEFAULT_NBS_STAT,
 )
-from .nbs_score import get_cnbs_score, get_nbs_score
-from .tfnbs_score import (
-    get_tfnbs_score,
-    get_network_informed_tfnbs_score,
-    get_fbc_tfnbs_score,
+from ._enhancement import (
+    apply_cnbs,
+    apply_fbc_tfnbs,
+    apply_nbs,
+    apply_ni_tfnbs,
+    apply_tfnbs,
 )
+from .tfnbs_score import get_tfnbs_score  # used by compute_t_stat_tfnbs public API
 from .acceleration import compute_p_values_accelerated
 
 
@@ -119,6 +121,21 @@ class StatMethod(str, Enum):
 
 
 CONSTRAINED_METHODS = {StatMethod.CNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}
+
+# Enhancement-function registry. Maps StatMethod → pure `stat_dict → stat_dict`
+# wrapper from ._enhancement (shared with glm_stats.compute_p_val_glm). Methods
+# without enhancement (raw t-stat, parametric baselines, bh_fdr_perm) map to None.
+_ENHANCE_MAP = {
+    StatMethod.TSTAT: None,
+    StatMethod.TFNBS: apply_tfnbs,
+    StatMethod.NBS: apply_nbs,
+    StatMethod.CNBS: apply_cnbs,
+    StatMethod.NI_TFNBS: apply_ni_tfnbs,
+    StatMethod.FBC_TFNBS: apply_fbc_tfnbs,
+    StatMethod.BONFERRONI: None,
+    StatMethod.BH_FDR: None,
+    StatMethod.BH_FDR_PERM: None,
+}
 PARAMETRIC_METHODS = {StatMethod.BONFERRONI, StatMethod.BH_FDR}
 
 
@@ -385,182 +402,56 @@ def _fast_permutation_task_ind_edges(Xall, Xall2, sum_all, sumsq_all, n1, seed):
 
 
 # =============================================================================
-# Scoring wrappers for different methods
+# Enhancement-method fast permutation tasks (sums trick + shared enhancers)
 # =============================================================================
 
-def _score_tfnbs_from_diffs(
-    diffs: npt.NDArray[np.float64],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute TFNBS scores from difference matrices."""
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_tfnbs_score(t_stat_dict["g2>g1"], e, h, n, start_thres=start_thres)
-    score_neg = get_tfnbs_score(t_stat_dict["g1>g2"], e, h, n, start_thres=start_thres)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
+def _tstat_edges_to_matrix(t_pos, t_neg, triu_idx, N):
+    """Expand upper-triangle t-stat vectors to symmetric (N, N) matrices."""
+    t_pos_mat = np.zeros((N, N))
+    t_pos_mat[triu_idx] = t_pos
+    t_pos_mat = t_pos_mat + t_pos_mat.T
+    t_neg_mat = np.zeros((N, N))
+    t_neg_mat[triu_idx] = t_neg
+    t_neg_mat = t_neg_mat + t_neg_mat.T
+    return t_pos_mat, t_neg_mat
 
 
-def _score_tfnbs_two_sample(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: str,
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute TFNBS scores for two-sample test."""
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_tfnbs_score(t_stat_dict["g2>g1"], e, h, n)
-    score_neg = get_tfnbs_score(t_stat_dict["g1>g2"], e, h, n)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
+def _fast_perm_task_enhanced_paired(
+    X, sumsq_all, triu_idx, N, enhance_func, enhance_kwargs, seed,
+):
+    """Paired/one-sample permutation: sign-flip + fast t-stat + enhancement → max."""
+    rng = np.random.RandomState(seed)
+    n_sub = X.shape[0]
+    signs = rng.choice([1, -1], n_sub).astype(np.float64)
+    sum_perm = signs @ X
+    t_pos, t_neg = _onesample_tstat_from_sums(sum_perm, sumsq_all, n_sub)
+    t_pos_mat, t_neg_mat = _tstat_edges_to_matrix(t_pos, t_neg, triu_idx, N)
+    stat_dict = {"g2>g1": t_pos_mat, "g1>g2": t_neg_mat}
+    if enhance_func is not None:
+        stat_dict = enhance_func(stat_dict, **enhance_kwargs)
+    return _extract_max_stats(stat_dict, (N, N))
 
 
-def _score_nbs_from_diffs(
-    diffs: npt.NDArray[np.float64],
-    threshold: float = DEFAULT_NBS_THRESHOLD,
-    nbs_stat: str = DEFAULT_NBS_STAT,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute NBS scores from difference matrices."""
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_nbs_score(t_stat_dict["g2>g1"], threshold=threshold, stat_type=nbs_stat)
-    score_neg = get_nbs_score(t_stat_dict["g1>g2"], threshold=threshold, stat_type=nbs_stat)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_nbs_two_sample(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: str,
-    threshold: float = DEFAULT_NBS_THRESHOLD,
-    nbs_stat: str = DEFAULT_NBS_STAT,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute NBS scores for two-sample test."""
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_nbs_score(t_stat_dict["g2>g1"], threshold=threshold, stat_type=nbs_stat)
-    score_neg = get_nbs_score(t_stat_dict["g1>g2"], threshold=threshold, stat_type=nbs_stat)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_cnbs_from_diffs(
-    diffs: npt.NDArray[np.float64],
-    net_labels: npt.NDArray[np.int_],
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute cNBS scores from difference matrices."""
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_cnbs_score(t_stat_dict["g2>g1"], net_labels)
-    score_neg = get_cnbs_score(t_stat_dict["g1>g2"], net_labels)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_cnbs_two_sample(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: str,
-    net_labels: npt.NDArray[np.int_],
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute cNBS scores for two-sample test."""
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_cnbs_score(t_stat_dict["g2>g1"], net_labels)
-    score_neg = get_cnbs_score(t_stat_dict["g1>g2"], net_labels)
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_ni_tfnbs_from_diffs(
-    diffs: npt.NDArray[np.float64],
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    normalization: str = "sqrt",
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute NI-TFNBS scores from difference matrices."""
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_network_informed_tfnbs_score(
-        t_stat_dict["g2>g1"], net_labels, e, h, n,
-        start_thres=start_thres, normalization=normalization,
-    )
-    score_neg = get_network_informed_tfnbs_score(
-        t_stat_dict["g1>g2"], net_labels, e, h, n,
-        start_thres=start_thres, normalization=normalization,
-    )
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_ni_tfnbs_two_sample(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: str,
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    normalization: str = "sqrt",
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute NI-TFNBS scores for two-sample test."""
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_network_informed_tfnbs_score(
-        t_stat_dict["g2>g1"], net_labels, e, h, n, normalization=normalization,
-    )
-    score_neg = get_network_informed_tfnbs_score(
-        t_stat_dict["g1>g2"], net_labels, e, h, n, normalization=normalization,
-    )
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_fbc_tfnbs_from_diffs(
-    diffs: npt.NDArray[np.float64],
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute FBC-TFNBS scores from difference matrices."""
-    t_stat_dict = compute_t_stat_diff(diffs)
-    score_pos = get_fbc_tfnbs_score(
-        t_stat_dict["g2>g1"], net_labels, e, h, n,
-        start_thres=start_thres, min_cluster_size=min_cluster_size
-    )
-    score_neg = get_fbc_tfnbs_score(
-        t_stat_dict["g1>g2"], net_labels, e, h, n,
-        start_thres=start_thres, min_cluster_size=min_cluster_size
-    )
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
-
-
-def _score_fbc_tfnbs_two_sample(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64],
-    test_type: str,
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
-    **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
-    """Compute FBC-TFNBS scores for two-sample test."""
-    t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    score_pos = get_fbc_tfnbs_score(
-        t_stat_dict["g2>g1"], net_labels, e, h, n, min_cluster_size=min_cluster_size
-    )
-    score_neg = get_fbc_tfnbs_score(
-        t_stat_dict["g1>g2"], net_labels, e, h, n, min_cluster_size=min_cluster_size
-    )
-    return {"g2>g1": score_pos, "g1>g2": score_neg}
+def _fast_perm_task_enhanced_ind(
+    Xall, Xall2, sum_all, sumsq_all, n1, triu_idx, N,
+    enhance_func, enhance_kwargs, seed,
+):
+    """Two-sample permutation: group shuffle + fast t-stat + enhancement → max."""
+    rng = np.random.RandomState(seed)
+    n_all = Xall.shape[0]
+    n2 = n_all - n1
+    g = np.zeros(n_all, dtype=np.float64)
+    g[rng.choice(n_all, n1, replace=False)] = 1.0
+    sum1 = g @ Xall
+    sumsq1 = g @ Xall2
+    sum2 = sum_all - sum1
+    sumsq2 = sumsq_all - sumsq1
+    t_pos, t_neg = _twosample_tstat_from_sums(sum1, sumsq1, n1, sum2, sumsq2, n2)
+    t_pos_mat, t_neg_mat = _tstat_edges_to_matrix(t_pos, t_neg, triu_idx, N)
+    stat_dict = {"g2>g1": t_pos_mat, "g1>g2": t_neg_mat}
+    if enhance_func is not None:
+        stat_dict = enhance_func(stat_dict, **enhance_kwargs)
+    return _extract_max_stats(stat_dict, (N, N))
 
 
 # =============================================================================
@@ -718,6 +609,70 @@ def compute_null_dist(
             results = pool.map(task_func, seeds)
     else:
         # Sequential computation
+        results = [task_func(seed) for seed in seeds]
+
+    return _collect_results_to_arrays(results, n_permutations)
+
+
+def _compute_enhanced_null_dist(
+    group1: npt.NDArray[np.float64],
+    group2: Optional[npt.NDArray[np.float64]],
+    test_type_str: str,
+    enhance_func: Callable,
+    enhance_kwargs: Dict[str, Any],
+    n_permutations: int = DEFAULT_N_PERMUTATIONS,
+    random_state: Optional[int] = None,
+    n_processes: Optional[int] = None,
+    use_mp: bool = True,
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """Null distribution for enhancement methods via pre-computed sums fast path.
+
+    Each permutation: sign-flip or group-shuffle → fast t-stat via sums →
+    reconstruct (N, N) → apply shared enhancement wrapper → extract max.
+    """
+    N = group1.shape[1]
+    triu_idx = np.triu_indices(N, k=1)
+
+    if test_type_str == TestType.PAIRED.value:
+        diffs = compute_diffs(group1, group2)
+        X, sumsq_all = _precompute_edge_sums(diffs)
+        task_func = partial(
+            _fast_perm_task_enhanced_paired,
+            X, sumsq_all, triu_idx, N, enhance_func, enhance_kwargs,
+        )
+    elif test_type_str == TestType.ONE_SAMPLE.value:
+        X, sumsq_all = _precompute_edge_sums(group1)
+        task_func = partial(
+            _fast_perm_task_enhanced_paired,
+            X, sumsq_all, triu_idx, N, enhance_func, enhance_kwargs,
+        )
+    elif test_type_str == TestType.TWO_SAMPLE.value:
+        n1 = group1.shape[0]
+        Xall_3d = np.concatenate((group1, group2), axis=0)
+        Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(Xall_3d)
+        task_func = partial(
+            _fast_perm_task_enhanced_ind,
+            Xall, Xall2, sum_all, sumsq_all, n1, triu_idx, N,
+            enhance_func, enhance_kwargs,
+        )
+    else:
+        raise ValueError(
+            f"Invalid test_type: '{test_type_str}'. "
+            f"Must be one of: {[t.value for t in TestType]}"
+        )
+
+    rng = np.random.RandomState(random_state)
+    seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
+
+    _use_mp = use_mp and not _is_worker_process()
+
+    if _use_mp:
+        if n_processes is None:
+            n_processes = get_available_cores()
+        n_processes = min(n_processes, n_permutations)
+        with Pool(processes=n_processes) as pool:
+            results = pool.map(task_func, seeds)
+    else:
         results = [task_func(seed) for seed in seeds]
 
     return _collect_results_to_arrays(results, n_permutations)
@@ -1169,112 +1124,69 @@ def compute_p_val(
             n_processes=n_processes,
         )
 
-    # Select appropriate scorer function based on method and test type
+    # Resolve enhancement wrapper (None for raw t-stat)
+    enhance_func = _ENHANCE_MAP[method_enum]
+
+    # Build enhancement kwargs once (method-specific)
+    enhance_kwargs = {}
+    if method_enum == StatMethod.NBS:
+        enhance_kwargs = {"threshold": threshold, "nbs_stat": nbs_stat}
+    elif method_enum in {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}:
+        enhance_kwargs = {"e": e, "h": h, "n": n, "start_thres": start_thres}
+        if method_enum in CONSTRAINED_METHODS:
+            enhance_kwargs["net_labels"] = net_labels
+        if method_enum == StatMethod.FBC_TFNBS:
+            enhance_kwargs["min_cluster_size"] = min_cluster_size
+        if method_enum == StatMethod.NI_TFNBS:
+            enhance_kwargs["normalization"] = normalization
+    elif method_enum == StatMethod.CNBS:
+        enhance_kwargs = {"net_labels": net_labels}
+
+    # Compute observed t-stat once, then apply enhancement (if any)
     if test_type_str == TestType.PAIRED.value:
         diffs = compute_diffs(group1, group2)
-        scorer_map = {
-            StatMethod.TSTAT: compute_t_stat_diff,
-            StatMethod.TFNBS: _score_tfnbs_from_diffs,
-            StatMethod.NBS: _score_nbs_from_diffs,
-            StatMethod.CNBS: _score_cnbs_from_diffs,
-            StatMethod.NI_TFNBS: _score_ni_tfnbs_from_diffs,
-            StatMethod.FBC_TFNBS: _score_fbc_tfnbs_from_diffs,
-        }
-        t_func = scorer_map[method_enum]
-
-        # Build kwargs for scorer
-        scorer_kwargs = {}
-        if method_enum == StatMethod.NBS:
-            scorer_kwargs = {"threshold": threshold, "nbs_stat": nbs_stat}
-        elif method_enum in {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}:
-            scorer_kwargs = {"e": e, "h": h, "n": n, "start_thres": start_thres}
-            if method_enum in CONSTRAINED_METHODS:
-                scorer_kwargs["net_labels"] = net_labels
-            if method_enum == StatMethod.FBC_TFNBS:
-                scorer_kwargs["min_cluster_size"] = min_cluster_size
-            if method_enum == StatMethod.NI_TFNBS:
-                scorer_kwargs["normalization"] = normalization
-        elif method_enum == StatMethod.CNBS:
-            scorer_kwargs = {"net_labels": net_labels}
-
-        emp_t_dict = t_func(diffs, **scorer_kwargs)
-
-    elif test_type_str == TestType.TWO_SAMPLE.value:
-        scorer_map = {
-            StatMethod.TSTAT: compute_t_stat,
-            StatMethod.TFNBS: _score_tfnbs_two_sample,
-            StatMethod.NBS: _score_nbs_two_sample,
-            StatMethod.CNBS: _score_cnbs_two_sample,
-            StatMethod.NI_TFNBS: _score_ni_tfnbs_two_sample,
-            StatMethod.FBC_TFNBS: _score_fbc_tfnbs_two_sample,
-        }
-        t_func = scorer_map[method_enum]
-
-        # Build kwargs for scorer
-        scorer_kwargs = {"test_type": TestType.TWO_SAMPLE.value}
-        if method_enum == StatMethod.NBS:
-            scorer_kwargs.update({"threshold": threshold, "nbs_stat": nbs_stat})
-        elif method_enum in {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}:
-            scorer_kwargs.update({"e": e, "h": h, "n": n})
-            if method_enum in CONSTRAINED_METHODS:
-                scorer_kwargs["net_labels"] = net_labels
-            if method_enum == StatMethod.FBC_TFNBS:
-                scorer_kwargs["min_cluster_size"] = min_cluster_size
-            if method_enum == StatMethod.NI_TFNBS:
-                scorer_kwargs["normalization"] = normalization
-        elif method_enum == StatMethod.CNBS:
-            scorer_kwargs["net_labels"] = net_labels
-
-        emp_t_dict = t_func(group1, group2, **scorer_kwargs)
-
+        emp_t_dict = compute_t_stat_diff(diffs)
     elif test_type_str == TestType.ONE_SAMPLE.value:
-        scorer_map = {
-            StatMethod.TSTAT: compute_t_stat_diff,
-            StatMethod.TFNBS: _score_tfnbs_from_diffs,
-            StatMethod.NBS: _score_nbs_from_diffs,
-            StatMethod.CNBS: _score_cnbs_from_diffs,
-            StatMethod.NI_TFNBS: _score_ni_tfnbs_from_diffs,
-            StatMethod.FBC_TFNBS: _score_fbc_tfnbs_from_diffs,
-        }
-        t_func = scorer_map[method_enum]
-
-        # Build kwargs for scorer
-        scorer_kwargs = {}
-        if method_enum == StatMethod.NBS:
-            scorer_kwargs = {"threshold": threshold, "nbs_stat": nbs_stat}
-        elif method_enum in {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}:
-            scorer_kwargs = {"e": e, "h": h, "n": n, "start_thres": start_thres}
-            if method_enum in CONSTRAINED_METHODS:
-                scorer_kwargs["net_labels"] = net_labels
-            if method_enum == StatMethod.FBC_TFNBS:
-                scorer_kwargs["min_cluster_size"] = min_cluster_size
-            if method_enum == StatMethod.NI_TFNBS:
-                scorer_kwargs["normalization"] = normalization
-        elif method_enum == StatMethod.CNBS:
-            scorer_kwargs = {"net_labels": net_labels}
-
-        emp_t_dict = t_func(group1, **scorer_kwargs)
+        emp_t_dict = compute_t_stat_diff(group1)
+    elif test_type_str == TestType.TWO_SAMPLE.value:
+        emp_t_dict = compute_t_stat_ind(group1, group2)
     else:
         raise ValueError(
             f"Invalid test_type: '{test_type_str}'. "
             f"Must be one of: {[t.value for t in TestType]}"
         )
 
+    if enhance_func is not None:
+        emp_t_dict = enhance_func(emp_t_dict, **enhance_kwargs)
+
     # Compute null distribution
-    group2_for_null = group2 if test_type_str != TestType.ONE_SAMPLE.value else None
-
-    # Remove test_type from scorer_kwargs if present (compute_null_dist has it as explicit param)
-    null_kwargs = {k: v for k, v in scorer_kwargs.items() if k != 'test_type'}
-
-    max_null_dict = compute_null_dist(
-        group1, group2_for_null, t_func,
-        n_permutations=n_permutations,
-        test_type=test_type,
-        use_mp=use_mp,
-        random_state=random_state,
-        n_processes=n_processes,
-        **null_kwargs
-    )
+    # - method='tstat' (no enhancement): use compute_null_dist fast path
+    # - enhancement methods: use fast enhancement perm tasks (sums + enhancement)
+    if enhance_func is None:
+        group2_for_null = group2 if test_type_str != TestType.ONE_SAMPLE.value else None
+        tstat_func = (
+            compute_t_stat_ind
+            if test_type_str == TestType.TWO_SAMPLE.value
+            else compute_t_stat_diff
+        )
+        max_null_dict = compute_null_dist(
+            group1, group2_for_null, tstat_func,
+            n_permutations=n_permutations,
+            test_type=test_type,
+            use_mp=use_mp,
+            random_state=random_state,
+            n_processes=n_processes,
+        )
+    else:
+        max_null_dict = _compute_enhanced_null_dist(
+            group1, group2, test_type_str,
+            enhance_func=enhance_func,
+            enhance_kwargs=enhance_kwargs,
+            n_permutations=n_permutations,
+            random_state=random_state,
+            use_mp=use_mp,
+            n_processes=n_processes,
+        )
 
     if acceleration is not None:
         return compute_p_values_accelerated(

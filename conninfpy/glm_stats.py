@@ -39,11 +39,12 @@ from .defaults import (
     DEFAULT_NBS_THRESHOLD,
     DEFAULT_NBS_STAT,
 )
-from .nbs_score import get_cnbs_score, get_nbs_score
-from .tfnbs_score import (
-    get_tfnbs_score,
-    get_network_informed_tfnbs_score,
-    get_fbc_tfnbs_score,
+from ._enhancement import (
+    apply_cnbs,
+    apply_fbc_tfnbs,
+    apply_nbs,
+    apply_ni_tfnbs,
+    apply_tfnbs,
 )
 from .pairwise_stats import (
     _extract_max_stats,
@@ -367,97 +368,18 @@ def _freedman_lane_permutation_task(
 
 
 # =============================================================================
-# Enhancement wrappers for GLM pipeline
+# Enhancement registry
 # =============================================================================
+# Wrappers live in _enhancement.py and are shared with the t-test pipeline —
+# see pairwise_stats.compute_p_val.
 
-def _enhance_tfnbs(
-    stat_dict: Dict[str, npt.NDArray],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    **kwargs,
-) -> Dict[str, npt.NDArray]:
-    """Apply TFNBS enhancement to GLM statistics."""
-    return {
-        key: get_tfnbs_score(arr, e, h, n, start_thres=start_thres)
-        for key, arr in stat_dict.items()
-    }
-
-
-def _enhance_nbs(
-    stat_dict: Dict[str, npt.NDArray],
-    threshold: float = DEFAULT_NBS_THRESHOLD,
-    nbs_stat: str = DEFAULT_NBS_STAT,
-    **kwargs,
-) -> Dict[str, npt.NDArray]:
-    """Apply NBS enhancement to GLM statistics."""
-    return {
-        key: get_nbs_score(arr, threshold=threshold, stat_type=nbs_stat)
-        for key, arr in stat_dict.items()
-    }
-
-
-def _enhance_cnbs(
-    stat_dict: Dict[str, npt.NDArray],
-    net_labels: npt.NDArray[np.int_],
-    **kwargs,
-) -> Dict[str, npt.NDArray]:
-    """Apply cNBS enhancement to GLM statistics."""
-    return {
-        key: get_cnbs_score(arr, net_labels)
-        for key, arr in stat_dict.items()
-    }
-
-
-def _enhance_ni_tfnbs(
-    stat_dict: Dict[str, npt.NDArray],
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    normalization: str = "sqrt",
-    **kwargs,
-) -> Dict[str, npt.NDArray]:
-    """Apply NI-TFNBS enhancement to GLM statistics."""
-    return {
-        key: get_network_informed_tfnbs_score(
-            arr, net_labels, e, h, n,
-            start_thres=start_thres, normalization=normalization,
-        )
-        for key, arr in stat_dict.items()
-    }
-
-
-def _enhance_fbc_tfnbs(
-    stat_dict: Dict[str, npt.NDArray],
-    net_labels: npt.NDArray[np.int_],
-    e: Union[float, List[float]] = DEFAULT_EXTENT_EXPONENT,
-    h: Union[float, List[float]] = DEFAULT_HEIGHT_EXPONENT,
-    n: int = DEFAULT_N_THRESHOLDS,
-    start_thres: float = DEFAULT_START_THRESHOLD,
-    min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
-    **kwargs,
-) -> Dict[str, npt.NDArray]:
-    """Apply FBC-TFNBS enhancement to GLM statistics."""
-    return {
-        key: get_fbc_tfnbs_score(
-            arr, net_labels, e, h, n,
-            start_thres=start_thres, min_cluster_size=min_cluster_size,
-        )
-        for key, arr in stat_dict.items()
-    }
-
-
-# Enhancement function registry
 _ENHANCE_MAP = {
     StatMethod.TSTAT: None,  # No enhancement
-    StatMethod.TFNBS: _enhance_tfnbs,
-    StatMethod.NBS: _enhance_nbs,
-    StatMethod.CNBS: _enhance_cnbs,
-    StatMethod.NI_TFNBS: _enhance_ni_tfnbs,
-    StatMethod.FBC_TFNBS: _enhance_fbc_tfnbs,
+    StatMethod.TFNBS: apply_tfnbs,
+    StatMethod.NBS: apply_nbs,
+    StatMethod.CNBS: apply_cnbs,
+    StatMethod.NI_TFNBS: apply_ni_tfnbs,
+    StatMethod.FBC_TFNBS: apply_fbc_tfnbs,
 }
 
 
