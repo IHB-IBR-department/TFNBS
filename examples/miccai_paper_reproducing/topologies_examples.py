@@ -9,9 +9,9 @@ Generation parameters match fpr_config_local.yaml / sweep_config_power_local.yam
   n_nodes=60, n_modules=4, intra_corr=0.3, inter_corr=0.05, noise_level=0.05
 
 Usage:
-    python examples/topologies_examples.py
-    python examples/topologies_examples.py --output-dir results/topologies
-    python examples/topologies_examples.py --effect-size 0.5 --n-samples 50
+    python examples/miccai_paper_reproducing/topologies_examples.py
+    python examples/miccai_paper_reproducing/topologies_examples.py --output-dir examples/miccai_paper_reproducing/results/topologies
+    python examples/miccai_paper_reproducing/topologies_examples.py --effect-size 0.5 --n-samples 50
 """
 from __future__ import annotations
 
@@ -155,7 +155,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).parent.parent.parent / "results" / "topologies",
+        default=Path(__file__).parent / "results" / "topologies",
     )
     args = parser.parse_args(argv)
 

@@ -23,7 +23,7 @@ All parameters::
         --n_samples 30 \\
         --methods tstat tfnbs ni_tfnbs fbc_tfnbs nbs_extent nbs_intensity cnbs bonferroni bh_fdr \\
         --repeats 3 \\
-        --output results/timing_benchmark.csv
+        --output examples/results/timing_benchmark.csv
 """
 
 import argparse

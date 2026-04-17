@@ -176,8 +176,9 @@ def fit_gpd_tail(
     J = len(null_dist)
     null_sorted = np.sort(null_dist)
 
-    # Empirical p-values as fallback
-    p_empirical = np.mean(observed[..., np.newaxis] < null_dist, axis=-1)
+    # Empirical p-values as fallback (with +1 correction — Phipson & Smyth 2010)
+    count = np.sum(observed[..., np.newaxis] < null_dist, axis=-1)
+    p_empirical = (count + 1.0) / (J + 1.0)
 
     # Try increasing thresholds for GPD fit
     quantiles = np.linspace(0.50, 0.90, n_thresholds)
@@ -256,8 +257,9 @@ def fit_gamma_tail(
     skew_val = float(stats.skew(null_dist))
 
     if var <= 0 or abs(skew_val) < 1e-10:
-        # Can't fit gamma, fall back to empirical
-        return np.mean(observed[..., np.newaxis] < null_dist, axis=-1)
+        # Can't fit gamma, fall back to empirical (with +1 correction)
+        count = np.sum(observed[..., np.newaxis] < null_dist, axis=-1)
+        return (count + 1.0) / (J + 1.0)
 
     # Gamma parameters from moments
     # shape a = 4/skew^2, scale b = sqrt(var / a), loc = mean - a*b

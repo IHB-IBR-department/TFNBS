@@ -1,5 +1,5 @@
 """
-Tests for GLM extension (tfnbs.glm_stats).
+Tests for GLM extension (conninfpy.glm_stats).
 
 Covers: core GLM computation, Freedman-Lane permutation,
 enhancement integration, two-tailed FWER, API consistency.

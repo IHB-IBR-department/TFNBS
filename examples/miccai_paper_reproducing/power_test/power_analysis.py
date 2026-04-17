@@ -48,7 +48,7 @@ Usage:
         --methods tstat tfnbs nbs_extent \\
         --n-repeats 10 --n-permutations 500
 
-Output (saved to --output-dir, default results/power_analysis):
+Output (saved to --output-dir, default examples/miccai_paper_reproducing/results/power_analysis):
     power_vs_effect_size.csv          — raw results (all methods × scenarios × repeats)
     power_vs_effect_size_summary.csv  — aggregated mean/std per condition
     power_vs_sample_size.csv          — raw results
@@ -60,7 +60,7 @@ Output (saved to --output-dir, default results/power_analysis):
 Plotting:
     Use plot_power_analysis_results.py to visualize results:
         python examples/miccai_paper_reproducing/power_test/plot_power_analysis_results.py \\
-            results/power_analysis_local
+            examples/miccai_paper_reproducing/results/power_analysis_local
 """
 
 from __future__ import annotations

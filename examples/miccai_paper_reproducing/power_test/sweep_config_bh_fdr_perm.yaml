@@ -6,7 +6,7 @@
 # Usage:
 #   python examples/power_test/power_analysis.py \
 #     --config examples/power_test/sweep_config_bh_fdr_perm.yaml \
-#     --output-dir results/bh_fdr_perm \
+#     --output-dir examples/miccai_paper_reproducing/results/bh_fdr_perm \
 #     --mode effect-size
 
 effect_sizes:

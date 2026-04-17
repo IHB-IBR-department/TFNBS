@@ -1,16 +1,14 @@
-.. TFNBS documentation master file, created by
-   sphinx-quickstart on Wed Jun 25 10:44:30 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. ConnInfPy documentation master file
 
-Welcome to TFNBS's documentation!
-=================================
+Welcome to ConnInfPy's documentation!
+=====================================
 
-TFNBS Toolbox is a Python package for computation and generation of network-based statistics for neuroscience data 
-(i.e. fMRI, EEG data). The core concept is based on eliminating the use of a hardcoded threshold using threshold-free 
-cluster enhancement (TFCE) scores to assess statistical significance. It works on the principle of networks, where TFCE 
-statistical values are computed across a range of thresholds over n cycles of permutations to uncover possible significance in the data. 
-
+ConnInfPy (Connectivity Inference in Python) is a Python package for statistical inference on brain connectivity
+networks (fMRI, EEG). It provides permutation-based tests for group comparisons (t-test) and continuous predictors
+with confound regression (GLM with Freedman-Lane), together with a family of enhancement methods: classical NBS,
+TFNBS (Threshold-Free Network-Based Statistics), cNBS, network-informed TFNBS, and functional-block clustering
+TFNBS. The TFNBS family eliminates the need for an arbitrary statistical threshold by integrating cluster statistics
+across a range of thresholds via TFCE-style enhancement.
 
 
 .. toctree::
@@ -19,16 +17,16 @@ statistical values are computed across a range of thresholds over n cycles of pe
 
    installation
    usage
-   tfnbs
+   conninfpy
    references
 
-   
 
-To **Cite this toolbox** you can use the following: 
+
+To **cite this toolbox** you can use the following:
 doi:.........
 
 .. code-block:: bash
 
-   [Cite TFNBS as]
+   [Cite ConnInfPy as]
 
 ---------------

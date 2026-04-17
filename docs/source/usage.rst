@@ -1,24 +1,24 @@
 Usage
 =====
 
-This toolbox presents a Python implementation to use the TFNBS for fMRI and EEG functional connectivity data with the 
-flexibility to use structured data (i.e. block diagonal matrices) corresponding to frequency range and connectivity matrix. 
-While other network-oriented toolkits are composed of higher computational complexity, TFNBS is based on the construction 
-of a null distribution which is permuted across many thresholds to identify statistical significance therefore optimizing 
-performance. Our implementation of TFNBS follows efficient algorithms and allows usage of parallel computing cores, therefore 
-massively reducing required computing resources over conventional approaches.
+ConnInfPy provides a Python implementation of permutation-based statistical inference for brain connectivity
+networks (fMRI, EEG). It supports group comparisons (t-test) and continuous predictors with confound regression
+(GLM via Freedman-Lane), together with enhancement methods including classical NBS, TFNBS, cNBS, network-informed
+TFNBS, and functional-block clustering TFNBS. Null distributions are built via permutation, optionally across a
+range of thresholds (TFCE), and inference can be accelerated with GPD/gamma tail approximation. Implementations
+are vectorised and support multiprocessing.
 
 
-Permutation-Based Inference
-===========================
+Permutation-Based Inference (t-test)
+=====================================
 
-The main API for permutation-based p-values is :func:`tfnbs.pairwise_stats.compute_p_val`.
+The main API for permutation-based p-values is :func:`conninfpy.pairwise_stats.compute_p_val`.
 
 Inputs
 ------
 
 - ``group1`` / ``group2``: arrays of shape ``(n_subjects, N, N)``, symmetric, with zero diagonal.
-- Recommended preprocessing: Fisher r-to-z transform (``tfnbs.utils.fisher_r_to_z``) before inference.
+- Recommended preprocessing: Fisher r-to-z transform (``conninfpy.utils.fisher_r_to_z``) before inference.
 
 Methods
 -------
@@ -37,8 +37,8 @@ Minimal example (two-sample)
 
 .. code-block:: python
 
-   from tfnbs.pairwise_stats import compute_p_val
-   from tfnbs.utils import fisher_r_to_z
+   from conninfpy.pairwise_stats import compute_p_val
+   from conninfpy.utils import fisher_r_to_z
 
    # group1, group2: (n_subjects, N, N), symmetric, diagonal=0
    group1_z = fisher_r_to_z(group1)
@@ -61,6 +61,33 @@ Notes
 - TFNBS-family uses ``e``, ``h``, ``n`` and ``start_thres`` (plus ``min_cluster_size`` for ``fbc_tfnbs``).
 
 
+GLM Inference (continuous predictors + confounds)
+==================================================
+
+For continuous predictors (age, clinical scales) with confound regression, use
+:func:`conninfpy.glm_stats.compute_p_val_glm` with Freedman-Lane permutation.
+
+.. code-block:: python
+
+   from conninfpy import compute_p_val_glm, fisher_r_to_z
+
+   Y = fisher_r_to_z(connectivity_matrices)   # (n_subjects, N, N)
+   p_vals = compute_p_val_glm(
+       Y, interest=age, confounds=motion,
+       method="tfnbs", n_permutations=1000,
+   )
+   # p_vals['positive'], p_vals['negative']
+
+With GPD acceleration (Winkler 2016, ~25x fewer permutations required):
+
+.. code-block:: python
+
+   p_vals = compute_p_val_glm(
+       Y, interest=age, confounds=motion,
+       method="tfnbs", n_permutations=200, acceleration="gpd",
+   )
+
+
 Synthetic Method-Comparison Example
 ===================================
 
@@ -69,4 +96,4 @@ The repository includes a runnable comparison script that uses ``compute_p_val``
 
 .. code-block:: bash
 
-   python examples/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
+   python examples/sim_method_comparisons/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50

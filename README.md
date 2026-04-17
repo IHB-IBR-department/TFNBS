@@ -1,41 +1,44 @@
 
-# Threshold-Free Network-Based Statistics in Neuroscience
+# ConnInfPy — Connectivity Inference in Python
 
-``TFNBS`` 
+``conninfpy`` (formerly ``tfnbs``)
 
 <!--- [pypi version] -->
 ![size](https://img.shields.io/github/repo-size/IHB-IBR-department/TFNBS)
 ![license](https://img.shields.io/github/license/IHB-IBR-department/TFNBS)
 ![release](https://img.shields.io/github/v/release/IHB-IBR-department/TFNBS)
 ![last-commit](https://img.shields.io/github/last-commit/IHB-IBR-department/TFNBS)
-![TFNBS](https://img.shields.io/github/downloads/IHB-IBR-department/TFNBS/total)
 
-TFNBS Toolbox is a Python package for computation and generation of network-based statistics for neuroscience data 
-(i.e. fMRI, EEG data). The core concept is based on eliminating the use of a hardcoded threshold using threshold-free 
-cluster enhancement (TFCE) scores to assess statistical significance. It works on the principle of networks, where TFCE 
-statistical values are computed across a range of thresholds over n cycles of permutations to uncover possible significance in the data. 
-Our implementation of TFNBS follows efficient computing and allows for computations to be performed on parallel cores therefore 
-massively reducing computation time and resources. 
+ConnInfPy is a Python package for statistical inference on brain connectivity networks (fMRI, EEG). It provides
+permutation-based tests for group comparisons (t-test) and continuous predictors with confound regression (GLM with
+Freedman-Lane), plus a family of enhancement methods that include classical NBS, TFNBS (threshold-free
+cluster enhancement adapted for networks), cNBS, network-informed TFNBS, and functional-block clustering TFNBS. The
+core idea behind TFNBS is to eliminate the need for an arbitrary statistical threshold by integrating cluster
+statistics across a range of thresholds. Implementations are vectorised, support multiprocessing, and can be
+accelerated with GPD/gamma tail approximation.
 
 
-![Overview of TFNOS](https://github.com/IHB-IBR-department/TFNBS/blob/main/docs/Figure_Overview.png)
+![Overview](https://github.com/IHB-IBR-department/TFNBS/blob/main/docs/Figure_Overview.png)
 
-## Installation 
-TFNOS toolbox can be installed using: 
+## Installation
 
 ```bash
-    !pip install tfnbs
+pip install -e .
+```
+
+For development dependencies:
+
+```bash
+pip install -e ".[dev]"
 ```
 
 ## Documentation
 
-For more information on TFNBS's features, modules and usage, please refer to the [official documentation](https://IHB-IBR-department.github.io/TFNBS/). 
-
-Examples of usage on fMRI and EEG data are avaialble in [notebooks]() and [data](). 
+For more information on features, modules and usage, see the [official documentation](https://IHB-IBR-department.github.io/TFNBS/).
 
 ## Permutation p-values (`compute_p_val`)
 
-The main entry point for permutation-based inference is `tfnbs.pairwise_stats.compute_p_val`.
+The main entry point for permutation-based inference is `conninfpy.pairwise_stats.compute_p_val`.
 
 Supported `method` values:
 - `tstat`: raw t-statistics (max-stat correction)
@@ -47,8 +50,8 @@ Supported `method` values:
 
 Minimal example (two-sample):
 ```python
-from tfnbs.pairwise_stats import compute_p_val
-from tfnbs.utils import fisher_r_to_z
+from conninfpy.pairwise_stats import compute_p_val
+from conninfpy.utils import fisher_r_to_z
 
 # group1, group2: arrays of shape (n_subjects, N, N), symmetric, diagonal=0
 group1_z = fisher_r_to_z(group1)
@@ -68,22 +71,33 @@ Notes:
 - Constrained methods (`cnbs`, `ni_tfnbs`, `fbc_tfnbs`) require `net_labels: ndarray[int]` of shape `(N,)`.
 - NBS uses `threshold` and `nbs_stat`; TFNBS-family uses `e`, `h`, `n`, and `start_thres` (plus `min_cluster_size` for `fbc_tfnbs`).
 
+## GLM inference (continuous predictors + confounds)
+
+```python
+from conninfpy import compute_p_val_glm, fisher_r_to_z
+
+Y = fisher_r_to_z(connectivity_matrices)   # (n_subjects, N, N)
+p_vals = compute_p_val_glm(
+    Y, interest=age, confounds=motion,
+    method="tfnbs", n_permutations=1000,
+)
+# p_vals['positive'] / p_vals['negative']
+```
+
 ## Synthetic method-comparison example
 
-See `examples/sim_method_comparisons.py` which compares all methods via `compute_p_val` and saves GT/t-stat/`1-p` heatmaps:
+See `examples/sim_method_comparisons/sim_method_comparisons.py`, which compares all methods via `compute_p_val` and
+saves GT/t-stat/`1-p` heatmaps:
+
 ```bash
-python examples/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
+python examples/sim_method_comparisons/sim_method_comparisons.py --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
 ```
 
 
-## Citing the toolbox 
-To cite the toolbox, you can use: [doi]() and refer to the paper [paper_doi]()
+## Citing the toolbox
+To cite the toolbox: [doi]() and refer to the paper [paper_doi]()
 ```base
     [doi]
 ```
 
 For further discussions or reports on bugs, please contact [ashish@ireddy.ru]()
-
-
-
-

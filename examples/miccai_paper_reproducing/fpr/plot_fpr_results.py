@@ -14,23 +14,23 @@ Reads CSV output from fpr_calibration.py and produces:
 
 Usage:
     # Full calibration overview
-    python plot_fpr_results.py results/fpr_calibration_local
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local
 
     # Plot specific methods only (loads per-method CSVs)
-    python plot_fpr_results.py results/fpr_calibration_local \
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local \
         --method tstat tfnbs cnbs
 
     # List available per-method CSVs
-    python plot_fpr_results.py results/fpr_calibration_local --list-methods
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local --list-methods
 
     # Specific plot type
-    python plot_fpr_results.py results/fpr_calibration_local --plot overview
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local --plot overview
 
     # FWER vs sample size (requires multi-n_samples data)
-    python plot_fpr_results.py results/fpr_calibration_local --plot fwer-vs-n
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local --plot fwer-vs-n
 
     # Custom output directory
-    python plot_fpr_results.py results/fpr_calibration_local --output-dir plots/
+    python plot_fpr_results.py examples/miccai_paper_reproducing/results/fpr_calibration_local --output-dir plots/
 """
 
 from __future__ import annotations

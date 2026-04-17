@@ -1,7 +1,9 @@
+import os
 from unittest import TestCase
 from conninfpy.synth_datasets import (generate_fc_matrices, ModularDatasetGenerator)
-import matplotlib.pyplot as plt
 import numpy as np
+
+SHOW_PLOTS = os.getenv("CONNINFPY_TEST_PLOTS") == "1"
 
 
 class Test(TestCase):
@@ -14,14 +16,15 @@ class Test(TestCase):
         mask[10:20, 10:20] = -1  # Ensure symmetry
 
         group1, group2, (cov1, cov2) = generate_fc_matrices(N, effect_size,  mask, n_samples_group1=50, n_samples_group2=70)
-        plt.subplot(141); plt.imshow(mask);
-        plt.subplot(142); plt.imshow(cov1);
-        plt.subplot(143); plt.imshow(cov2-cov1);
-        diff = group2.mean(axis=0)-group1.mean(axis=0)
-        plt.subplot(144); plt.imshow(diff);
 
-
-        plt.show()
+        if SHOW_PLOTS:
+            import matplotlib.pyplot as plt
+            diff = group2.mean(axis=0) - group1.mean(axis=0)
+            plt.subplot(141); plt.imshow(mask)
+            plt.subplot(142); plt.imshow(cov1)
+            plt.subplot(143); plt.imshow(cov2 - cov1)
+            plt.subplot(144); plt.imshow(diff)
+            plt.show()
 
         self.assertEqual(group1.shape, (50, N, N))
 

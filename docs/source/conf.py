@@ -6,10 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'TFNBS'
+project = 'ConnInfPy'
 copyright = '2025, IHB RAS'
 author = 'N.P. Bechtereva Institute of the Human Brain, Russian Academy of Sciences - IHB RAS'
-release = '1.0.1'
+release = '2.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -37,5 +37,5 @@ html_static_path = ['_static']
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../')) 
-sys.path.insert(0, os.path.abspath('../../tfnbs'))
+sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath('../../conninfpy'))

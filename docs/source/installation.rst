@@ -1,37 +1,30 @@
 Installation
 ============
 
-To install **TFNBS**, you can follow the approaches below: 
+To install **ConnInfPy**, use one of the approaches below.
 
 
-1. Simple installation using pip installer from pypi package: 
-
-.. code-block:: bash
-
-    pip install tfnbs
-
----------------
-
-2. Clone this repository using: 
+1. Clone this repository and install in development mode:
 
 .. code-block:: bash
 
     git clone https://github.com/IHB-IBR-department/TFNBS.git
+    cd TFNBS
+    pip install -e .
 
 ---------------
 
-Requirements: 
----------------
-- Python version **3.x**
-- **pip** (package installer)
-- **scipy** package
-
-To install requirements:
+2. Install with development dependencies:
 
 .. code-block:: bash
 
-    cd tfnbs/
-    pip install -r requirments.txt
-    pip install . 
-    
+    pip install -e ".[dev]"
+
+---------------
+
+Requirements:
+---------------
+- Python **>=3.8**
+- numpy, scipy, matplotlib, scikit-learn, networkx, mne, pandas
+
 ---------------

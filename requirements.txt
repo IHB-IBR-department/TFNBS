@@ -2,3 +2,4 @@ numpy
 scikit-learn
 scipy
 matplotlib <= 3.9.1
+numba #pip install numba --prefer-binary
