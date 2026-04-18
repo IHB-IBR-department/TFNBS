@@ -9,15 +9,15 @@ Usage
 -----
 Quick local test (30 nodes, 100 permutations)::
 
-    python examples/timing_benchmark.py --n_nodes 30 --n_perms 100
+    python examples/benchmarks/timing_benchmark.py --n_nodes 30 --n_perms 100
 
 Typical atlas sizes::
 
-    python examples/timing_benchmark.py --n_nodes 90 200 400 --n_perms 1000
+    python examples/benchmarks/timing_benchmark.py --n_nodes 90 200 400 --n_perms 1000
 
 All parameters::
 
-    python examples/timing_benchmark.py \\
+    python examples/benchmarks/timing_benchmark.py \\
         --n_nodes 90 200 400 \\
         --n_perms 500 1000 \\
         --n_samples 30 \\
@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 
 # ── ensure the package is importable ──────────────────────────────────────────
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root (2 levels up from examples/benchmarks/)
 
 from conninfpy import (
     compute_p_val,

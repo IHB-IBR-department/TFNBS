@@ -12,26 +12,26 @@ scenarios:
 Prints a comparison table. At the end of each section a soft regression
 check runs: if any grid cell shows `fast >= slow`, a warning is printed and
 the script exits non-zero. This lets the file double as a local performance
-tripwire (``python examples/benchmark_precompsum.py && echo OK``).
+tripwire (``python examples/benchmarks/benchmark_precompsum.py && echo OK``).
 
 Usage
 -----
 Default (all scenarios on the full grid):
 
-    python examples/benchmark_precompsum.py
+    python examples/benchmarks/benchmark_precompsum.py
 
 Pick one scenario:
 
-    python examples/benchmark_precompsum.py --case paired
-    python examples/benchmark_precompsum.py --case enhancement
+    python examples/benchmarks/benchmark_precompsum.py --case paired
+    python examples/benchmarks/benchmark_precompsum.py --case enhancement
 
 Smaller grid for a quick run:
 
-    python examples/benchmark_precompsum.py --quick
+    python examples/benchmarks/benchmark_precompsum.py --quick
 
 Customize the grid:
 
-    python examples/benchmark_precompsum.py \\
+    python examples/benchmarks/benchmark_precompsum.py \\
         --n-nodes 100 200 \\
         --n-sub 30 60 \\
         --n-perm 100 500

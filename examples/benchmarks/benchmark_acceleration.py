@@ -8,9 +8,9 @@ Compares timing and p-value accuracy across:
 - Permutation counts: 200 (accelerated) vs 5000 (reference)
 
 Usage:
-    python examples/benchmark_acceleration.py
-    python examples/benchmark_acceleration.py --quick     # N=10,30 only
-    python examples/benchmark_acceleration.py --full      # includes N=90
+    python examples/benchmarks/benchmark_acceleration.py
+    python examples/benchmarks/benchmark_acceleration.py --quick     # N=10,30 only
+    python examples/benchmarks/benchmark_acceleration.py --full      # includes N=90
 """
 
 import argparse

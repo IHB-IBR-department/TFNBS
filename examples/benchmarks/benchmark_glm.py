@@ -5,10 +5,10 @@ Measures timing for the full GLM pipeline (compute_p_val_glm) including
 Freedman-Lane permutation with various enhancement methods.
 
 Usage:
-    python examples/benchmark_glm.py
-    python examples/benchmark_glm.py --quick
-    python examples/benchmark_glm.py --full
-    python examples/benchmark_glm.py --mp      # with multiprocessing
+    python examples/benchmarks/benchmark_glm.py
+    python examples/benchmarks/benchmark_glm.py --quick
+    python examples/benchmarks/benchmark_glm.py --full
+    python examples/benchmarks/benchmark_glm.py --mp      # with multiprocessing
 """
 
 import argparse
