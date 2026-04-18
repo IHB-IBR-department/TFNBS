@@ -18,7 +18,7 @@ Key features:
     - Checkpointing with --resume support for interrupted runs.
     - Per-scenario CSV output for easy downstream analysis.
 
-Scenarios are defined in examples/sim_topology_examples.py (e.g.
+Scenarios are defined in conninfpy/topologies.py (e.g.
 within_module_dense, hub, chain, scattered_cross_block, etc.).
 
 Usage:
@@ -107,10 +107,7 @@ except ImportError:
 
 from tqdm import tqdm
 
-# Add examples/ to path for sim_topology_examples import
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-import sim_topology_examples as topo
+from conninfpy import topologies as topo
 from conninfpy.pairwise_stats import compute_p_val, get_available_cores
 
 

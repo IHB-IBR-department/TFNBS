@@ -37,9 +37,9 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 # Running from repo root without installation.
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
-import sim_topology_examples as topo
+from conninfpy import topologies as topo
 from conninfpy.pairwise_stats import compute_p_val, compute_t_stat
 
 

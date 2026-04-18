@@ -24,7 +24,8 @@ import numpy as np
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from examples.sim_topology_examples import TopologyDatasetGenerator, _draw_module_boundaries
+from conninfpy.topologies import TopologyDatasetGenerator
+from examples.sim_topology_examples import draw_module_boundaries as _draw_module_boundaries
 from conninfpy.pairwise_stats import compute_t_stat
 
 # The 10 scenarios used in power analysis and FPR calibration configs.

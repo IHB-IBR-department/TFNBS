@@ -13,6 +13,14 @@ from .defaults import (
 )
 
 from .synth_datasets import generate_fc_matrices, ModularDatasetGenerator
+from .topologies import (
+    TopologyDataset,
+    TopologyDatasetGenerator,
+    TopologyScenario,
+    get_scenario,
+    get_scenarios,
+    list_scenarios,
+)
 
 from .eeg_utils import (
     read_from_eeg_dataframe,
