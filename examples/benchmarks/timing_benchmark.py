@@ -314,8 +314,10 @@ def main():
         help="Timing repeats per condition (default: 3)",
     )
     parser.add_argument(
-        "--output", type=str, default=None,
-        help="Path to save CSV results (optional)",
+        "--output", type=str,
+        default="examples/benchmarks/res_benchmarks/timing_benchmark.csv",
+        help="Path to save CSV results (default: res_benchmarks/timing_benchmark.csv). "
+             "Pass empty string to skip writing.",
     )
     parser.add_argument(
         "--seed", type=int, default=42,

@@ -28,7 +28,7 @@ from _common import PAPER_TOPOLOGIES, make_glm_data  # noqa: E402
 
 
 def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
-                  topology="within_module_dense", seed=42):
+                  topology="within_module_dense", seed=42, records=None):
     """Run benchmark for one network size × topology."""
     effect_edge = (1, 2)
     Y, age, _ = make_glm_data(
@@ -60,6 +60,12 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
         p_planted_ref = p_ref["positive"][effect_edge]
 
         print(f"{method_name:<10} {'none':<8} {n_perm_ref:>6} {t_ref:>7.2f}s {'1.0x':>8} {'ref':>8} {'ref':>8} {p_planted_ref:>8.4f}")
+        if records is not None:
+            records.append(dict(
+                N=N, n_subjects=n_subjects, topology=topology, method=method_name,
+                accel="none", n_perms=n_perm_ref, time_s=t_ref, speedup=1.0,
+                r_pos=float("nan"), mae=float("nan"), p_planted=p_planted_ref,
+            ))
 
         # Accelerated variants
         for accel_name in ["gpd", "gamma"]:
@@ -81,6 +87,12 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
             speedup = t_ref / t_accel
 
             print(f"{'':<10} {accel_name:<8} {n_perm_accel:>6} {t_accel:>7.2f}s {speedup:>7.1f}x {r:>8.4f} {mae:>8.4f} {p_planted:>8.4f}")
+            if records is not None:
+                records.append(dict(
+                    N=N, n_subjects=n_subjects, topology=topology, method=method_name,
+                    accel=accel_name, n_perms=n_perm_accel, time_s=t_accel, speedup=speedup,
+                    r_pos=r, mae=mae, p_planted=p_planted,
+                ))
 
         # Empirical with same few perms (to compare: is acceleration better?)
         t0 = time.time()
@@ -101,6 +113,12 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
         speedup = t_ref / t_emp
 
         print(f"{'':<10} {'emp':<8} {n_perm_accel:>6} {t_emp:>7.2f}s {speedup:>7.1f}x {r:>8.4f} {mae:>8.4f} {p_planted:>8.4f}")
+        if records is not None:
+            records.append(dict(
+                N=N, n_subjects=n_subjects, topology=topology, method=method_name,
+                accel="emp", n_perms=n_perm_accel, time_s=t_emp, speedup=speedup,
+                r_pos=r, mae=mae, p_planted=p_planted,
+            ))
 
         print()
 
@@ -113,6 +131,12 @@ def main():
         "--topologies", nargs="+", default=["within_module_dense"],
         help=f"Topology scenarios to sweep (default: within_module_dense). "
              f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}",
+    )
+    parser.add_argument(
+        "--output", type=str,
+        default="examples/benchmarks/res_benchmarks/acceleration.csv",
+        help="Path to save CSV results (default: res_benchmarks/acceleration.csv). "
+             "Pass empty to skip.",
     )
     args = parser.parse_args()
 
@@ -139,9 +163,18 @@ def main():
     print(f"Topologies: {args.topologies}")
     print(f"Reference perms: {n_perm_ref}, Accelerated perms: {n_perm_accel}")
 
+    records: list = []
     for N in network_sizes:
         for topo in args.topologies:
-            run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel, topology=topo)
+            run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
+                          topology=topo, records=records)
+
+    if args.output and records:
+        import pandas as pd
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(records).to_csv(out, index=False)
+        print(f"\nResults saved to {out}")
 
     print("\n" + "=" * 70)
     print("KEY: r(pos) = correlation of positive p-values with reference")

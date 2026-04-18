@@ -37,7 +37,7 @@ def generate_data(N, n_subjects, topology="within_module_dense", confound=True, 
     return Y, age, motion
 
 
-def benchmark_compute_glm_stat(N_values, n_subjects, topology, n_repeats=5):
+def benchmark_compute_glm_stat(N_values, n_subjects, topology, n_repeats=5, records=None):
     """Benchmark just the GLM stat computation (no permutation)."""
     print(f"\n--- compute_glm_stat (no permutation, topology={topology}) ---")
     print(f"{'N':>5} {'edges':>7} {'time':>10} {'edges/s':>10}")
@@ -56,9 +56,15 @@ def benchmark_compute_glm_stat(N_values, n_subjects, topology, n_repeats=5):
         avg_t = np.mean(times)
         n_edges = N * (N - 1) // 2
         print(f"{N:>5} {n_edges:>7} {avg_t*1000:>8.1f}ms {n_edges/avg_t:>10.0f}")
+        if records is not None:
+            records.append(dict(
+                N=N, n_edges=n_edges, n_subjects=n_subjects, topology=topology,
+                time_mean_s=avg_t, edges_per_s=n_edges / avg_t, n_repeats=n_repeats,
+            ))
 
 
-def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods, topology):
+def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods, topology,
+                            records=None):
     """Benchmark full pipeline with permutation testing."""
     print(f"\n--- Full pipeline ({n_perms} perms, mp={use_mp}, topology={topology}) ---")
     header = f"{'N':>5} {'edges':>7} {'method':<10} {'time':>8} {'p_planted':>10}"
@@ -89,6 +95,12 @@ def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods, topo
 
             p_planted = p["positive"][1, 2] if N > 2 else float("nan")
             print(f"{N:>5} {n_edges:>7} {method_name:<10} {elapsed:>7.2f}s {p_planted:>10.4f}")
+            if records is not None:
+                records.append(dict(
+                    N=N, n_edges=n_edges, n_subjects=n_subjects,
+                    topology=topology, method=method_name, n_perms=n_perms,
+                    use_mp=use_mp, time_s=elapsed, p_planted=p_planted,
+                ))
 
         print()
 
@@ -102,6 +114,12 @@ def main():
         "--topologies", nargs="+", default=["within_module_dense"],
         help=f"Topology scenarios to sweep (default: within_module_dense). "
              f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}",
+    )
+    parser.add_argument(
+        "--output", type=str,
+        default="examples/benchmarks/res_benchmarks/glm",
+        help="Output prefix for CSV files (default: res_benchmarks/glm → "
+             "<prefix>_stat.csv and <prefix>_pipeline.csv). Pass empty to skip.",
     )
     args = parser.parse_args()
 
@@ -131,9 +149,25 @@ def main():
     print(f"Multiprocessing: {args.mp}")
     print(f"Topologies: {args.topologies}")
 
+    stat_records: list = []
+    pipeline_records: list = []
     for topo in args.topologies:
-        benchmark_compute_glm_stat(N_values, n_subjects, topology=topo)
-        benchmark_full_pipeline(N_values, n_subjects, n_perms, args.mp, methods, topology=topo)
+        benchmark_compute_glm_stat(N_values, n_subjects, topology=topo, records=stat_records)
+        benchmark_full_pipeline(N_values, n_subjects, n_perms, args.mp, methods,
+                                topology=topo, records=pipeline_records)
+
+    if args.output:
+        import pandas as pd
+        prefix = Path(args.output)
+        prefix.parent.mkdir(parents=True, exist_ok=True)
+        if stat_records:
+            stat_path = prefix.with_name(prefix.name + "_stat.csv")
+            pd.DataFrame(stat_records).to_csv(stat_path, index=False)
+            print(f"\nStat benchmark saved to {stat_path}")
+        if pipeline_records:
+            pipe_path = prefix.with_name(prefix.name + "_pipeline.csv")
+            pd.DataFrame(pipeline_records).to_csv(pipe_path, index=False)
+            print(f"Pipeline benchmark saved to {pipe_path}")
 
 
 if __name__ == "__main__":

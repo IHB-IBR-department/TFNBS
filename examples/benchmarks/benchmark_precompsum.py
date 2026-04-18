@@ -43,7 +43,8 @@ import argparse
 import sys
 import time
 from functools import partial
-from typing import Callable, Iterable, List, Sequence, Tuple
+from pathlib import Path
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -154,6 +155,7 @@ def run_paired(
     nperm_grid: Sequence[int],
     topologies: Sequence[str],
     regressions: List[str],
+    records: Optional[List[dict]] = None,
 ) -> None:
     """Paired/one-sample: slow vs fast over full permutation loop."""
     rng = np.random.RandomState(0)
@@ -171,6 +173,12 @@ def run_paired(
                     t_fast = _time_loop(fast_task, seeds)
                     _print_row(N, n_sub, n_perm, t_slow, t_fast, topology=topo)
                     _check_speedup(regressions, f"paired[{topo}]", N, n_sub, n_perm, t_slow, t_fast)
+                    if records is not None:
+                        records.append(dict(
+                            case="paired", N=N, n_sub=n_sub, n_perm=n_perm,
+                            topology=topo, method="", t_slow=t_slow, t_fast=t_fast,
+                            speedup=t_slow / t_fast if t_fast > 0 else float("inf"),
+                        ))
 
 
 def run_two_sample(
@@ -179,6 +187,7 @@ def run_two_sample(
     nperm_grid: Sequence[int],
     topologies: Sequence[str],
     regressions: List[str],
+    records: Optional[List[dict]] = None,
 ) -> None:
     """Two-sample (Welch): slow vs fast over full permutation loop."""
     rng = np.random.RandomState(1)
@@ -201,6 +210,12 @@ def run_two_sample(
                     t_fast = _time_loop(fast_task, seeds)
                     _print_row(N, n_sub, n_perm, t_slow, t_fast, topology=topo)
                     _check_speedup(regressions, f"two-sample[{topo}]", N, n_sub, n_perm, t_slow, t_fast)
+                    if records is not None:
+                        records.append(dict(
+                            case="two-sample", N=N, n_sub=n_sub, n_perm=n_perm,
+                            topology=topo, method="", t_slow=t_slow, t_fast=t_fast,
+                            speedup=t_slow / t_fast if t_fast > 0 else float("inf"),
+                        ))
 
 
 def run_enhancement(
@@ -209,6 +224,7 @@ def run_enhancement(
     nperm_grid: Sequence[int],
     topologies: Sequence[str],
     regressions: List[str],
+    records: Optional[List[dict]] = None,
 ) -> None:
     """Enhancement methods (NBS, TFNBS): slow scorer vs fast enhanced perm task.
 
@@ -251,9 +267,19 @@ def run_enhancement(
                         _check_speedup(
                             regressions, f"{method_name}[{topo}]", N, n_sub, n_perm, t_slow, t_fast,
                         )
+                        if records is not None:
+                            records.append(dict(
+                                case="enhancement", N=N, n_sub=n_sub, n_perm=n_perm,
+                                topology=topo, method=method_name,
+                                t_slow=t_slow, t_fast=t_fast,
+                                speedup=t_slow / t_fast if t_fast > 0 else float("inf"),
+                            ))
 
 
-def run_composed(regressions: List[str]) -> None:
+def run_composed(
+    regressions: List[str],
+    composed_records: Optional[List[dict]] = None,
+) -> None:
     """Pre-computation × GPD acceleration: end-to-end wall-clock.
 
     The two optimizations are orthogonal:
@@ -308,6 +334,13 @@ def run_composed(regressions: List[str]) -> None:
                     f'(baseline={t_baseline:.2f}s, gpd={t_gpd_only:.2f}s, '
                     f'precomp={t_precomp_only:.2f}s, both={t_both:.3f}s)'
                 )
+            if composed_records is not None:
+                composed_records.append(dict(
+                    N=N, n_sub=n_sub,
+                    n_perm_full=n_perm_full, n_perm_gpd=n_perm_gpd,
+                    t_baseline=t_baseline, t_gpd_only=t_gpd_only,
+                    t_precomp_only=t_precomp_only, t_both=t_both,
+                ))
 
 
 # -----------------------------------------------------------------------------
@@ -338,6 +371,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--topologies", nargs="+", default=["within_module_dense"],
                         help=f"Topology scenarios to sweep (default: within_module_dense). "
                              f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}")
+    parser.add_argument(
+        "--output", type=str,
+        default="examples/benchmarks/res_benchmarks/precompsum.csv",
+        help="Path to save CSV results (default: res_benchmarks/precompsum.csv). "
+             "Composed case saved to <output>_composed.csv. Pass empty to skip.",
+    )
     args = parser.parse_args(argv)
 
     if args.quick:
@@ -350,15 +389,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         nperm_grid = args.n_perm or DEFAULT_NPERM_GRID
 
     regressions: List[str] = []
+    records: List[dict] = []
+    composed_records: List[dict] = []
 
     if args.case in ("paired", "all"):
-        run_paired(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
+        run_paired(n_grid, nsub_grid, nperm_grid, args.topologies, regressions, records)
     if args.case in ("two-sample", "all"):
-        run_two_sample(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
+        run_two_sample(n_grid, nsub_grid, nperm_grid, args.topologies, regressions, records)
     if args.case in ("enhancement", "all"):
-        run_enhancement(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
+        run_enhancement(n_grid, nsub_grid, nperm_grid, args.topologies, regressions, records)
     if args.case in ("composed", "all"):
-        run_composed(regressions)
+        run_composed(regressions, composed_records)
+
+    if args.output:
+        import pandas as pd
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if records:
+            pd.DataFrame(records).to_csv(out, index=False)
+            print(f"\nResults saved to {out}")
+        if composed_records:
+            composed_out = out.with_name(out.stem + "_composed.csv")
+            pd.DataFrame(composed_records).to_csv(composed_out, index=False)
+            print(f"Composed results saved to {composed_out}")
 
     print()
     if regressions:

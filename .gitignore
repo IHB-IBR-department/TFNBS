@@ -212,6 +212,8 @@ datasets/open_close/
 # Regeneratable experiment outputs
 examples/**/results/
 examples/results/
+# Benchmark outputs: ignore generated CSVs but keep the README
+examples/benchmarks/res_benchmarks/*.csv
 
 # macOS
 .DS_Store
