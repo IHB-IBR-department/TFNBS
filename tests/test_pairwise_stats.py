@@ -9,26 +9,23 @@ from conninfpy.pairwise_stats import (_permutation_task_ind,
                                    compute_t_stat)
 from conninfpy._enhancement import apply_tfnbs
 
-from conninfpy.synth_datasets import generate_fc_matrices
+from . import fixtures
 import numpy as np
 
 
 class TestBasicStats(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        N = 30  # Number of ROIs
-        effect_size = 0.2  # Magnitude of group differences
-
-        group1, group2, (cov1, cov2) = generate_fc_matrices(N, effect_size, n_samples_group1=30,
-                                                            n_samples_group2=20)
+        # Scenario: small_two_sample — N=30, effect=0.2, n_g1=30, n_g2=20
+        group1, group2, (cov1, cov2) = fixtures.small_two_sample()
         cls.fc_sim = {"group1": fisher_r_to_z(group1.copy()),
                       "group2": fisher_r_to_z(group2.copy()),
                       "true_diff": cov2 - cov1,
                       'cov2': cov2,
                       'cov1': cov1}
 
-        group1, group2, (cov1, cov2) = generate_fc_matrices(N, effect_size, n_samples_group1=40,
-                                                            n_samples_group2=40)
+        # Scenario: paired_effect_moderate — N=30, effect=0.2, n=40 per group
+        group1, group2, (cov1, cov2) = fixtures.paired_effect_moderate()
         cls.fc_sim_paired = {"group1": fisher_r_to_z(group1.copy()),
                              "group2": fisher_r_to_z(group2.copy()),
                              "true_diff": cov2 - cov1,
@@ -675,15 +672,14 @@ class TestPrecomputedSumsFastPath(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        N = 15
-        g1, g2, _ = generate_fc_matrices(
-            N, effect_size=0.3, n_samples_group1=20, n_samples_group2=25, seed=42
-        )
+        # tiny_two_sample, asymmetric (20, 25) — for two-sample fast-path tests
+        g1, g2, _ = fixtures.tiny_two_sample(seed=42)
         cls.g1 = fisher_r_to_z(g1)
         cls.g2 = fisher_r_to_z(g2)
 
-        g1p, g2p, _ = generate_fc_matrices(
-            N, effect_size=0.3, n_samples_group1=25, n_samples_group2=25, seed=7
+        # tiny_two_sample, matched (25, 25) — for paired sign-flip fast-path tests
+        g1p, g2p, _ = fixtures.tiny_two_sample(
+            seed=7, n_samples_group1=25, n_samples_group2=25,
         )
         cls.g1p = fisher_r_to_z(g1p)
         cls.g2p = fisher_r_to_z(g2p)

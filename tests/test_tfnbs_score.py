@@ -12,6 +12,7 @@ from conninfpy.tfnbs_score import (
 )
 from conninfpy.synth_datasets import generate_fc_matrices, ModularDatasetGenerator
 from conninfpy.pairwise_stats import compute_t_stat
+from . import fixtures
 from conninfpy.utils import fisher_r_to_z
 import time
 
@@ -22,26 +23,18 @@ class TestTFNBS(TestCase):
     def setUpClass(cls):
         cls.small_matrix = np.array([[0, 1, 2], [1, 0, 1], [2, 1, 0]])
         cls.invalid_matrix = np.array([[1, 1, 2], [1, 0, 1], [2, 1, 0]])
-        effect_size = 0.2
-        group1, group2, (cov1, cov2) = generate_fc_matrices(30,
-                                                            effect_size,
-                                                            n_samples_group1=30,
-                                                            n_samples_group2=20,
-                                                            seed=42)
+
+        # Scenario: small_two_sample — N=30
+        group1, group2, (cov1, cov2) = fixtures.small_two_sample()
         t_stat_30 = compute_t_stat(fisher_r_to_z(group1),
                                    fisher_r_to_z(group2), test_type='two-sample')
-
         cls.fc_sim_30 = {"t_stat": t_stat_30,
                          "cov1": cov1.copy(), "cov2": cov2.copy()}
 
-        group1, group2, (cov1, cov2) = generate_fc_matrices(100,
-                                                            effect_size,
-                                                            n_samples_group1=50,
-                                                            n_samples_group2=40,
-                                                            seed=42)
+        # Scenario: medium_two_sample — N=100
+        group1, group2, (cov1, cov2) = fixtures.medium_two_sample()
         t_stat_100 = compute_t_stat(fisher_r_to_z(group1),
                                     fisher_r_to_z(group2), test_type='two-sample')
-
         cls.fc_sim_100 = {"t_stat": t_stat_100,
                           "cov1": cov1, "cov2": cov2}
 

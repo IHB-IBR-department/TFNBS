@@ -25,6 +25,7 @@ from conninfpy.pairwise_stats import (
     compute_t_stat,
     _extract_max_stats,
 )
+from . import fixtures
 
 
 # =============================================================================
@@ -132,22 +133,9 @@ class TestComputeGLMStat(unittest.TestCase):
 
     def test_continuous_predictor_detection(self):
         """GLM detects planted continuous effect at specific edge."""
-        rng = np.random.RandomState(123)
-        n_subjects = 40
-        N = 10
-        age = rng.randn(n_subjects)
-
-        # Generate null data
-        Y = rng.randn(n_subjects, N, N) * 0.5
-        for s in range(n_subjects):
-            Y[s] = (Y[s] + Y[s].T) / 2
-            np.fill_diagonal(Y[s], 0)
-
-        # Plant effect at edge (2, 3): Y[s, 2, 3] += 1.0 * age[s]
-        effect_edge = (2, 3)
-        for s in range(n_subjects):
-            Y[s, effect_edge[0], effect_edge[1]] += 1.0 * age[s]
-            Y[s, effect_edge[1], effect_edge[0]] += 1.0 * age[s]
+        scenario = fixtures.glm_planted_edge()  # n=40, N=10, edge=(2,3), β=1, noise=0.5
+        Y, age, effect_edge = scenario["Y"], scenario["age"], scenario["effect_edge"]
+        N = scenario["N"]
 
         X, contrast = build_design_matrix(age)
         result = compute_glm_stat(Y, X, contrast, stat_type='tstat')
@@ -164,16 +152,9 @@ class TestComputeGLMStat(unittest.TestCase):
 
     def test_null_control(self):
         """Under H0 (no effect), t-stats are not systematically inflated."""
-        rng = np.random.RandomState(99)
-        n_subjects = 40
-        N = 10
+        scenario = fixtures.glm_null()   # n=40, N=10, pure noise
+        Y, age, N = scenario["Y"], scenario["age"], scenario["N"]
 
-        Y = rng.randn(n_subjects, N, N)
-        for s in range(n_subjects):
-            Y[s] = (Y[s] + Y[s].T) / 2
-            np.fill_diagonal(Y[s], 0)
-
-        age = rng.randn(n_subjects)
         X, contrast = build_design_matrix(age)
         result = compute_glm_stat(Y, X, contrast, stat_type='tstat')
 
@@ -211,20 +192,10 @@ class TestComputeGLMStat(unittest.TestCase):
 
     def test_beta_stat_type(self):
         """stat_type='beta' returns raw regression coefficients."""
-        rng = np.random.RandomState(55)
-        n_subjects = 20
-        N = 5
-        age = rng.randn(n_subjects)
-
-        Y = rng.randn(n_subjects, N, N)
-        for s in range(n_subjects):
-            Y[s] = (Y[s] + Y[s].T) / 2
-            np.fill_diagonal(Y[s], 0)
-
-        # Plant effect
-        for s in range(n_subjects):
-            Y[s, 1, 2] += 2.0 * age[s]
-            Y[s, 2, 1] += 2.0 * age[s]
+        scenario = fixtures.glm_planted_edge(
+            n=20, N=5, effect_edge=(1, 2), effect_beta=2.0, noise_scale=1.0, seed=55,
+        )
+        Y, age = scenario["Y"], scenario["age"]
 
         X, contrast = build_design_matrix(age)
         result_beta = compute_glm_stat(Y, X, contrast, stat_type='beta')
@@ -370,34 +341,22 @@ class TestFreedmanLane(unittest.TestCase):
         Edge correlated with both age AND motion.
         With confound → reduced effect; without → significant.
         """
-        rng = np.random.RandomState(456)
-        n_subjects = 40
-        N = 10
-
-        # Age and motion correlated (r=0.7)
-        age = rng.randn(n_subjects)
-        motion = 0.7 * age + 0.3 * rng.randn(n_subjects)
-
-        # Generate null data
-        Y = rng.randn(n_subjects, N, N) * 0.3
-        for s in range(n_subjects):
-            Y[s] = (Y[s] + Y[s].T) / 2
-            np.fill_diagonal(Y[s], 0)
-
-        # Plant effect driven by motion (confound), not age
-        for s in range(n_subjects):
-            Y[s, 2, 3] += 1.5 * motion[s]
-            Y[s, 3, 2] += 1.5 * motion[s]
+        scenario = fixtures.glm_confound_driven(
+            effect_edge=(2, 3), confound_beta=1.5, confound_corr=0.7,
+            noise_scale=0.3, seed=456,
+        )
+        Y, age, motion = scenario["Y"], scenario["age"], scenario["motion"]
+        i, j = scenario["effect_edge"]
 
         # Without confound: age appears significant (because correlated with motion)
         X_no_conf, c_no_conf = build_design_matrix(age)
         result_no_conf = compute_glm_stat(Y, X_no_conf, c_no_conf, stat_type='tstat')
-        t_no_conf = result_no_conf["positive"][2, 3]
+        t_no_conf = result_no_conf["positive"][i, j]
 
         # With confound: age should NOT be significant
         X_with_conf, c_with_conf = build_design_matrix(age, confounds=motion)
         result_with_conf = compute_glm_stat(Y, X_with_conf, c_with_conf, stat_type='tstat')
-        t_with_conf = result_with_conf["positive"][2, 3]
+        t_with_conf = result_with_conf["positive"][i, j]
 
         self.assertGreater(t_no_conf, t_with_conf,
                            "Adding confound should reduce the t-statistic")
@@ -597,14 +556,11 @@ class TestGLMEnhancementMethods(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        rng = np.random.RandomState(42)
-        cls.N = 8
-        cls.n = 20
-        cls.Y = rng.randn(cls.n, cls.N, cls.N)
-        for s in range(cls.n):
-            cls.Y[s] = (cls.Y[s] + cls.Y[s].T) / 2
-            np.fill_diagonal(cls.Y[s], 0)
-        cls.age = rng.randn(cls.n)
+        # glm_null — n=20, N=8, pure noise. Smoke tests don't need signal.
+        scenario = fixtures.glm_null(n=20, N=8, seed=42)
+        cls.Y, cls.age, cls.N, cls.n = (
+            scenario["Y"], scenario["age"], scenario["N"], scenario["n"],
+        )
         cls.net_labels = np.array([0, 0, 0, 0, 1, 1, 1, 1])
 
     def _run_method(self, method, **extra_kwargs):

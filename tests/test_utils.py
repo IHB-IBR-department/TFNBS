@@ -1,9 +1,10 @@
 import os
 from unittest import TestCase
 from conninfpy.utils import get_components, create_prior_weights, fisher_r_to_z
-from conninfpy.synth_datasets import generate_fc_matrices
 from conninfpy.pairwise_stats import compute_t_stat
 import numpy as np
+
+from . import fixtures
 
 SHOW_PLOTS = os.getenv("CONNINFPY_TEST_PLOTS") == "1"
 
@@ -12,16 +13,10 @@ class Test(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        effect_size = 0.2
-        group1, group2, (cov1, cov2) = generate_fc_matrices(30,
-                                                            effect_size,
-                                                            n_samples_group1=30,
-                                                            n_samples_group2=20,
-                                                            seed=42)
-
+        # Scenario: small_two_sample — N=30, effect=0.2, n_g1=30, n_g2=20
+        group1, group2, (cov1, cov2) = fixtures.small_two_sample()
         t_stat_30 = compute_t_stat(fisher_r_to_z(group1),
                                    fisher_r_to_z(group2), test_type='two-sample')
-
         cls.fc_sim_30 = {"t_stat": t_stat_30,
                          "cov1": cov1.copy(), "cov2": cov2.copy()}
 
