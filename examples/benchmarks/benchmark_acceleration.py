@@ -16,39 +16,31 @@ Usage:
 import argparse
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 
 from conninfpy.glm_stats import compute_p_val_glm
 
-
-def generate_data(N, n_subjects, effect_edge, effect_size, seed=42):
-    """Generate synthetic connectivity data with planted effect."""
-    rng = np.random.RandomState(seed)
-    Y = rng.randn(n_subjects, N, N) * 0.5
-    age = rng.randn(n_subjects)
-
-    for s in range(n_subjects):
-        Y[s] = (Y[s] + Y[s].T) / 2
-        np.fill_diagonal(Y[s], 0)
-
-    i, j = effect_edge
-    for s in range(n_subjects):
-        Y[s, i, j] += effect_size * age[s]
-        Y[s, j, i] += effect_size * age[s]
-
-    return Y, age
+# Sibling benchmark helpers
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import PAPER_TOPOLOGIES, make_glm_data  # noqa: E402
 
 
-def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel, seed=42):
-    """Run benchmark for one network size."""
+def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
+                  topology="within_module_dense", seed=42):
+    """Run benchmark for one network size × topology."""
     effect_edge = (1, 2)
-    Y, age = generate_data(N, n_subjects, effect_edge, effect_size=1.5, seed=seed)
+    Y, age, _ = make_glm_data(
+        N=N, n_sub=n_subjects, topology=topology,
+        effect_edge=effect_edge, effect_beta=1.5,
+        seed=seed,
+    )
     n_edges = N * (N - 1) // 2
     triu = np.triu_indices(N, k=1)
 
     print(f"\n{'='*70}")
-    print(f"Network: {N}x{N} ({n_edges} edges), {n_subjects} subjects")
+    print(f"Network: {N}x{N} ({n_edges} edges), {n_subjects} subjects, topology={topology}")
     print(f"Reference: {n_perm_ref} perms | Accelerated: {n_perm_accel} perms")
     print(f"{'='*70}")
 
@@ -117,6 +109,11 @@ def main():
     parser = argparse.ArgumentParser(description="Benchmark acceleration methods")
     parser.add_argument("--quick", action="store_true", help="Quick run (N=10,30)")
     parser.add_argument("--full", action="store_true", help="Full run (includes N=90)")
+    parser.add_argument(
+        "--topologies", nargs="+", default=["within_module_dense"],
+        help=f"Topology scenarios to sweep (default: within_module_dense). "
+             f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -139,10 +136,12 @@ def main():
     print("Permutation Acceleration Benchmark")
     print(f"Methods: {[m[0] for m in methods]}")
     print(f"Network sizes: {network_sizes}")
+    print(f"Topologies: {args.topologies}")
     print(f"Reference perms: {n_perm_ref}, Accelerated perms: {n_perm_accel}")
 
     for N in network_sizes:
-        run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel)
+        for topo in args.topologies:
+            run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel, topology=topo)
 
     print("\n" + "=" * 70)
     print("KEY: r(pos) = correlation of positive p-values with reference")

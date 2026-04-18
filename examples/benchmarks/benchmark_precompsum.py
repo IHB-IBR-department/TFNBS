@@ -61,6 +61,10 @@ from conninfpy.pairwise_stats import (
     compute_t_stat_diff,
 )
 
+# Ensure sibling benchmark helpers are importable when run directly.
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+from _common import PAPER_TOPOLOGIES, make_two_sample  # noqa: E402
+
 
 DEFAULT_N_GRID = (60, 100, 200, 400)
 DEFAULT_NSUB_GRID = (30, 60, 100)
@@ -75,12 +79,28 @@ QUICK_NPERM_GRID = (100,)
 # Helpers
 # -----------------------------------------------------------------------------
 
-def _make_symmetric_data(n_sub: int, N: int, rng: np.random.RandomState) -> np.ndarray:
-    x = rng.randn(n_sub, N, N)
-    x = (x + x.transpose(0, 2, 1)) / 2
-    for s in range(n_sub):
-        np.fill_diagonal(x[s], 0)
-    return x
+def _make_diffs(n_sub: int, N: int, topology: str, seed: int) -> np.ndarray:
+    """Biologically-realistic paired-differences array from a topology scenario.
+
+    Builds a two-sample pair via the shared factory and returns ``g2 - g1``,
+    simulating paired differences with a topology-defined effect on top of
+    modular-covariance backbone.
+    """
+    g1, g2 = make_two_sample(N=N, n_sub=n_sub, topology=topology, seed=seed)
+    return g2 - g1
+
+
+def _make_two_groups(n1: int, n2: int, N: int, topology: str, seed: int):
+    """Biologically-realistic two-sample arrays (equal nsub per group by default).
+
+    Uses make_two_sample for the majority group, then generates the second
+    via an additional draw if sizes differ.
+    """
+    nsub_eq = max(n1, n2)
+    g1_full, g2_full = make_two_sample(
+        N=N, n_sub=nsub_eq, topology=topology, seed=seed,
+    )
+    return g1_full[:n1], g2_full[:n2]
 
 
 def _time_loop(task_fn: Callable, seeds: Iterable[int]) -> float:
@@ -93,14 +113,17 @@ def _time_loop(task_fn: Callable, seeds: Iterable[int]) -> float:
 def _print_header(title: str) -> None:
     print()
     print(title)
-    print(f'{"N":>4} {"n_sub":>6} {"n_perm":>7}   '
+    print(f'{"N":>4} {"n_sub":>6} {"n_perm":>7} {"topology":<24}  '
           f'{"slow (s)":>10} {"fast (s)":>10} {"speedup":>9}')
-    print('-' * 60)
+    print('-' * 82)
 
 
-def _print_row(N: int, n_sub: int, n_perm: int, t_slow: float, t_fast: float) -> None:
+def _print_row(
+    N: int, n_sub: int, n_perm: int, t_slow: float, t_fast: float,
+    topology: str = "",
+) -> None:
     speedup = t_slow / t_fast if t_fast > 0 else float('inf')
-    print(f'{N:>4} {n_sub:>6} {n_perm:>7}   '
+    print(f'{N:>4} {n_sub:>6} {n_perm:>7} {topology:<24}  '
           f'{t_slow:>10.3f} {t_fast:>10.3f} {speedup:>8.1f}x')
 
 
@@ -129,6 +152,7 @@ def run_paired(
     n_grid: Sequence[int],
     nsub_grid: Sequence[int],
     nperm_grid: Sequence[int],
+    topologies: Sequence[str],
     regressions: List[str],
 ) -> None:
     """Paired/one-sample: slow vs fast over full permutation loop."""
@@ -136,22 +160,24 @@ def run_paired(
     _print_header("Paired / one-sample (sign-flip permutation)")
     for N in n_grid:
         for n_sub in nsub_grid:
-            diffs = _make_symmetric_data(n_sub, N, rng)
-            X, sumsq = _precompute_edge_sums(diffs)
-            slow_task = partial(_permutation_task_paired, diffs, compute_t_stat_diff)
-            fast_task = partial(_fast_permutation_task_paired, X, sumsq)
-            for n_perm in nperm_grid:
-                seeds = rng.randint(0, 2**31 - 1, size=n_perm)
-                t_slow = _time_loop(slow_task, seeds)
-                t_fast = _time_loop(fast_task, seeds)
-                _print_row(N, n_sub, n_perm, t_slow, t_fast)
-                _check_speedup(regressions, "paired", N, n_sub, n_perm, t_slow, t_fast)
+            for topo in topologies:
+                diffs = _make_diffs(n_sub, N, topology=topo, seed=rng.randint(1_000_000))
+                X, sumsq = _precompute_edge_sums(diffs)
+                slow_task = partial(_permutation_task_paired, diffs, compute_t_stat_diff)
+                fast_task = partial(_fast_permutation_task_paired, X, sumsq)
+                for n_perm in nperm_grid:
+                    seeds = rng.randint(0, 2**31 - 1, size=n_perm)
+                    t_slow = _time_loop(slow_task, seeds)
+                    t_fast = _time_loop(fast_task, seeds)
+                    _print_row(N, n_sub, n_perm, t_slow, t_fast, topology=topo)
+                    _check_speedup(regressions, f"paired[{topo}]", N, n_sub, n_perm, t_slow, t_fast)
 
 
 def run_two_sample(
     n_grid: Sequence[int],
     nsub_grid: Sequence[int],
     nperm_grid: Sequence[int],
+    topologies: Sequence[str],
     regressions: List[str],
 ) -> None:
     """Two-sample (Welch): slow vs fast over full permutation loop."""
@@ -161,26 +187,27 @@ def run_two_sample(
         for n_sub in nsub_grid:
             n1 = n_sub // 2
             n2 = n_sub - n1
-            g1 = _make_symmetric_data(n1, N, rng)
-            g2 = _make_symmetric_data(n2, N, rng)
-            full = np.concatenate([g1, g2], axis=0)
-            Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(full)
-            slow_task = partial(_permutation_task_ind, full, compute_t_stat, n1)
-            fast_task = partial(
-                _fast_permutation_task_ind, Xall, Xall2, sum_all, sumsq_all, n1
-            )
-            for n_perm in nperm_grid:
-                seeds = rng.randint(0, 2**31 - 1, size=n_perm)
-                t_slow = _time_loop(slow_task, seeds)
-                t_fast = _time_loop(fast_task, seeds)
-                _print_row(N, n_sub, n_perm, t_slow, t_fast)
-                _check_speedup(regressions, "two-sample", N, n_sub, n_perm, t_slow, t_fast)
+            for topo in topologies:
+                g1, g2 = _make_two_groups(n1, n2, N, topology=topo, seed=rng.randint(1_000_000))
+                full = np.concatenate([g1, g2], axis=0)
+                Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(full)
+                slow_task = partial(_permutation_task_ind, full, compute_t_stat, n1)
+                fast_task = partial(
+                    _fast_permutation_task_ind, Xall, Xall2, sum_all, sumsq_all, n1
+                )
+                for n_perm in nperm_grid:
+                    seeds = rng.randint(0, 2**31 - 1, size=n_perm)
+                    t_slow = _time_loop(slow_task, seeds)
+                    t_fast = _time_loop(fast_task, seeds)
+                    _print_row(N, n_sub, n_perm, t_slow, t_fast, topology=topo)
+                    _check_speedup(regressions, f"two-sample[{topo}]", N, n_sub, n_perm, t_slow, t_fast)
 
 
 def run_enhancement(
     n_grid: Sequence[int],
     nsub_grid: Sequence[int],
     nperm_grid: Sequence[int],
+    topologies: Sequence[str],
     regressions: List[str],
 ) -> None:
     """Enhancement methods (NBS, TFNBS): slow scorer vs fast enhanced perm task.
@@ -207,22 +234,23 @@ def run_enhancement(
         _print_header(f"Enhancement: {method_name}")
         for N in n_grid:
             for n_sub in nsub_grid:
-                diffs = _make_symmetric_data(n_sub, N, rng)
-                X, sumsq = _precompute_edge_sums(diffs)
-                triu_idx = np.triu_indices(N, k=1)
-                slow_fn = partial(slow_task, diffs, enhancer, enh_kwargs)
-                fast_fn = partial(
-                    _fast_perm_task_enhanced_paired,
-                    X, sumsq, triu_idx, N, enhancer, enh_kwargs,
-                )
-                for n_perm in nperm_grid:
-                    seeds = rng.randint(0, 2**31 - 1, size=n_perm)
-                    t_slow = _time_loop(slow_fn, seeds)
-                    t_fast = _time_loop(fast_fn, seeds)
-                    _print_row(N, n_sub, n_perm, t_slow, t_fast)
-                    _check_speedup(
-                        regressions, method_name, N, n_sub, n_perm, t_slow, t_fast,
+                for topo in topologies:
+                    diffs = _make_diffs(n_sub, N, topology=topo, seed=rng.randint(1_000_000))
+                    X, sumsq = _precompute_edge_sums(diffs)
+                    triu_idx = np.triu_indices(N, k=1)
+                    slow_fn = partial(slow_task, diffs, enhancer, enh_kwargs)
+                    fast_fn = partial(
+                        _fast_perm_task_enhanced_paired,
+                        X, sumsq, triu_idx, N, enhancer, enh_kwargs,
                     )
+                    for n_perm in nperm_grid:
+                        seeds = rng.randint(0, 2**31 - 1, size=n_perm)
+                        t_slow = _time_loop(slow_fn, seeds)
+                        t_fast = _time_loop(fast_fn, seeds)
+                        _print_row(N, n_sub, n_perm, t_slow, t_fast, topology=topo)
+                        _check_speedup(
+                            regressions, f"{method_name}[{topo}]", N, n_sub, n_perm, t_slow, t_fast,
+                        )
 
 
 def run_composed(regressions: List[str]) -> None:
@@ -247,8 +275,12 @@ def run_composed(regressions: List[str]) -> None:
     for N in (100, 200, 400):
         for n_sub in (30, 60):
             n1 = n_sub // 2
-            g1 = _make_symmetric_data(n1, N, rng)
-            g2 = _make_symmetric_data(n_sub - n1, N, rng)
+            n2 = n_sub - n1
+            # Composed benchmark uses a fixed topology (within_module_dense)
+            # — its goal is the orthogonal-optimizations demonstration, not
+            # a topology sweep.
+            g1, g2 = _make_two_groups(n1, n2, N, topology="within_module_dense",
+                                      seed=rng.randint(1_000_000))
 
             full = np.concatenate([g1, g2], axis=0)
             Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(full)
@@ -303,6 +335,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help=f"Small grid for a fast run "
                              f"(N={QUICK_N_GRID}, n_sub={QUICK_NSUB_GRID}, "
                              f"n_perm={QUICK_NPERM_GRID})")
+    parser.add_argument("--topologies", nargs="+", default=["within_module_dense"],
+                        help=f"Topology scenarios to sweep (default: within_module_dense). "
+                             f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}")
     args = parser.parse_args(argv)
 
     if args.quick:
@@ -317,11 +352,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     regressions: List[str] = []
 
     if args.case in ("paired", "all"):
-        run_paired(n_grid, nsub_grid, nperm_grid, regressions)
+        run_paired(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
     if args.case in ("two-sample", "all"):
-        run_two_sample(n_grid, nsub_grid, nperm_grid, regressions)
+        run_two_sample(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
     if args.case in ("enhancement", "all"):
-        run_enhancement(n_grid, nsub_grid, nperm_grid, regressions)
+        run_enhancement(n_grid, nsub_grid, nperm_grid, args.topologies, regressions)
     if args.case in ("composed", "all"):
         run_composed(regressions)
 

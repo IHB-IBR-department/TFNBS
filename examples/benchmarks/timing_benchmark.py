@@ -37,12 +37,8 @@ import pandas as pd
 # ── ensure the package is importable ──────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root (2 levels up from examples/benchmarks/)
 
-from conninfpy import (
-    compute_p_val,
-    ModularDatasetGenerator,
-    fisher_r_to_z,
-    StatMethod,
-)
+from conninfpy import compute_p_val  # noqa: E402
+from _common import PAPER_TOPOLOGIES, make_two_sample  # noqa: E402
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -62,17 +58,11 @@ ALL_METHODS = [
 PARAMETRIC_METHODS = {"bonferroni", "bh_fdr"}
 
 
-def _generate_data(n_nodes: int, n_samples: int, seed: int = 42):
-    """Generate a pair of FC matrices with a within-module effect."""
-    gen = ModularDatasetGenerator(
-        N=n_nodes, n_modules=4, intra_corr=0.3, inter_corr=0.05,
-        noise_level=0.05, seed=seed,
+def _generate_data(n_nodes: int, n_samples: int, topology: str = "within_module_dense", seed: int = 42):
+    """Generate a pair of FC matrices with a topology-defined effect."""
+    return make_two_sample(
+        N=n_nodes, n_sub=n_samples, topology=topology, effect_size=0.3, seed=seed,
     )
-    mask = gen.get_mask_within_module(0)
-    g1, g2, _ = gen.generate_data(
-        mask, effect_size=0.3, n_samples_g1=n_samples, n_samples_g2=n_samples,
-    )
-    return fisher_r_to_z(g1), fisher_r_to_z(g2)
 
 
 def _make_net_labels(n_nodes: int) -> np.ndarray:
@@ -148,65 +138,70 @@ def run_benchmark(
     n_nodes_list: list,
     n_perms_list: list,
     methods: list,
+    topologies: list,
     n_samples: int = 30,
     repeats: int = 3,
     seed: int = 42,
 ):
     """Run the full timing benchmark and return a DataFrame."""
     rows = []
-    total_tasks = len(n_nodes_list) * len(n_perms_list) * len(methods) * repeats
+    total_tasks = (
+        len(n_nodes_list) * len(n_perms_list) * len(methods) * len(topologies) * repeats
+    )
     done = 0
 
     for n_nodes in n_nodes_list:
         n_edges = n_nodes * (n_nodes - 1) // 2
-        print(f"\n{'='*70}")
-        print(f"  n_nodes={n_nodes}  (n_edges={n_edges}), n_samples={n_samples}")
-        print(f"{'='*70}")
+        for topology in topologies:
+            print(f"\n{'='*70}")
+            print(f"  n_nodes={n_nodes}  (n_edges={n_edges}), n_samples={n_samples}, topology={topology}")
+            print(f"{'='*70}")
 
-        # Generate data once per network size
-        g1, g2 = _generate_data(n_nodes, n_samples, seed)
+            # Generate data once per (n_nodes, topology) pair
+            g1, g2 = _generate_data(n_nodes, n_samples, topology=topology, seed=seed)
 
-        for n_perms in n_perms_list:
-            print(f"\n  n_permutations={n_perms}")
-            print(f"  {'Method':<18} {'Time (s)':>10}  {'per-perm (ms)':>14}  {'per-edge-perm (us)':>18}")
-            print(f"  {'-'*64}")
+            for n_perms in n_perms_list:
+                print(f"\n  n_permutations={n_perms}")
+                print(f"  {'Method':<18} {'Time (s)':>10}  {'per-perm (ms)':>14}  {'per-edge-perm (us)':>18}")
+                print(f"  {'-'*64}")
 
-            for method in methods:
-                times = []
-                for r in range(repeats):
-                    t = time_method(method, g1, g2, n_perms, seed=seed + r)
-                    times.append(t)
-                    done += 1
+                for method in methods:
+                    times = []
+                    for r in range(repeats):
+                        t = time_method(method, g1, g2, n_perms, seed=seed + r)
+                        times.append(t)
+                        done += 1
 
-                mean_t = np.mean(times)
-                std_t = np.std(times) if repeats > 1 else 0.0
+                    mean_t = np.mean(times)
+                    std_t = np.std(times) if repeats > 1 else 0.0
 
-                # Parametric methods don't scale with n_perms
-                if method in PARAMETRIC_METHODS:
-                    per_perm_ms = 0.0
-                    per_edge_perm_us = 0.0
-                else:
-                    per_perm_ms = mean_t / n_perms * 1000
-                    per_edge_perm_us = mean_t / n_perms / n_edges * 1e6
+                    # Parametric methods don't scale with n_perms
+                    if method in PARAMETRIC_METHODS:
+                        per_perm_ms = 0.0
+                        per_edge_perm_us = 0.0
+                    else:
+                        per_perm_ms = mean_t / n_perms * 1000
+                        per_edge_perm_us = mean_t / n_perms / n_edges * 1e6
 
-                print(
-                    f"  {method:<18} {mean_t:>10.3f}  {per_perm_ms:>14.3f}  "
-                    f"{per_edge_perm_us:>18.3f}  "
-                    f"(+/- {std_t:.3f}s, {done}/{total_tasks})"
-                )
+                    print(
+                        f"  {method:<18} {mean_t:>10.3f}  {per_perm_ms:>14.3f}  "
+                        f"{per_edge_perm_us:>18.3f}  "
+                        f"(+/- {std_t:.3f}s, {done}/{total_tasks})"
+                    )
 
-                rows.append({
-                    "n_nodes": n_nodes,
-                    "n_edges": n_edges,
-                    "n_samples": n_samples,
-                    "n_permutations": n_perms,
-                    "method": method,
-                    "time_mean_s": round(mean_t, 4),
-                    "time_std_s": round(std_t, 4),
-                    "per_perm_ms": round(per_perm_ms, 4),
-                    "per_edge_perm_us": round(per_edge_perm_us, 4),
-                    "repeats": repeats,
-                })
+                    rows.append({
+                        "n_nodes": n_nodes,
+                        "n_edges": n_edges,
+                        "n_samples": n_samples,
+                        "topology": topology,
+                        "n_permutations": n_perms,
+                        "method": method,
+                        "time_mean_s": round(mean_t, 4),
+                        "time_std_s": round(std_t, 4),
+                        "per_perm_ms": round(per_perm_ms, 4),
+                        "per_edge_perm_us": round(per_edge_perm_us, 4),
+                        "repeats": repeats,
+                    })
 
     return pd.DataFrame(rows)
 
@@ -310,6 +305,11 @@ def main():
         help=f"Methods to benchmark (default: all). Choices: {ALL_METHODS}",
     )
     parser.add_argument(
+        "--topologies", nargs="+", default=["within_module_dense"],
+        help=f"Topology scenarios to sweep (default: within_module_dense only for "
+             f"timing consistency). The 4 paper topologies: {list(PAPER_TOPOLOGIES)}",
+    )
+    parser.add_argument(
         "--repeats", type=int, default=3,
         help="Timing repeats per condition (default: 3)",
     )
@@ -324,16 +324,18 @@ def main():
     args = parser.parse_args()
 
     print("ConnInfPy Timing Benchmark")
-    print(f"  n_nodes:  {args.n_nodes}")
-    print(f"  n_perms:  {args.n_perms}")
-    print(f"  methods:  {args.methods}")
-    print(f"  n_samples: {args.n_samples}")
-    print(f"  repeats:  {args.repeats}")
+    print(f"  n_nodes:    {args.n_nodes}")
+    print(f"  n_perms:    {args.n_perms}")
+    print(f"  methods:    {args.methods}")
+    print(f"  topologies: {args.topologies}")
+    print(f"  n_samples:  {args.n_samples}")
+    print(f"  repeats:    {args.repeats}")
 
     df = run_benchmark(
         n_nodes_list=args.n_nodes,
         n_perms_list=args.n_perms,
         methods=args.methods,
+        topologies=args.topologies,
         n_samples=args.n_samples,
         repeats=args.repeats,
         seed=args.seed,

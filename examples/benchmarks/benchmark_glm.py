@@ -12,43 +12,39 @@ Usage:
 """
 
 import argparse
+import sys
 import time
+from pathlib import Path
 
 import numpy as np
 
 from conninfpy.glm_stats import compute_p_val_glm, compute_glm_stat, build_design_matrix
 
+# Sibling benchmark helpers
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import PAPER_TOPOLOGIES, make_glm_data  # noqa: E402
 
-def generate_data(N, n_subjects, seed=42):
-    """Generate synthetic connectivity with continuous + confound."""
-    rng = np.random.RandomState(seed)
-    Y = rng.randn(n_subjects, N, N) * 0.5
-    age = rng.randn(n_subjects)
-    motion = rng.randn(n_subjects)
 
-    for s in range(n_subjects):
-        Y[s] = (Y[s] + Y[s].T) / 2
-        np.fill_diagonal(Y[s], 0)
+def generate_data(N, n_subjects, topology="within_module_dense", confound=True, seed=42):
+    """Generate biologically-realistic GLM data with optional confound.
 
-    # Plant effects: 5 edges correlated with age
-    effect_edges = [(1, 2), (2, 3), (3, 4), (5, 6), (7, 8)]
-    for i, j in effect_edges:
-        if i < N and j < N:
-            for s in range(n_subjects):
-                Y[s, i, j] += 1.0 * age[s]
-                Y[s, j, i] += 1.0 * age[s]
-
+    Thin wrapper over make_glm_data — keeps signature stable for this file.
+    """
+    Y, age, motion = make_glm_data(
+        N=N, n_sub=n_subjects, topology=topology,
+        confound=confound, seed=seed,
+    )
     return Y, age, motion
 
 
-def benchmark_compute_glm_stat(N_values, n_subjects, n_repeats=5):
+def benchmark_compute_glm_stat(N_values, n_subjects, topology, n_repeats=5):
     """Benchmark just the GLM stat computation (no permutation)."""
-    print("\n--- compute_glm_stat (no permutation) ---")
+    print(f"\n--- compute_glm_stat (no permutation, topology={topology}) ---")
     print(f"{'N':>5} {'edges':>7} {'time':>10} {'edges/s':>10}")
     print("-" * 35)
 
     for N in N_values:
-        Y, age, motion = generate_data(N, n_subjects)
+        Y, age, motion = generate_data(N, n_subjects, topology=topology)
         X, contrast = build_design_matrix(age, confounds=motion)
 
         times = []
@@ -62,15 +58,15 @@ def benchmark_compute_glm_stat(N_values, n_subjects, n_repeats=5):
         print(f"{N:>5} {n_edges:>7} {avg_t*1000:>8.1f}ms {n_edges/avg_t:>10.0f}")
 
 
-def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods):
+def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods, topology):
     """Benchmark full pipeline with permutation testing."""
-    print(f"\n--- Full pipeline ({n_perms} perms, mp={use_mp}) ---")
+    print(f"\n--- Full pipeline ({n_perms} perms, mp={use_mp}, topology={topology}) ---")
     header = f"{'N':>5} {'edges':>7} {'method':<10} {'time':>8} {'p_planted':>10}"
     print(header)
     print("-" * len(header))
 
     for N in N_values:
-        Y, age, motion = generate_data(N, n_subjects)
+        Y, age, motion = generate_data(N, n_subjects, topology=topology)
         n_edges = N * (N - 1) // 2
 
         for method_name, method_kwargs in methods:
@@ -102,6 +98,11 @@ def main():
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--full", action="store_true")
     parser.add_argument("--mp", action="store_true", help="Enable multiprocessing")
+    parser.add_argument(
+        "--topologies", nargs="+", default=["within_module_dense"],
+        help=f"Topology scenarios to sweep (default: within_module_dense). "
+             f"The 4 paper topologies: {list(PAPER_TOPOLOGIES)}",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -128,9 +129,11 @@ def main():
     print(f"Subjects: {n_subjects}")
     print(f"Permutations: {n_perms}")
     print(f"Multiprocessing: {args.mp}")
+    print(f"Topologies: {args.topologies}")
 
-    benchmark_compute_glm_stat(N_values, n_subjects)
-    benchmark_full_pipeline(N_values, n_subjects, n_perms, args.mp, methods)
+    for topo in args.topologies:
+        benchmark_compute_glm_stat(N_values, n_subjects, topology=topo)
+        benchmark_full_pipeline(N_values, n_subjects, n_perms, args.mp, methods, topology=topo)
 
 
 if __name__ == "__main__":
