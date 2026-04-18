@@ -11,7 +11,7 @@ from conninfpy.tfnbs_score import (
     HAS_NUMBA,
 )
 from conninfpy.synth_datasets import generate_fc_matrices, ModularDatasetGenerator
-from conninfpy.pairwise_stats import compute_t_stat_ind
+from conninfpy.pairwise_stats import compute_t_stat
 from conninfpy.utils import fisher_r_to_z
 import time
 
@@ -325,7 +325,7 @@ class TestNetworkInformedTFNBS(TestCase):
             time_points=200
         )
 
-        t_stat_dict = compute_t_stat_ind(g1, g2)
+        t_stat_dict = compute_t_stat(g1, g2, test_type='two-sample')
         t_stats = t_stat_dict["g2>g1"]
         np.fill_diagonal(t_stats, 0)
 

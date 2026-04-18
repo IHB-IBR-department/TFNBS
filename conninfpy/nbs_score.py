@@ -271,10 +271,10 @@ def nbs_bct(
 
     Returns p-values, adjacency matrices (thresholded t-stats), and null maxima.
     """
-    from .pairwise_stats import compute_null_dist, compute_t_stat, compute_t_stat_diff, compute_diffs
+    from .pairwise_stats import compute_null_dist, compute_t_stat, compute_t_stat_diff
 
     if test_type == "paired":
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         emp_t_dict = _score_nbs_from_diffs(diffs, threshold=threshold, stat_type=stat_type)
         t_func = _score_nbs_from_diffs
 
@@ -296,7 +296,7 @@ def nbs_bct(
     # Build adjacency masks for reporting (raw thresholding on t-stats)
     adj_matrices: Dict[str, npt.NDArray[np.uint8]] = {}
     if test_type == "paired":
-        raw_t = compute_t_stat_diff(compute_diffs(group1, group2))
+        raw_t = compute_t_stat_diff(group2 - group1)
     elif test_type == "two-sample":
         raw_t = compute_t_stat(group1, group2, test_type="two-sample", **kwargs)
     else:

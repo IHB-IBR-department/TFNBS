@@ -58,10 +58,8 @@ __all__ = [
     "compute_p_val",
     "compute_t_stat",
     "compute_null_dist",
-    # T-statistic functions
+    # T-statistic primitive (accepts pre-computed diffs)
     "compute_t_stat_diff",
-    "compute_t_stat_ind",
-    "compute_diffs",
     "get_available_cores",
     "_is_worker_process",
 ]
@@ -550,7 +548,7 @@ def compute_null_dist(
     # Fast path: raw t-statistic with no enhancement — uses pre-computed sums
     # trick (upper-triangle only, sign-flip-invariant Σx²). ~6-8x faster per perm.
     use_fast_tstat = (
-        func in (compute_t_stat_diff, compute_t_stat_ind, compute_t_stat)
+        func in (compute_t_stat_diff, _compute_t_stat_ind, compute_t_stat)
         and not func_kwargs
         and group1.ndim == 3
         and group1.shape[1] == group1.shape[2]
@@ -559,11 +557,11 @@ def compute_null_dist(
     # Prepare data for permutation
     if test_type_str == TestType.PAIRED.value:
         if use_fast_tstat:
-            diffs = compute_diffs(group1, group2)
+            diffs = group2 - group1
             X, sumsq_all = _precompute_edge_sums(diffs)
             task_func = partial(_fast_permutation_task_paired, X, sumsq_all)
         else:
-            array_to_permute = compute_diffs(group1, group2)
+            array_to_permute = group2 - group1
             task_func = partial(_permutation_task_paired, array_to_permute, func, **func_kwargs)
 
     elif test_type_str == TestType.TWO_SAMPLE.value:
@@ -581,7 +579,7 @@ def compute_null_dist(
             task_func = partial(_fast_permutation_task_paired, X, sumsq_all)
         else:
             group2_zeros = np.zeros(group1.shape)
-            array_to_permute = compute_diffs(group1, group2_zeros)
+            array_to_permute = group2_zeros - group1
             task_func = partial(_permutation_task_paired, array_to_permute, func, **func_kwargs)
     else:
         raise ValueError(
@@ -631,7 +629,7 @@ def _compute_enhanced_null_dist(
     triu_idx = np.triu_indices(N, k=1)
 
     if test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         X, sumsq_all = _precompute_edge_sums(diffs)
         task_func = partial(
             _fast_perm_task_enhanced_paired,
@@ -694,7 +692,7 @@ def _compute_bh_fdr_perm_p_values(
     """
     # Compute observed t-stats
     if test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         emp_t_dict = compute_t_stat_diff(diffs)
     elif test_type_str == TestType.ONE_SAMPLE.value:
         emp_t_dict = compute_t_stat_diff(group1)
@@ -714,7 +712,7 @@ def _compute_bh_fdr_perm_p_values(
     # Prepare permutation task — pre-computed sums fast path (edge vectors).
     # Skips the redundant (N, N) reshape and triu extraction inside the perm loop.
     if test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         X, sumsq_all = _precompute_edge_sums(diffs)
         task_func = partial(_fast_permutation_task_paired_edges, X, sumsq_all)
     elif test_type_str == TestType.ONE_SAMPLE.value:
@@ -874,14 +872,14 @@ def _compute_parametric_p_values(
     """
     # Compute t-statistics using existing infrastructure
     if test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         t_dict = compute_t_stat_diff(diffs)
         df = _compute_degrees_of_freedom(group1.shape[0], 0, test_type_str)
     elif test_type_str == TestType.ONE_SAMPLE.value:
         t_dict = compute_t_stat_diff(group1)
         df = _compute_degrees_of_freedom(group1.shape[0], 0, test_type_str)
     elif test_type_str == TestType.TWO_SAMPLE.value:
-        t_dict = compute_t_stat_ind(group1, group2)
+        t_dict = _compute_t_stat_ind(group1, group2)
         df = _compute_degrees_of_freedom(group1.shape[0], group2.shape[0], test_type_str)
     else:
         raise ValueError(f"Invalid test_type: '{test_type_str}'")
@@ -1141,12 +1139,12 @@ def compute_p_val(
 
     # Compute observed t-stat once, then apply enhancement (if any)
     if test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         emp_t_dict = compute_t_stat_diff(diffs)
     elif test_type_str == TestType.ONE_SAMPLE.value:
         emp_t_dict = compute_t_stat_diff(group1)
     elif test_type_str == TestType.TWO_SAMPLE.value:
-        emp_t_dict = compute_t_stat_ind(group1, group2)
+        emp_t_dict = _compute_t_stat_ind(group1, group2)
     else:
         raise ValueError(
             f"Invalid test_type: '{test_type_str}'. "
@@ -1162,7 +1160,7 @@ def compute_p_val(
     if enhance_func is None:
         group2_for_null = group2 if test_type_str != TestType.ONE_SAMPLE.value else None
         tstat_func = (
-            compute_t_stat_ind
+            _compute_t_stat_ind
             if test_type_str == TestType.TWO_SAMPLE.value
             else compute_t_stat_diff
         )
@@ -1237,10 +1235,10 @@ def compute_t_stat(
     elif test_type_str == TestType.TWO_SAMPLE.value:
         if group1.shape[1:] != group2.shape[1:]:
             raise ValueError("Trailing dimensions of group1 and group2 must match.")
-        return compute_t_stat_ind(group1, group2)
+        return _compute_t_stat_ind(group1, group2)
 
     elif test_type_str == TestType.PAIRED.value:
-        diffs = compute_diffs(group1, group2)
+        diffs = group2 - group1
         return compute_t_stat_diff(diffs)
 
     else:
@@ -1248,28 +1246,6 @@ def compute_t_stat(
             f"Invalid test_type: '{test_type_str}'. "
             f"Must be one of: {[t.value for t in TestType]}"
         )
-
-
-def compute_diffs(
-    group1: npt.NDArray[np.float64],
-    group2: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
-    """
-    Compute differences between paired samples (group2 - group1).
-
-    Parameters
-    ----------
-    group1 : ndarray of shape (n_samples, *dims)
-        Data array for group 1.
-    group2 : ndarray of shape (n_samples, *dims)
-        Data array for group 2.
-
-    Returns
-    -------
-    ndarray
-        Array of differences with same shape.
-    """
-    return group2 - group1
 
 
 def compute_t_stat_diff(
@@ -1313,7 +1289,7 @@ def compute_t_stat_diff(
     return {"g2>g1": pos_t, "g1>g2": neg_t}
 
 
-def compute_t_stat_ind(
+def _compute_t_stat_ind(
     group1: npt.NDArray[np.float64],
     group2: npt.NDArray[np.float64]
 ) -> Dict[str, npt.NDArray[np.float64]]:

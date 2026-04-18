@@ -48,7 +48,7 @@ def nbs_bct(group1: npt.NDArray[np.float64],
 
     if test_type == 'paired':
         t_func = compute_t_stat_diff
-        emp_t_dict = t_func(compute_diffs(group1, group2))
+        emp_t_dict = t_func(group2 - group1)
 
     elif test_type == 'two-sample':
         t_func = compute_t_stat

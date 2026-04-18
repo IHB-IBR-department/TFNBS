@@ -22,7 +22,7 @@ from conninfpy.glm_stats import (
     build_design_matrix,
 )
 from conninfpy.pairwise_stats import (
-    compute_t_stat_ind,
+    compute_t_stat,
     _extract_max_stats,
 )
 
@@ -72,7 +72,7 @@ class TestComputeGLMStat(unittest.TestCase):
     def test_binary_glm_matches_ttest(self):
         """
         Binary GLM (group indicator) produces same t-statistics as
-        compute_t_stat_ind within numerical tolerance.
+        two-sample Welch t-test within numerical tolerance.
         """
         rng = self.rng
         N = self.N
@@ -89,7 +89,7 @@ class TestComputeGLMStat(unittest.TestCase):
             np.fill_diagonal(group2[s], 0)
 
         # Existing t-test
-        ttest_result = compute_t_stat_ind(group1, group2)
+        ttest_result = compute_t_stat(group1, group2, test_type='two-sample')
 
         # GLM: Y = [group1; group2], X = [intercept, group_indicator]
         Y = np.concatenate([group1, group2], axis=0)

@@ -28,9 +28,7 @@ from .pairwise_stats import (
     compute_p_val,
     compute_null_dist,
     compute_t_stat,
-    compute_diffs,
     compute_t_stat_diff,
-    compute_t_stat_ind,
     StatMethod,
     TestType,
 )
