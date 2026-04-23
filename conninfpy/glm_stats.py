@@ -51,6 +51,7 @@ from .pairwise_stats import (
     _collect_results_to_arrays,
     _compute_p_values_from_null,
     _is_worker_process,
+    compute_p_val,
     get_available_cores,
     StatMethod,
     CONSTRAINED_METHODS,
@@ -62,6 +63,7 @@ __all__ = [
     "GLMStatType",
     "compute_glm_stat",
     "compute_p_val_glm",
+    "compute_p_val_paired_glm",
     "build_design_matrix",
 ]
 
@@ -80,6 +82,13 @@ class GLMStatType(str, Enum):
 
     BETA = "beta"
     """Raw regression coefficient. Interpretable, needs adapted threshold."""
+
+    FSTAT = "fstat"
+    """F-statistic for an omnibus (multi-row) contrast.
+
+    Non-negative by construction — the enhancement pipeline sees a single
+    ``'omnibus'`` key instead of a ``positive``/``negative`` split. For a
+    single-row contrast, F == t² (same rejection regions, same rankings)."""
 
 
 # =============================================================================
@@ -141,8 +150,10 @@ def compute_glm_stat(
     Compute edge-wise GLM statistics for connectivity matrices.
 
     For each edge (i,j): Y_ij = X @ beta_ij + epsilon_ij.
-    Returns the statistic for the contrast of interest, separated into
-    positive and negative effects.
+
+    - ``tstat``/``beta``: single-column contrast, returns ``{positive, negative}``.
+    - ``fstat``: multi-row contrast (omnibus F), returns ``{omnibus}`` — F is
+      non-negative by construction, so there is no direction to split.
 
     Parameters
     ----------
@@ -150,10 +161,11 @@ def compute_glm_stat(
         Connectivity matrices (symmetric, zero diagonal).
     X : ndarray of shape (n_subjects, p)
         Design matrix (should include intercept column if needed).
-    contrast : ndarray of shape (p,)
-        Contrast vector. Must have exactly one non-zero entry targeting
-        the predictor of interest (e.g., [0, 1, 0] for column 1).
-    stat_type : {'tstat', 'beta'} or GLMStatType, default='tstat'
+    contrast : ndarray of shape (p,) or (r, p)
+        Contrast vector (for ``tstat``/``beta``: 1D) or contrast matrix (for
+        ``fstat``: 2D with ``r`` rows). A 1D contrast passed with ``stat_type
+        ='fstat'`` is treated as a 1×p matrix (F == t² at each edge).
+    stat_type : {'tstat', 'beta', 'fstat'} or GLMStatType, default='tstat'
         Type of statistic to compute.
     X_pinv : ndarray of shape (p, n_subjects), optional
         Precomputed pseudoinverse. If None, computed internally.
@@ -164,9 +176,9 @@ def compute_glm_stat(
     Returns
     -------
     dict
-        Dictionary with:
-        - 'positive': non-negative statistic array (N, N) for positive effects
-        - 'negative': non-negative statistic array (N, N) for negative effects
+        For ``tstat``/``beta``: ``{'positive': (N, N), 'negative': (N, N)}``,
+        both non-negative.
+        For ``fstat``: ``{'omnibus': (N, N)}``, non-negative.
     """
     stat_type_str = stat_type.value if isinstance(stat_type, GLMStatType) else stat_type
 
@@ -183,6 +195,59 @@ def compute_glm_stat(
     Y_flat = Y.reshape(n, -1)  # (n, N*N)
     beta_flat = X_pinv @ Y_flat  # (p, N*N)
     beta = beta_flat.reshape(p, N, N)  # (p, N, N)
+
+    if stat_type_str == GLMStatType.FSTAT.value:
+        # --- F-statistic: (Cβ)' [C(X'X)⁻¹C']⁻¹ (Cβ) / (r · σ²) ---
+        if contrast.ndim == 1:
+            C = contrast.reshape(1, -1)
+        elif contrast.ndim == 2:
+            C = contrast
+        else:
+            raise ValueError(
+                f"F-stat contrast must be 1D or 2D, got ndim={contrast.ndim}."
+            )
+        r = C.shape[0]
+        if C.shape[1] != p:
+            raise ValueError(
+                f"Contrast has {C.shape[1]} columns but design matrix has {p}."
+            )
+
+        # Residual variance per edge
+        residuals_flat = Y_flat - X @ beta_flat  # (n, N*N)
+        df = n - p
+        sigma2_flat = np.sum(residuals_flat ** 2, axis=0) / df
+        sigma2 = sigma2_flat.reshape(N, N)
+
+        if XtX_inv is None:
+            XtX_inv = np.linalg.inv(X.T @ X)
+
+        # M = C (X'X)⁻¹ C' shape (r, r); invert once (small)
+        M = C @ XtX_inv @ C.T
+        try:
+            M_inv = np.linalg.inv(M)
+        except np.linalg.LinAlgError as err:
+            raise ValueError(
+                "C(X'X)⁻¹C' is singular — contrast rows are not linearly "
+                "independent on the column space of X."
+            ) from err
+
+        # Cβ shape (r, N, N); quadratic form per edge via einsum
+        Cbeta = np.tensordot(C, beta, axes=([1], [0]))  # (r, N, N)
+        quad = np.einsum("ixy,ij,jxy->xy", Cbeta, M_inv, Cbeta)  # (N, N)
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            F = quad / (r * sigma2)
+            F = np.where(sigma2 == 0, 0.0, F)
+            F = np.where(F < 0, 0.0, F)  # guard numerical noise near zero
+
+        return {"omnibus": F}
+
+    # --- t-stat / beta path: single-column contrast, signed output ---
+    if contrast.ndim != 1:
+        raise ValueError(
+            f"stat_type='{stat_type_str}' requires a 1D contrast; got "
+            f"ndim={contrast.ndim}. Use stat_type='fstat' for multi-row contrasts."
+        )
 
     # Contrast beta: scalar statistic per edge
     # contrast @ beta → (N, N)
@@ -282,22 +347,30 @@ def _compute_reduced_model(
     Compute the reduced design matrix for Freedman-Lane permutation.
 
     The reduced model contains all columns NOT targeted by the contrast.
+    For a 2D contrast matrix (F-test), a column is targeted if ANY row of
+    the contrast has a non-zero entry for it.
 
     Parameters
     ----------
     X : ndarray of shape (n_subjects, p)
         Full design matrix.
-    contrast : ndarray of shape (p,)
-        Contrast vector (non-zero entries identify columns of interest).
+    contrast : ndarray of shape (p,) or (r, p)
+        Contrast vector (1D, t-test) or contrast matrix (2D, F-test).
 
     Returns
     -------
     X_reduced : ndarray of shape (n_subjects, p_reduced)
-        Reduced design matrix (confounds + intercept only).
+        Reduced design matrix (columns not touched by the contrast).
     """
-    keep_cols = np.where(contrast == 0)[0]
+    contrast = np.asarray(contrast)
+    if contrast.ndim == 1:
+        keep_cols = np.where(contrast == 0)[0]
+    else:
+        # 2D: keep columns that are zero across ALL contrast rows
+        keep_cols = np.where(np.all(contrast == 0, axis=0))[0]
+
     if len(keep_cols) == 0:
-        # No confounds — reduced model is just intercept
+        # All columns targeted — reduced model is just intercept
         return np.ones((X.shape[0], 1), dtype=np.float64)
     return X[:, keep_cols]
 
@@ -430,15 +503,21 @@ def compute_p_val_glm(
         Connectivity matrices (symmetric, zero diagonal).
     design_matrix : ndarray of shape (n_subjects, p), optional
         Full design matrix (advanced API). Mutually exclusive with ``interest``.
-    contrast : ndarray of shape (p,), optional
-        Contrast vector (advanced API). Required with ``design_matrix``.
+    contrast : ndarray of shape (p,) or (r, p), optional
+        Contrast vector (1D, t/beta) or contrast matrix (2D, F-stat).
+        Required with ``design_matrix``. For ``stat_type='fstat'``, pass a
+        2D matrix whose rows encode the linear combinations being tested
+        jointly (e.g., ``[[1, -1, 0], [1, 0, -1]]`` tests β₁=β₂=β₃).
     interest : ndarray of shape (n_subjects,), optional
         Variable of interest (convenience API). Mutually exclusive with
-        ``design_matrix``.
+        ``design_matrix``. Produces a single-column contrast — use the
+        advanced API for multi-row F-contrasts.
     confounds : ndarray of shape (n_subjects,) or (n_subjects, q), optional
         Confound variables (convenience API).
-    stat_type : {'tstat', 'beta'} or GLMStatType, default='tstat'
-        Type of statistic to compute.
+    stat_type : {'tstat', 'beta', 'fstat'} or GLMStatType, default='tstat'
+        Type of statistic to compute. ``'fstat'`` enables an omnibus F-test
+        for a multi-row contrast matrix and returns a single ``'omnibus'``
+        p-value map (no positive/negative split).
     method : str or StatMethod, default='tfnbs'
         Enhancement method.
     n_permutations : int, default=1000
@@ -466,7 +545,9 @@ def compute_p_val_glm(
     Returns
     -------
     dict
-        Dictionary with 'positive' and 'negative' p-value arrays of shape (N, N).
+        For ``stat_type`` in ``{'tstat', 'beta'}``: ``{'positive', 'negative'}``
+        p-value arrays of shape (N, N). For ``stat_type='fstat'``: a single
+        ``{'omnibus'}`` p-value array of shape (N, N).
 
     Raises
     ------
@@ -501,13 +582,26 @@ def compute_p_val_glm(
         raise ValueError(
             f"Design matrix has {X.shape[0]} rows but Y has {n_subjects} subjects."
         )
-    if len(contrast_vec) != p:
+
+    # Contrast may be 1D (t/beta) or 2D (F-stat). Check the column dimension.
+    if contrast_vec.ndim == 1:
+        if contrast_vec.shape[0] != p:
+            raise ValueError(
+                f"Contrast vector length ({contrast_vec.shape[0]}) must match "
+                f"number of columns in design matrix ({p})."
+            )
+    elif contrast_vec.ndim == 2:
+        if contrast_vec.shape[1] != p:
+            raise ValueError(
+                f"Contrast matrix has {contrast_vec.shape[1]} columns but design "
+                f"matrix has {p}."
+            )
+    else:
         raise ValueError(
-            f"Contrast vector length ({len(contrast_vec)}) must match "
-            f"number of columns in design matrix ({p})."
+            f"Contrast must be 1D or 2D, got ndim={contrast_vec.ndim}."
         )
     if np.all(contrast_vec == 0):
-        raise ValueError("Contrast vector must have at least one non-zero entry.")
+        raise ValueError("Contrast must have at least one non-zero entry.")
 
     if acceleration is not None and acceleration not in ("gpd", "gamma"):
         raise ValueError(
@@ -612,15 +706,21 @@ def compute_p_val_glm(
 
     # ---- Two-tailed FWER ----
     if two_tailed:
-        # Build joint null from max(max_positive, max_negative)
-        joint_null = np.maximum(
-            max_null_dict["positive"],
-            max_null_dict["negative"],
-        )
-        max_null_dict = {
-            "positive": joint_null,
-            "negative": joint_null,
-        }
+        if stat_type_str == GLMStatType.FSTAT.value:
+            # F is non-negative; there is no sign to split and nothing to pool.
+            # Silently ignore rather than raise — keeps the API uniform for
+            # callers that pass two_tailed=True by default.
+            pass
+        else:
+            # Build joint null from max(max_positive, max_negative)
+            joint_null = np.maximum(
+                max_null_dict["positive"],
+                max_null_dict["negative"],
+            )
+            max_null_dict = {
+                "positive": joint_null,
+                "negative": joint_null,
+            }
 
     # ---- Compute p-values ----
     if acceleration is not None:
@@ -628,3 +728,134 @@ def compute_p_val_glm(
             emp_stat_dict, max_null_dict, method=acceleration,
         )
     return _compute_p_values_from_null(emp_stat_dict, max_null_dict)
+
+
+# =============================================================================
+# Paired-difference GLM convenience wrapper
+# =============================================================================
+
+def compute_p_val_paired_glm(
+    Y_A: npt.NDArray[np.float64],
+    Y_B: npt.NDArray[np.float64],
+    confounds_A: Optional[npt.NDArray[np.float64]] = None,
+    confounds_B: Optional[npt.NDArray[np.float64]] = None,
+    **kwargs,
+) -> Dict[str, npt.NDArray[np.float64]]:
+    """
+    Paired-difference GLM: test ``Y_A`` vs ``Y_B`` within-subject, optionally
+    controlling for per-subject differences in confounds.
+
+    Two routes depending on ``confounds_*``:
+
+    - **No confounds** → delegates to
+      :func:`conninfpy.compute_p_val` with ``test_type='paired'`` (sign-flip
+      permutation). This is numerically equivalent to a one-sample GLM on
+      the differences and avoids the Freedman-Lane degeneracy that occurs
+      when the contrast targets the only column in the design matrix.
+    - **With confounds** → builds ``Δ_Y = Y_A − Y_B`` and
+      ``Δ_C = confounds_A − confounds_B``, then calls
+      :func:`compute_p_val_glm` with ``design_matrix = [1, Δ_C]``,
+      ``contrast = [1, 0, ..., 0]`` (intercept as the effect of interest).
+
+    Use this when the same subjects are measured under two conditions (task
+    A vs task B, pre vs post, open vs close) and a confound whose value
+    *differs between the two conditions for the same subject* (e.g.,
+    motion, arousal, response time) needs to be partialled out.
+
+    Parameters
+    ----------
+    Y_A, Y_B : ndarray of shape (n_subjects, N, N)
+        Aligned per-subject connectivity matrices for the two conditions.
+        ``Y_A[s]`` and ``Y_B[s]`` must correspond to the same subject.
+    confounds_A, confounds_B : ndarray of shape (n_subjects,) or (n_subjects, k), optional
+        Aligned per-subject confound values for the two conditions. Either
+        pass both or neither. If passed, the *difference*
+        ``confounds_A - confounds_B`` enters the GLM as a nuisance regressor.
+    **kwargs
+        Forwarded to the downstream call (``compute_p_val`` or
+        ``compute_p_val_glm``). ``test_type`` is fixed to ``'paired'`` when
+        routing to the t-test pipeline and must not be supplied.
+
+    Returns
+    -------
+    dict
+        For the no-confound path: ``{'g2>g1', 'g1>g2'}`` (matches
+        ``compute_p_val(test_type='paired')`` output; ``g2>g1`` is the
+        ``Y_B > Y_A`` tail, i.e. condition B has greater connectivity).
+        For the with-confound path: ``{'positive', 'negative'}`` referring
+        to the sign of the ``Y_A - Y_B`` intercept, adjusted for ``Δ_C``.
+
+    Raises
+    ------
+    ValueError
+        If ``Y_A`` and ``Y_B`` shapes mismatch, only one of the confound
+        arrays is supplied, or confound shapes mismatch.
+    """
+    Y_A = np.asarray(Y_A, dtype=np.float64)
+    Y_B = np.asarray(Y_B, dtype=np.float64)
+    if Y_A.shape != Y_B.shape:
+        raise ValueError(
+            f"Y_A and Y_B must have identical shapes, got {Y_A.shape} vs {Y_B.shape}."
+        )
+    if Y_A.ndim != 3 or Y_A.shape[1] != Y_A.shape[2]:
+        raise ValueError(
+            f"Y_A/Y_B must have shape (n_subjects, N, N), got {Y_A.shape}."
+        )
+
+    has_A = confounds_A is not None
+    has_B = confounds_B is not None
+    if has_A != has_B:
+        raise ValueError(
+            "Provide either both confounds_A and confounds_B, or neither. "
+            "Paired-difference inference requires matched confound values "
+            "in both conditions."
+        )
+
+    # --- No-confound path: delegate to sign-flip paired test ---
+    if not has_A:
+        if "test_type" in kwargs:
+            raise ValueError(
+                "test_type is fixed to 'paired' by compute_p_val_paired_glm; "
+                "do not pass it explicitly."
+            )
+        return compute_p_val(Y_A, Y_B, test_type="paired", **kwargs)
+
+    # --- With-confound path: one-sample GLM on differences ---
+    confounds_A = np.asarray(confounds_A, dtype=np.float64)
+    confounds_B = np.asarray(confounds_B, dtype=np.float64)
+    if confounds_A.shape != confounds_B.shape:
+        raise ValueError(
+            f"confounds_A and confounds_B must have identical shapes, "
+            f"got {confounds_A.shape} vs {confounds_B.shape}."
+        )
+    if confounds_A.shape[0] != Y_A.shape[0]:
+        raise ValueError(
+            f"confounds have {confounds_A.shape[0]} subjects but Y_A has "
+            f"{Y_A.shape[0]}."
+        )
+
+    Delta_Y = Y_A - Y_B
+    Delta_C = confounds_A - confounds_B
+    if Delta_C.ndim == 1:
+        Delta_C = Delta_C[:, np.newaxis]
+
+    n_subjects = Y_A.shape[0]
+    intercept = np.ones((n_subjects, 1), dtype=np.float64)
+    X = np.hstack([intercept, Delta_C])
+    contrast = np.zeros(X.shape[1], dtype=np.float64)
+    contrast[0] = 1.0  # test the intercept (= mean of Δ_Y)
+
+    # Disallow caller from overriding the design; these keys conflict.
+    for forbidden in ("design_matrix", "contrast", "interest", "confounds"):
+        if forbidden in kwargs:
+            raise ValueError(
+                f"compute_p_val_paired_glm builds the design internally; "
+                f"do not pass '{forbidden}'."
+            )
+
+    return compute_p_val_glm(
+        Delta_Y,
+        design_matrix=X,
+        contrast=contrast,
+        **kwargs,
+    )

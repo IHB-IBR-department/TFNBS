@@ -61,5 +61,18 @@ from .glm_stats import (
     GLMStatType,
     compute_glm_stat,
     compute_p_val_glm,
+    compute_p_val_paired_glm,
     build_design_matrix,
+)
+
+from .harmonize import (
+    ComBatModel,
+    CombatResult,
+    combat_harmonize,
+    combat_fit,
+    combat_apply,
+    compute_vif,
+    design_diagnostics,
+    flatten_upper,
+    unflatten_upper,
 )
