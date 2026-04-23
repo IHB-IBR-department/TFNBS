@@ -1,6 +1,21 @@
 # Examples
 
-New to ConnInfPy? Start here → [`notebooks/EEG_example.ipynb`](notebooks/EEG_example.ipynb) (real paired-EEG comparison) or [`notebooks/TFNBS_Example.ipynb`](notebooks/TFNBS_Example.ipynb) (TMFC synthetic dataset with MATLAB reference outputs).
+New to ConnInfPy? Start with the numbered tutorial series in [`notebooks/`](notebooks/) — open [`01_quickstart_ttest.ipynb`](notebooks/01_quickstart_ttest.ipynb) first.
+
+## Tutorial notebooks
+
+Each notebook is self-contained, runs on synthetic data (or bundled demo data for 07/EEG), and targets ≲ 1 minute runtime.
+
+| # | Notebook | Teaches |
+|---|---|---|
+| 01 | [`01_quickstart_ttest.ipynb`](notebooks/01_quickstart_ttest.ipynb) | Minimum viable TFNBS pipeline end-to-end |
+| 02 | [`02_enhancement_methods.ipynb`](notebooks/02_enhancement_methods.ipynb) | `tstat` / `nbs` / `tfnbs` / `cnbs` / `ni_tfnbs` / `fbc_tfnbs` side-by-side |
+| 03 | [`03_glm_inference.ipynb`](notebooks/03_glm_inference.ipynb) | Continuous predictor + confound partialling via Freedman-Lane |
+| 04 | [`04_acceleration.ipynb`](notebooks/04_acceleration.ipynb) | `acceleration='gpd'` — 10× fewer perms, same answer |
+| 05 | [`05_multi_param_sweep.ipynb`](notebooks/05_multi_param_sweep.ipynb) | List-valued `e`/`h` TFCE exponent sensitivity |
+| 06 | [`06_topology_gallery.ipynb`](notebooks/06_topology_gallery.ipynb) | Visual atlas of `conninfpy.topologies` scenarios |
+| 07 | [`07_two_task_example.ipynb`](notebooks/07_two_task_example.ipynb) | Real TMFC dataset; TFNBS vs MATLAB NBS/FDR references |
+| 08 | [`08_eeg_example.ipynb`](notebooks/08_eeg_example.ipynb) | Real paired EEG comparison (177 subjects) |
 
 ## Layout
 
@@ -8,9 +23,9 @@ New to ConnInfPy? Start here → [`notebooks/EEG_example.ipynb`](notebooks/EEG_e
 |---|---|
 | [`notebooks/`](notebooks/) | Narrated Jupyter notebooks — recommended starting point |
 | [`benchmarks/`](benchmarks/) | Performance characterization scripts (per-permutation timing, GPD acceleration, GLM pipeline, sums fast path) |
-| [`abide_validation/`](abide_validation/) | Real-data validation on ABIDE I (871 subjects, Schaefer 100): naive / GLM / severity regression / method comparison / acceleration check |
-| [`ml_transfer/`](ml_transfer/) | ML transfer workflow using saved p-value maps (HCP IHB / RMET Open-Close) |
-| [`reproducibility_exp/`](reproducibility_exp/) | Cross-experiment + split-half reproducibility metrics (Jaccard, Dice, t-map correlation) |
+| [`abide_validation/`](abide_validation/) | Real-data validation on ABIDE I (871 subjects, Schaefer 100): ComBat harmonization + naive / GLM / severity / method comparison / acceleration / within-site replication |
+| [`openclose_validation/`](openclose_validation/) | Open-Close validation (IHB + China Schaefer-200, 182 ROIs): paired TFNBS, cross-cohort agreement, cohort-as-site ComBat, bidirectional ML transfer from p-value maps |
+| [`reproducibility_exp/`](reproducibility_exp/) | **Legacy** (pre-rename / pre-dataset-migration). References `ml_transfer.openclose_loader.OpenCloseDataset.hcp("rmet")`, an API that no longer exists. Kept for history; ports to §3.11.2 split-half should live under `abide_validation/` or `openclose_validation/`. |
 | [`sim_method_comparisons/`](sim_method_comparisons/) | Side-by-side synthetic comparison of all 9 methods on a given topology |
 | [`miccai_paper_reproducing/`](miccai_paper_reproducing/) | Scripts + YAML configs to reproduce the MICCAI 2026 paper results |
 | `sim_topology_examples.py` | Topology gallery demo (visualizes the ground-truth masks from the `conninfpy.topologies` library) |

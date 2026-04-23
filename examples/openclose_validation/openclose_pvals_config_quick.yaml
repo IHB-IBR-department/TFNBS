@@ -1,7 +1,7 @@
 # Quick run config for OpenClose paired p-values
 #
 # Usage:
-#   python examples/ml_transfer/openclose_pvals_runner.py --config examples/ml_transfer/openclose_pvals_config_quick.yaml
+#   python examples/openclose_validation/openclose_pvals_runner.py --config examples/openclose_validation/openclose_pvals_config_quick.yaml
 
 dataset: hcp
 experiments:

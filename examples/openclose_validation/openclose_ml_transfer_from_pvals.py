@@ -5,9 +5,9 @@ ML transfer experiment using saved p-value maps.
 Training on IHB, testing on RMET. Edge masks are derived from saved p-maps.
 
 Usage:
-  python -m examples.ml_transfer.openclose_ml_transfer_from_pvals \\
-    --pvals-dir results/openclose_hcp/pvals \\
-    --output-csv results/openclose_hcp/ml_transfer_results.csv
+  python -m examples.openclose_validation.openclose_ml_transfer_from_pvals \\
+    --pvals-dir examples/openclose_validation/results/pvals \\
+    --output-csv examples/openclose_validation/results/ml_transfer_results.csv
 
 Optional:
   --methods tstat,tfnbs,nbs
@@ -30,8 +30,8 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 
-from examples.ml_transfer.openclose_loader import OpenCloseDataset
-from examples.ml_transfer.ml_validation import build_ml_dataset, mask_to_feature_indices
+from examples.openclose_validation.openclose_loader import OpenCloseDataset
+from examples.openclose_validation.ml_validation import build_ml_dataset, mask_to_feature_indices
 
 
 def _parse_list(values: Optional[str], cast=float) -> List:
@@ -176,7 +176,7 @@ def _tune_C(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--pvals-dir", type=Path, default=Path("results/openclose_hcp/pvals"))
+    parser.add_argument("--pvals-dir", type=Path, default=Path("examples/openclose_validation/results/pvals"))
     parser.add_argument("--dataset", type=str, default="hcp")
     parser.add_argument("--source-experiment", type=str, default="ihb")
     parser.add_argument("--target-experiment", type=str, default="rmet")
@@ -186,7 +186,7 @@ def main() -> None:
     parser.add_argument("--c-values", type=str, default="1e-4,1e-3,1e-2,1e-1,1.0")
     parser.add_argument("--n-splits", type=int, default=5)
     parser.add_argument("--tune-per-mask", action="store_true")
-    parser.add_argument("--output-csv", type=Path, default=Path("results/openclose_hcp/ml_transfer_results.csv"))
+    parser.add_argument("--output-csv", type=Path, default=Path("examples/openclose_validation/results/ml_transfer_results.csv"))
     args = parser.parse_args()
 
     methods_filter = None

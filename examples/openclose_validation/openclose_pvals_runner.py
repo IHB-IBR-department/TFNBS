@@ -147,7 +147,7 @@ def run(config_path: Path) -> None:
 
     save_t_signed = bool(cfg.get("save_t_signed", True))
     save_net_labels = bool(cfg.get("save_net_labels", True))
-    output_dir = Path(cfg.get("output_dir", "results/openclose_hcp/pvals"))
+    output_dir = Path(cfg.get("output_dir", "examples/openclose_validation/results/pvals"))
     if not output_dir.is_absolute():
         output_dir = ROOT / output_dir
 
