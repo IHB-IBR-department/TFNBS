@@ -36,7 +36,29 @@ What you get out of one `pip install`:
   (hub, rich-club, chain, scattered, gradient, fragmented within-module,
   …) used in the paper's no-method-dominates-across-topologies finding.
 
-![Overview](https://github.com/IHB-IBR-department/ConnInfPy/blob/main/docs/Figure_Overview.png)
+![Pipeline overview](https://github.com/IHB-IBR-department/ConnInfPy/blob/main/docs/fig1_pipeline.png)
+
+### What's in the figure (panels A–H)
+
+The 8-panel figure walks the full pipeline from raw multi-site
+connectivity data to FWER-corrected $p$-maps. Each block corresponds to
+a distinct stage of the inference pipeline:
+
+| Panel | Stage | What is shown | Code entry-points |
+|---|---|---|---|
+| **A** | Ground truth | Side-by-side Group 1 (no effect) vs Group 2 (planted effect on a within-module-dense topology); 30×30 modular matrices in viridis | `conninfpy.topologies` (19-scenario library), `generate_fc_matrices` |
+| **B** | Multi-site FC | Stack of per-subject Fisher-$z$ FC matrices coloured by acquisition site, exhibiting visible site-effect heterogeneity | `fisher_r_to_z` |
+| **C** | Harmonization (NEW) | ComBat before/after — between-site mean FC visibly homogenised while age/sex/diagnosis are preserved | `combat_harmonize`, `combat_fit`/`combat_apply`, `design_diagnostics` |
+| **D** | GLM + Freedman–Lane (NEW) | Design matrix $X$ → reduced-model residual permutation → reconstructed $y^{\pi}$ → per-edge $t$ / $\beta$ / $F$ | `compute_p_val_glm`, `compute_p_val_paired_glm`, `build_design_matrix` |
+| **E** | NBS | Fixed cluster-defining threshold $\tau$ + connected-components labelling — illustrates the parameter that TFNBS eliminates | `nbs_bct`, `compute_p_val(method="nbs")` |
+| **F** | TFNBS | Threshold-free integration $S_e = \sum_h [\eta_h(e)]^E h^H \Delta h$ across $\mathcal{H}$; FDR-calibrated regime $(E, H) = (0.4, 3.0)$ | `get_tfnbs_score`, `apply_tfnbs`, `compute_p_val(method="tfnbs")` |
+| **G** | Block-prior methods (NEW) | cNBS (Yeo-7 block aggregation) · **NI-TFNBS** (block-density soft prior, $\omega_B(h) = k_B(h)/\sqrt{|B|}$) · **FBC-TFNBS** (atomic blocks with $m_{\min}$ threshold) | `apply_cnbs`, `apply_ni_tfnbs`, `apply_fbc_tfnbs` |
+| **H** | Inference layer | Max-stat permutation null + GPD tail fit (200-perm reproduces 5{,}000-perm empirical $p$ to $\|\Delta(-\log_{10} p)\| \le 0.001$ on $>99\,\%$ of edges) + per-tail FWER $p$-maps (positive/negative directional split) | `fit_gpd_tail`, `compute_p_values_accelerated`, `acceleration="gpd"` |
+
+Panels marked **NEW** are contributions of this package: in-package
+ComBat (C), edge-wise GLM with Freedman–Lane and the F-contrast / paired-Δ
+wrappers (D), NI-TFNBS and FBC-TFNBS block-prior operators (G), and
+network-level GPD tail acceleration (H).
 
 > **History.** Originally developed as a TFNBS-only implementation
 > (`tfnbs`); renamed and substantially expanded in 2026-04 to the
