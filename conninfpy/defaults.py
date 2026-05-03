@@ -1,8 +1,40 @@
 """
-Unified default parameters for TFNBS package.
+Unified default parameters for ConnInfPy.
 
 Single source of truth for all default constants used across modules.
-Parameters follow Hao et al. (2024) for TFCE on network data.
+
+TFCE exponent defaults (E, H) use Smith & Nichols (2009) values
+``E=0.5, H=2.0`` across both the scoring and permutation paths.
+
+Hao et al. (2024) recommend ``E=0.4, H in [3.0, 7.0]`` for empirical
+FDR < 10% on network data — Baggio (2018) defaults overshoot FDR > 50%
+in their benchmarks; Vinokur et al. (2023) report 75-fold variation in
+detected edge counts across (E,H) within Baggio's recommended range.
+The package does not impose Hao's defaults globally to preserve
+backward compatibility, but every validation pipeline in
+``examples/`` (ABIDE, Open-Close, MICCAI reproduction) calls
+``compute_p_val(...)`` / ``compute_p_val_glm(...)`` with explicit
+``e=0.4, h=3.0, n=10`` — that is the regime our paper figures use.
+
+Users tuning (E,H) for a specific dataset should treat the exponents as
+a sensitivity knob: ablate within Hao's recommended box
+``E in [0.3, 0.5]``, ``H in [3.0, 7.0]`` and report stability.
+
+The only path-specific default is ``n`` (threshold integration steps):
+``n=100`` for scoring (high resolution, single-shot), ``n=10`` for
+permutation (Hao 2024 reports n=10 is sufficient for FDR control on
+network data; lower n keeps the permutation loop affordable).
+
+References
+----------
+- Smith & Nichols (2009). Threshold-free cluster enhancement.
+  NeuroImage 44(1):83-98.
+- Baggio et al. (2018). TFNBS: a threshold-free method for the analysis
+  of brain networks. Hum Brain Mapp 39(6):2289-2302.
+- Vinokur et al. (2023). Parameter sensitivity of NBS / TFNBS in
+  connectivity inference.
+- Hao et al. (2024). TFNOS: threshold-free network omnibus statistics
+  (recommends ``E=0.4, H in [3.0, 7.0]`` for FDR < 10%).
 """
 
 # =============================================================================
@@ -10,23 +42,24 @@ Parameters follow Hao et al. (2024) for TFCE on network data.
 # =============================================================================
 
 DEFAULT_EXTENT_EXPONENT: float = 0.5
-"""Default extent exponent (E) for TFCE. Controls how much cluster size matters."""
+"""Default extent exponent E. See module docstring for Hao 2024 alternative."""
 
 DEFAULT_HEIGHT_EXPONENT: float = 2.0
-"""Default height exponent (H) for TFCE. Controls how much threshold height matters."""
+"""Default height exponent H. See module docstring for Hao 2024 alternative."""
 
 DEFAULT_START_THRESHOLD: float = 1.65
-"""Default initial threshold for cluster formation (corresponds to p < 0.05 one-tailed)."""
+"""Initial threshold for cluster formation (p < 0.05 one-tailed)."""
 
 # =============================================================================
-# Integration resolution
+# Integration resolution (path-specific)
 # =============================================================================
 
 DEFAULT_N_THRESHOLDS_SCORING: int = 100
-"""Default number of threshold integration steps for direct TFCE scoring."""
+"""Threshold integration steps for direct TFCE scoring (high resolution)."""
 
 DEFAULT_N_THRESHOLDS_PERMUTATION: int = 10
-"""Default number of threshold steps during permutation testing (speed tradeoff)."""
+"""Threshold integration steps inside the permutation loop (speed tradeoff;
+Hao 2024 reports n=10 is sufficient for FDR control on network data)."""
 
 # =============================================================================
 # Permutation testing

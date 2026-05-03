@@ -7,7 +7,7 @@ from conninfpy.pairwise_stats import compute_t_stat
 from conninfpy.nbs_score import get_nbs_score, nbs_bct
 from conninfpy.utils import fisher_r_to_z
 
-from . import fixtures
+from tests import fixtures
 
 
 class TestNBSScore(TestCase):

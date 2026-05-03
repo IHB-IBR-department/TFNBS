@@ -27,7 +27,7 @@ from conninfpy.pairwise_stats import (
     compute_t_stat,
     _extract_max_stats,
 )
-from . import fixtures
+from tests import fixtures
 
 
 # =============================================================================

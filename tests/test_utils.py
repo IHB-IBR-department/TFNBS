@@ -4,7 +4,7 @@ from conninfpy.utils import get_components, create_prior_weights, fisher_r_to_z
 from conninfpy.pairwise_stats import compute_t_stat
 import numpy as np
 
-from . import fixtures
+from tests import fixtures
 
 SHOW_PLOTS = os.getenv("CONNINFPY_TEST_PLOTS") == "1"
 

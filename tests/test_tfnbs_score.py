@@ -12,7 +12,7 @@ from conninfpy.tfnbs_score import (
 )
 from conninfpy.synth_datasets import generate_fc_matrices, ModularDatasetGenerator
 from conninfpy.pairwise_stats import compute_t_stat
-from . import fixtures
+from tests import fixtures
 from conninfpy.utils import fisher_r_to_z
 import time
 
