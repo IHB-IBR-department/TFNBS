@@ -59,24 +59,23 @@ DOCS_SVG = HERE.parent.parent / "docs" / "fig1_pipeline.svg"
 # Helpers
 # =============================================================================
 
-def _make_modular_mask(n_nodes=60, n_modules=4, fill=0.7, rng=None):
+def _make_modular_mask(n_nodes=30, n_modules=4, effect_blocks=(0, 2),
+                       rng=None):
+    """Clean blockwise binary ground-truth mask.
+
+    Within each module in `effect_blocks`, ALL edges are set to 1
+    (within-module-dense topology). All other off-diagonal edges are
+    zero. Produces a visually clear block-diagonal pattern.
+    """
     if rng is None:
         rng = np.random.default_rng(0)
     mod_size = n_nodes // n_modules
-    mask = np.zeros((n_nodes, n_nodes))
-    # within-module-dense in module 0 + scattered cross-block in module 2-3
-    block = slice(0, mod_size)
-    sub = rng.random((mod_size, mod_size)) < fill
-    sub = np.triu(sub, k=1)
-    mask[block, block] = sub | sub.T
-    # add a hub-like effect from a central node to several nodes
-    if n_nodes >= 60:
-        hub = n_nodes // 2
-        for j in [12, 18, 25, 33, 41, 48, 55]:
-            if j < n_nodes:
-                mask[hub, j] = 1; mask[j, hub] = 1
+    mask = np.zeros((n_nodes, n_nodes), dtype=int)
+    for m in effect_blocks:
+        block = slice(m * mod_size, (m + 1) * mod_size)
+        mask[block, block] = 1
     np.fill_diagonal(mask, 0)
-    return mask.astype(int)
+    return mask
 
 
 def _make_subject_fc(n_subj=30, n_nodes=60, site_effects=None,
@@ -129,10 +128,28 @@ def _new_badge(ax, x=0.97, y=0.95, vertical=False, fontsize=6):
 # =============================================================================
 
 def panel_A_ground_truth(ax, rng):
-    mask = _make_modular_mask(rng=rng)
+    """Clean 30×30 blockwise binary mask matching B/C dimensions.
+
+    Within-module-dense effect on modules 0 and 2 of the same 4-module
+    partition the FC matrices in B / C use; the underlying block
+    diagonal is visually identical so panels A, B, C share the same
+    coordinate frame.
+    """
+    n_nodes = 30
+    n_modules = 4
+    mask = _make_modular_mask(n_nodes=n_nodes, n_modules=n_modules,
+                              effect_blocks=(0, 2), rng=rng)
     ax.imshow(mask, cmap="YlGnBu_r", aspect="equal", vmin=0, vmax=1)
-    ax.set_xticks([0, 30, 60]); ax.set_yticks([0, 30, 60])
-    ax.set_xlabel("Node $j$"); ax.set_ylabel("Node $i$")
+    # Block boundary lines (white, thin) to make the modular structure
+    # explicit rather than implicit.
+    mod_size = n_nodes // n_modules
+    for k in range(1, n_modules):
+        ax.axvline(k * mod_size - 0.5, color="white", lw=0.5, alpha=0.6)
+        ax.axhline(k * mod_size - 0.5, color="white", lw=0.5, alpha=0.6)
+    ax.set_xticks([0, mod_size, 2 * mod_size, 3 * mod_size, n_nodes - 1])
+    ax.set_yticks([0, mod_size, 2 * mod_size, 3 * mod_size, n_nodes - 1])
+    ax.set_xlabel("Node $j$")
+    ax.set_ylabel("Node $i$")
     return mask
 
 
@@ -248,7 +265,8 @@ def panel_D_glm(ax):
 
 def _make_t_for_NBS(rng):
     n_nodes = 30
-    mask = _make_modular_mask(n_nodes=n_nodes, n_modules=3, fill=0.6, rng=rng)
+    mask = _make_modular_mask(n_nodes=n_nodes, n_modules=3,
+                              effect_blocks=(0,), rng=rng)
     T = np.abs(rng.normal(0, 1, (n_nodes, n_nodes)))
     T = (T + T.T) / 2
     T += 2.5 * mask
