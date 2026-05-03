@@ -11,12 +11,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-      - name: Install dependencies
+        with:
+          python-version: "3.11"
+      - name: Install package + doc dependencies
+        # Install conninfpy itself so autodoc can import every module.
+        # Without `pip install -e .` the .. automodule:: directives silently
+        # fail on CI and the deployed docs end up empty for every submodule.
         run: |
-          pip install sphinx sphinx_rtd_theme myst_parser
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install sphinx_rtd_theme myst_parser
       - name: Sphinx build
+        # NOT using -W (warnings-as-errors) — there is a pre-existing crop
+        # of NumPy-style docstring formatting issues in
+        # synth_datasets / utils / acceleration / pairwise_stats that we
+        # don't want to block doc deployment on. Tracked separately.
         run: |
-          sphinx-build docs/source _build
+          sphinx-build --keep-going docs/source _build
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

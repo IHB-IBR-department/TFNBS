@@ -28,5 +28,3 @@ doi:.........
 .. code-block:: bash
 
    [Cite ConnInfPy as]
-
----------------

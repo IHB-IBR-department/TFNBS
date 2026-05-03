@@ -11,25 +11,43 @@ def fisher_r_to_z(r: npt.NDArray[np.float64],
     """
     Apply Fisher r-to-z transformation to correlation coefficients, handling boundary cases.
 
-    Parameters:
-        r (np.ndarray): Array of correlation coefficients with values in [-1, 1]. Can be any shape (scalar, 1D, 2D, etc.).
-        handle_bounds (bool, optional): If True, replace infinite z-values (from r = ±1) with finite values.
-           If False, allow infinities and raise a warning. (default, True).
-        max_z: Maximum absolute z-value to use when handle_bounds=True. (Default to 1e10).
+    Parameters
+    ----------
+    r : np.ndarray
+        Array of correlation coefficients with values in ``[-1, 1]``.
+        Can be any shape (scalar, 1D, 2D, ...).
+    handle_bounds : bool, optional
+        If True, replace infinite z-values (from ``r = ±1``) with finite
+        values. If False, allow infinities and raise a warning.
+        (default: True).
+    max_z : float
+        Maximum absolute z-value to use when ``handle_bounds=True``
+        (default: 5).
 
-    Returns:
-        z (np.ndarray): Array of z-scores with the same shape as r.
+    Returns
+    -------
+    z : np.ndarray
+        Array of z-scores with the same shape as ``r``.
 
-    Raises:
-        ValueError: If any value in r is outside [-1, 1].
+    Raises
+    ------
+    ValueError
+        If any value in ``r`` is outside ``[-1, 1]``.
 
-    Warnings:
-        UserWarning: If r contains ±1, indicating boundary values were encountered.
+    Warnings
+    --------
+    UserWarning
+        If ``r`` contains ``±1``, indicating boundary values were
+        encountered.
 
-    Notes:
-        The transformation is z = arctanh(r). For r = ±1, z approaches ±infinity.
-        When handle_bounds=True, these are capped at ±max_z.
+    Notes
+    -----
+    The transformation is :math:`z = \\operatorname{arctanh}(r)`. For
+    :math:`r = \\pm 1`, :math:`z` approaches :math:`\\pm\\infty`. When
+    ``handle_bounds=True``, these are capped at ``±max_z``.
 
+    Examples
+    --------
     >>> r_vals = np.array([1.0, -1.0])
     >>> fisher_r_to_z(r_vals, handle_bounds=True, max_z=4.0)
     array([ 4., -4.])

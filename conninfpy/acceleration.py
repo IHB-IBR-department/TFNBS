@@ -152,16 +152,17 @@ def fit_gpd_tail(
     statistics. Falls back to empirical p-values when GPD fit is poor.
 
     Algorithm (Winkler et al., 2016, Section 2.2.3):
-    1. Set initial threshold u at upper quartile of null_dist
-    2. Fit GPD to exceedances y = T*_j - u by method of moments
-    3. Test fit with Anderson-Darling; if poor, increase u and retry
-    4. Compute p from: p = (k/J) * GPD_sf(T - u) where k = #exceedances
+
+    1. Set initial threshold ``u`` at upper quartile of ``null_dist``
+    2. Fit GPD to exceedances ``y = T_star_j - u`` by method of moments
+    3. Test fit with Anderson-Darling; if poor, increase ``u`` and retry
+    4. Compute ``p = (k / J) * GPD_sf(T - u)`` where ``k`` = #exceedances
 
     Parameters
     ----------
     null_dist : ndarray of shape (J,)
         Max-statistic null distribution from permutations.
-    observed : ndarray of shape (*spatial_dims)
+    observed : ndarray of shape ``(*spatial_dims,)``
         Observed statistics (e.g., shape (N, N) for connectivity).
     n_thresholds : int, default=5
         Maximum number of threshold increases to try for good GPD fit.
@@ -240,7 +241,7 @@ def fit_gamma_tail(
     ----------
     null_dist : ndarray of shape (J,)
         Max-statistic null distribution.
-    observed : ndarray of shape (*spatial_dims)
+    observed : ndarray of shape ``(*spatial_dims,)``
         Observed statistics.
 
     Returns

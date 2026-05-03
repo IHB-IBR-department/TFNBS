@@ -498,9 +498,9 @@ def compute_null_dist(
 
     Parameters
     ----------
-    group1 : ndarray of shape (n_samples_1, *dims)
+    group1 : ndarray of shape ``(n_samples_1, *dims)``
         Data array for group 1.
-    group2 : ndarray of shape (n_samples_2, *dims), optional
+    group2 : ndarray of shape ``(n_samples_2, *dims)``, optional
         Data array for group 2. Required for 'paired' and 'two-sample' tests.
     func : callable, optional
         Function to compute the t-statistic.
@@ -1256,7 +1256,7 @@ def compute_t_stat_diff(
 
     Parameters
     ----------
-    diff : ndarray of shape (n_samples, *dims)
+    diff : ndarray of shape ``(n_samples, *dims)``
         Array containing paired differences.
 
     Returns

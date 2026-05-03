@@ -9,30 +9,45 @@ def generate_fc_matrices(N,  effect_size, mask=None, n_samples_group1=50, n_samp
     Generate synthetic functional connectivity correlation matrices for groupwise comparisons
     or repeated measures.
 
-    Parameters:
-        N (int): Number of ROIs (regions of interest) i.e. an N*N matrix.
-        effect_size (float): Magnitude of correlation difference between groups.
-        mask (np.ndarray, optional): Binary mask (N*N) matrix to apply correlation differences.
-        n_samples_group1 (int): Number of matrices in group 1 (default: 50).
-        n_samples_group2 (int): Number of matrices in group 2 (default: 50).
-        repeated_measures (bool): If True, generate within-subject repeated measures data
-                                i.e. Paired else independently (default = False).
-        seed (int, optional): Random seed for reproducibility.
+    Parameters
+    ----------
+    N : int
+        Number of ROIs (regions of interest), i.e. an ``N x N`` matrix.
+    effect_size : float
+        Magnitude of correlation difference between groups.
+    mask : np.ndarray, optional
+        Binary mask ``(N, N)`` to apply correlation differences.
+    n_samples_group1 : int
+        Number of matrices in group 1 (default: 50).
+    n_samples_group2 : int
+        Number of matrices in group 2 (default: 50).
+    repeated_measures : bool
+        If True, generate within-subject repeated-measures (paired) data,
+        otherwise independent groups (default: False).
+    seed : int, optional
+        Random seed for reproducibility.
 
-    Returns:
-        group1 (np.ndarray): Array of with functional connectivity matrics of group1 as (n_samples_group1, N, N).
-        group2 (np.ndarray): Array of with functional connectivity matrics of group2 as (n_samples_group2, N, N).
-        (base_cov, mod_cov): Original Covariance matrix and Modified covariance matrix with effect_size introduced
-                             for group1 and group2 matrices. 
+    Returns
+    -------
+    group1 : np.ndarray
+        Array of FC matrices for group 1, shape ``(n_samples_group1, N, N)``.
+    group2 : np.ndarray
+        Array of FC matrices for group 2, shape ``(n_samples_group2, N, N)``.
+    (base_cov, mod_cov) : tuple of np.ndarray
+        Original covariance matrix and modified covariance matrix with the
+        ``effect_size`` introduced; used for group 1 and group 2 matrices
+        respectively.
 
+    Examples
+    --------
     >>> N = 6; e = 0.2; mask = np.zeros((N, N))
     >>> mask[0:2, 0:2] = 1; mask[2:4, 2:4] = -1
-    >>> g1, g2, (c1,c2) = generate_fc_matrices(N, e, mask, 5, 10, seed = 0)
+    >>> g1, g2, (c1, c2) = generate_fc_matrices(N, e, mask, 5, 10, seed=0)
     >>> g1.shape == (5, 6, 6)
     True
     >>> g2.shape == (10, 6, 6)
     True
-    >>> np.allclose(c1,c1.T)
+    >>> np.allclose(c1, c1.T)
     True
     """
 
