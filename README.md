@@ -28,6 +28,11 @@ What you get out of one `pip install`:
   empirical FWER p-values on real data to within $|\Delta(-\log_{10}p)| \le 0.001$
   on >99% of edges (≈25× wall-clock saving), with Anderson–Darling
   goodness-of-fit guard and empirical fallback.
+- **Optional JIT backend** — installing `pip install conninfpy[fast]`
+  pulls in `numba` and switches the TFNBS connected-components inner
+  loop to a JIT-compiled union-find, giving ≈12× speedup on
+  per-call scoring and ≈15× end-to-end on the 60×60 / 200-perm
+  benchmark. Auto-detected; no API changes.
 - **In-package multi-site harmonization** — parametric empirical-Bayes
   ComBat (Johnson 2007; Fortin 2017/2018) reimplemented in NumPy, with
   separate `combat_fit`/`combat_apply` for cross-site ML transfer and a
@@ -77,8 +82,11 @@ conda activate conninfpy
 # Install the package in development mode
 pip install -e .
 
-# With development dependencies (sphinx, notebook tools, optional pytest runner)
+# With development dependencies (sphinx, notebook tools, mypy, numba)
 pip install -e ".[dev]"
+
+# Or only the JIT-acceleration extra (numba) if you want speed without dev deps
+pip install -e ".[fast]"
 ```
 
 ## Running the tests
