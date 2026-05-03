@@ -128,28 +128,45 @@ def _new_badge(ax, x=0.97, y=0.95, vertical=False, fontsize=6):
 # =============================================================================
 
 def panel_A_ground_truth(ax, rng):
-    """Clean 30×30 blockwise binary mask matching B/C dimensions.
+    """Two side-by-side reference FC matrices:
+    "Group 1 (no effect)" vs "Group 2 (with planted effect on
+    modules 0, 2)". Same 4-module structure and same viridis colormap
+    as Panels B / C — visually establishes the ground truth that
+    flows through the pipeline.
 
-    Within-module-dense effect on modules 0 and 2 of the same 4-module
-    partition the FC matrices in B / C use; the underlying block
-    diagonal is visually identical so panels A, B, C share the same
-    coordinate frame.
+    Returns the planted-effect mask so Panel B can apply it to its
+    subject-level FC matrices.
     """
     n_nodes = 30
     n_modules = 4
     mask = _make_modular_mask(n_nodes=n_nodes, n_modules=n_modules,
                               effect_blocks=(0, 2), rng=rng)
-    ax.imshow(mask, cmap="YlGnBu_r", aspect="equal", vmin=0, vmax=1)
-    # Block boundary lines (white, thin) to make the modular structure
-    # explicit rather than implicit.
+    # Build the two reference matrices: same base modular FC, with the
+    # planted effect added only to Group 2.
+    g1 = _make_subject_fc(n_subj=1, n_nodes=n_nodes,
+                          planted_mask=None, planted_strength=0.0,
+                          rng=np.random.default_rng(11))[0]
+    g2 = _make_subject_fc(n_subj=1, n_nodes=n_nodes,
+                          planted_mask=mask, planted_strength=0.20,
+                          rng=np.random.default_rng(11))[0]
+
+    # Two side-by-side imshows inside the outer axes
+    ax.axis("off")
+    fig = ax.figure
+    sub = ax.get_subplotspec().subgridspec(1, 2, wspace=0.10)
+    a0 = fig.add_subplot(sub[0])
+    a1 = fig.add_subplot(sub[1])
+    vmin, vmax = -0.1, 0.5
+    a0.imshow(g1, cmap="viridis", vmin=vmin, vmax=vmax)
+    a1.imshow(g2, cmap="viridis", vmin=vmin, vmax=vmax)
+    a0.set_title("Group 1\n(no effect)", fontsize=6.8, pad=2)
+    a1.set_title("Group 2\n(planted effect)", fontsize=6.8, pad=2)
     mod_size = n_nodes // n_modules
-    for k in range(1, n_modules):
-        ax.axvline(k * mod_size - 0.5, color="white", lw=0.5, alpha=0.6)
-        ax.axhline(k * mod_size - 0.5, color="white", lw=0.5, alpha=0.6)
-    ax.set_xticks([0, mod_size, 2 * mod_size, 3 * mod_size, n_nodes - 1])
-    ax.set_yticks([0, mod_size, 2 * mod_size, 3 * mod_size, n_nodes - 1])
-    ax.set_xlabel("Node $j$")
-    ax.set_ylabel("Node $i$")
+    for a in (a0, a1):
+        a.set_xticks([]); a.set_yticks([])
+        for k in range(1, n_modules):
+            a.axvline(k * mod_size - 0.5, color="white", lw=0.4, alpha=0.6)
+            a.axhline(k * mod_size - 0.5, color="white", lw=0.4, alpha=0.6)
     return mask
 
 
