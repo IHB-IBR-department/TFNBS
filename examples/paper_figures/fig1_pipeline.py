@@ -47,9 +47,12 @@ mpl.rcParams.update({
 HERE = Path(__file__).parent
 OUT_PDF = HERE / "fig1_pipeline.pdf"
 OUT_PNG = HERE / "fig1_pipeline.png"
+OUT_SVG = HERE / "fig1_pipeline.svg"
 PAPER_PDF = HERE.parent.parent / "PaperNN" / "figs" / "fig1_pipeline.pdf"
+PAPER_SVG = HERE.parent.parent / "PaperNN" / "figs" / "fig1_pipeline.svg"
 DOCS_PDF = HERE.parent.parent / "docs" / "fig1_pipeline.pdf"
 DOCS_PNG = HERE.parent.parent / "docs" / "fig1_pipeline.png"
+DOCS_SVG = HERE.parent.parent / "docs" / "fig1_pipeline.svg"
 
 
 # =============================================================================
@@ -445,16 +448,22 @@ def main():
 
     fig.savefig(OUT_PDF, bbox_inches="tight")
     fig.savefig(OUT_PNG, bbox_inches="tight", dpi=300)
+    fig.savefig(OUT_SVG, bbox_inches="tight")
     if PAPER_PDF.parent.exists():
         fig.savefig(PAPER_PDF, bbox_inches="tight")
+        fig.savefig(PAPER_SVG, bbox_inches="tight")
         print(f"Wrote {PAPER_PDF}")
+        print(f"Wrote {PAPER_SVG}")
     if DOCS_PDF.parent.exists():
         fig.savefig(DOCS_PDF, bbox_inches="tight")
         fig.savefig(DOCS_PNG, bbox_inches="tight", dpi=300)
+        fig.savefig(DOCS_SVG, bbox_inches="tight")
         print(f"Wrote {DOCS_PDF}")
         print(f"Wrote {DOCS_PNG}")
+        print(f"Wrote {DOCS_SVG}")
     print(f"Wrote {OUT_PDF}")
     print(f"Wrote {OUT_PNG}")
+    print(f"Wrote {OUT_SVG}")
 
 
 if __name__ == "__main__":
