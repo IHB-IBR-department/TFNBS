@@ -218,3 +218,16 @@ examples/benchmarks/res_benchmarks/*.png
 
 # macOS
 .DS_Store
+
+# Local Claude Code state
+.claude/
+
+# Heavy preprocessing outputs (regenerable from raw data)
+examples/abide_validation/abide_harmonized.npz
+examples/abide_validation/abide_prepared.npz
+
+# Synthetic dataset workspaces
+datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/
+
+# Sphinx local build
+docs/_build/

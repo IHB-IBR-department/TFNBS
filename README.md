@@ -1,27 +1,47 @@
-
 # ConnInfPy — Connectivity Inference in Python
 
-``conninfpy`` (formerly ``tfnbs``)
+[![CI - tests](https://img.shields.io/github/actions/workflow/status/IHB-IBR-department/ConnInfPy/documentation.yml?label=docs)](https://ihb-ibr-department.github.io/ConnInfPy/)
+![license](https://img.shields.io/github/license/IHB-IBR-department/ConnInfPy)
+![release](https://img.shields.io/github/v/release/IHB-IBR-department/ConnInfPy)
+![last-commit](https://img.shields.io/github/last-commit/IHB-IBR-department/ConnInfPy)
+![size](https://img.shields.io/github/repo-size/IHB-IBR-department/ConnInfPy)
 
-<!--- [pypi version] -->
-![size](https://img.shields.io/github/repo-size/IHB-IBR-department/TFNBS)
-![license](https://img.shields.io/github/license/IHB-IBR-department/TFNBS)
-![release](https://img.shields.io/github/v/release/IHB-IBR-department/TFNBS)
-![last-commit](https://img.shields.io/github/last-commit/IHB-IBR-department/TFNBS)
+**A unified Python framework for permutation-based statistical inference on brain connectivity networks (fMRI, EEG).**
 
-ConnInfPy is a Python package for statistical inference on brain connectivity
-networks (fMRI, EEG). It provides permutation-based tests for group
-comparisons, paired and repeated-measures designs, and continuous predictors
-with confound regression (GLM with Freedman-Lane), plus a family of
-enhancement methods — classical NBS, TFNBS (threshold-free cluster
-enhancement adapted for networks), cNBS, network-informed TFNBS, and
-functional-block clustering TFNBS. The core idea behind TFNBS is to
-eliminate the need for an arbitrary statistical threshold by integrating
-cluster statistics across a range of thresholds. Implementations are
-vectorised, support multiprocessing, and can be accelerated with GPD/gamma
-tail approximation.
+ConnInfPy implements a single permutation engine shared across nine inference
+methods, with edge-wise GLM (Freedman–Lane), confound-aware cross-site
+harmonization (parametric empirical-Bayes ComBat), and tail-approximation
+acceleration — all under one Python API.
 
-![Overview](https://github.com/IHB-IBR-department/TFNBS/blob/main/docs/Figure_Overview.png)
+What you get out of one `pip install`:
+
+- **Six topology-aware enhancement operators** — NBS-extent, NBS-intensity,
+  TFNBS, cNBS, **NI-TFNBS** (novel — network-informed soft block-density
+  prior), **FBC-TFNBS** (novel — hard block-prior with minimum cluster
+  size) — plus three baselines (per-edge $t$, Bonferroni, BH-FDR), all
+  sharing one permutation engine and the +1 Phipson–Smyth correction.
+- **Edge-wise GLM with Freedman–Lane permutation** — continuous predictors,
+  confound regression, $t$/$\beta$/F-contrast statistics, paired
+  within-subject designs with Δ-level confounds, two-tailed FWER with
+  positive/negative directional split.
+- **GPD/gamma tail acceleration** — 200-perm runs reproduce 5000-perm
+  empirical FWER p-values on real data to within $|\Delta(-\log_{10}p)| \le 0.001$
+  on >99% of edges (≈25× wall-clock saving), with Anderson–Darling
+  goodness-of-fit guard and empirical fallback.
+- **In-package multi-site harmonization** — parametric empirical-Bayes
+  ComBat (Johnson 2007; Fortin 2017/2018) reimplemented in NumPy, with
+  separate `combat_fit`/`combat_apply` for cross-site ML transfer and a
+  `design_diagnostics` layer (VIF + condition number + plain-English flags).
+- **19-scenario topology benchmark library** — controlled effect topologies
+  (hub, rich-club, chain, scattered, gradient, fragmented within-module,
+  …) used in the paper's no-method-dominates-across-topologies finding.
+
+![Overview](https://github.com/IHB-IBR-department/ConnInfPy/blob/main/docs/Figure_Overview.png)
+
+> **History.** Originally developed as a TFNBS-only implementation
+> (`tfnbs`); renamed and substantially expanded in 2026-04 to the
+> unified framework presented here. The old GitHub URL
+> `https://github.com/IHB-IBR-department/TFNBS` redirects automatically.
 
 ---
 
@@ -260,7 +280,7 @@ python examples/sim_method_comparisons/sim_method_comparisons.py \
 
 ## Documentation
 
-Full reference at [IHB-IBR-department.github.io/TFNBS](https://IHB-IBR-department.github.io/TFNBS/).
+Full reference at [IHB-IBR-department.github.io/ConnInfPy](https://IHB-IBR-department.github.io/ConnInfPy/).
 The docs auto-build on push to `main`.
 
 ## Citing the toolbox
@@ -271,4 +291,4 @@ To cite the toolbox: [doi]() and refer to the paper [paper_doi]()
 [doi]
 ```
 
-For further discussions or reports on bugs, please contact [ashish@ireddy.ru]()
+For further discussions or to report bugs, please contact [knyazeva@ihb.spb.ru](mailto:knyazeva@ihb.spb.ru) or open an issue at https://github.com/IHB-IBR-department/ConnInfPy/issues.
