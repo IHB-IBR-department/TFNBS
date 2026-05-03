@@ -559,7 +559,11 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
         fwer_ci_low, fwer_ci_high = clopper_pearson_ci(
             n_runs_with_fp_pos, n_runs, alpha=0.05
         )
-        fwer_calibrated = fwer_ci_low <= alpha <= fwer_ci_high
+        # FWER is calibrated if it is not LIBERAL: the only failure mode for
+        # an FWER-controlling method is FWER > alpha. A FWER below alpha is
+        # conservative, which is fine (slightly less powerful but valid).
+        # Use one-sided check: pass if the lower CI bound does not exceed alpha.
+        fwer_calibrated = fwer_ci_low <= alpha
 
         # Edge-wise FPR
         mean_fpr_pos = method_df["fpr_pos"].mean()
@@ -570,7 +574,8 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
         t_crit = stats.t.ppf(0.975, df=n_runs - 1)
         fpr_ci_low = max(0, mean_fpr_pos - t_crit * se_fpr_pos)
         fpr_ci_high = min(1, mean_fpr_pos + t_crit * se_fpr_pos)
-        fpr_calibrated = fpr_ci_low <= alpha <= fpr_ci_high
+        # Same one-sided rationale for edge-wise FPR.
+        fpr_calibrated = fpr_ci_low <= alpha
 
         row = {
             "method": method,

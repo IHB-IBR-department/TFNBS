@@ -54,8 +54,9 @@ alpha: 0.05
 n_nodes: 60        # Typical for Schaefer 60-parcel or similar
 n_modules: 4       # 4 major networks
 
-# Subjects per group
-n_samples: 100      # Typical small neuroimaging study
+# Subjects per group — sweep over multiple sizes
+n_samples: 30      # default fallback if sample_sizes is unset
+sample_sizes: [10, 30, 50, 100]   # full sample-size sweep, matches prior run
 
 # Correlation structure (realistic for resting-state fMRI)
 intra_corr: 0.3    # Within-module correlation (moderate)
@@ -66,13 +67,16 @@ noise_level: 0.05  # Noise added to correlations
 # TFNBS PARAMETERS
 # =============================================================================
 
-# Standard TFCE parameters adapted for network analysis
-# Extent exponent (cluster size weighting)
-tfnbs_e: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75,
-    0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45, 1.50]
-tfnbs_h: [0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 
-    7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0]
-              # Height exponent (t-statistic weighting)
+# 2026-04-30 fix: FPRConfig declares tfnbs_e/h as float, not list; passing
+# 30-element lists silently zipped pairwise into a 30-pt diagonal sweep
+# (different from a 30x30 grid the original comment implied) and produced
+# output incompatible with prior `fpr_calibration_1000` summary that used
+# single (E=0.5, H=2.0). For FPR calibration we want a single canonical
+# (e, h) per row of the summary table — to scan (e, h) sensitivity, run
+# the (e, h) sweep through power_analysis.py instead, where it is properly
+# batched in 3D mode.
+tfnbs_e: 0.5              # Smith & Nichols 2009; matches prior run.
+tfnbs_h: 2.0              # Smith & Nichols 2009; matches prior run.
 tfnbs_n: 50               # Number of threshold integration steps
 tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 
@@ -80,8 +84,9 @@ tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 # NBS PARAMETERS
 # =============================================================================
 
-# Fixed threshold for classical NBS
-nbs_threshold: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+# Single canonical threshold (NBS path doesn't accept a list).
+# To scan threshold sensitivity, use power_analysis.py with nbs_options.threshold.
+nbs_threshold: 2.0
 
 # =============================================================================
 # FBC PARAMETERS
@@ -98,15 +103,14 @@ fbc_min_cluster: 3
 seed: 42
 
 # Multiprocessing for permutations WITHIN each test
-# Set to true if you want parallel permutations (useful when n_jobs=1)
-# When n_jobs=-1, keep this false to avoid nested parallelism overhead
-use_mp: true
+# Keep false; outer-level n_jobs=-1 already saturates cores. Nested mp.Pool
+# adds overhead and oversubscribes the CPU.
+use_mp: false
 
 # Parallel jobs for null runs ACROSS tests
-# -1 = use all available cores (recommended for speed)
-# 1 = sequential execution (lower memory, easier debugging)
-# N = use exactly N cores
-n_jobs: 1
+# -1 = use all available cores (recommended for speed; ~30-60 min for 1000 nulls × 4 sample sizes)
+# 1 = sequential execution (slow but easier debugging)
+n_jobs: -1
 
 # Checkpoint frequency (save every N runs)
 # Lower = more frequent saves, slightly more I/O overhead
