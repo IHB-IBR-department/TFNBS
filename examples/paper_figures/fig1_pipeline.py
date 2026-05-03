@@ -153,7 +153,15 @@ def panel_A_ground_truth(ax, rng):
     return mask
 
 
-def panel_B_per_subject_fc(ax, rng):
+def panel_B_per_subject_fc(ax, rng, planted_mask=None):
+    """Per-subject FC with the Panel-A planted effect threaded through.
+
+    The 4-module base correlation structure is augmented by the
+    ground-truth mask (from Panel A) so that the two planted-effect
+    modules visibly contain higher within-module correlation than the
+    two null modules. Site effects are orthogonal to the planted
+    effect — they shift overall correlation magnitude up/down per site.
+    """
     n_nodes = 30; n_subj = 9
     site_codes = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
     site_colors = ["#d35400", "#27ae60", "#2980b9"]
@@ -161,7 +169,10 @@ def panel_B_per_subject_fc(ax, rng):
     for i, sc in enumerate(site_codes):
         site_effects[i] = (sc - 1) * 0.06
     fc = _make_subject_fc(n_subj=n_subj, n_nodes=n_nodes,
-                          site_effects=site_effects, rng=rng)
+                          site_effects=site_effects,
+                          planted_mask=planted_mask,
+                          planted_strength=0.20,
+                          rng=rng)
     ax.axis("off")
     fig = ax.figure
     sub = ax.get_subplotspec().subgridspec(3, 3, wspace=0.10, hspace=0.10)
@@ -426,8 +437,8 @@ def main():
     ax_G = fig.add_subplot(gs[2, 2])
     ax_H = fig.add_subplot(gs[2, 3])
 
-    panel_A_ground_truth(ax_A, rng)
-    fc, sites = panel_B_per_subject_fc(ax_B, rng)
+    mask_A = panel_A_ground_truth(ax_A, rng)
+    fc, sites = panel_B_per_subject_fc(ax_B, rng, planted_mask=mask_A)
     panel_C_combat(ax_C, fc, sites, rng)
     panel_D_glm(ax_D)
     panel_E_NBS(ax_E, rng)
