@@ -95,15 +95,15 @@ class TestNBSBCT(TestCase):
             test_type='two-sample', random_state=2, use_mp=False,
         )
 
-        for key in ("g1>g2", "g2>g1"):
+        for key in ("positive", "negative"):
             self.assertIn(key, p_vals)
             self.assertIn(key, adj)
             self.assertIn(key, null)
 
         N = self.group1.shape[1]
-        self.assertEqual(p_vals["g1>g2"].shape, (N, N))
-        self.assertEqual(adj["g1>g2"].shape, (N, N))
-        self.assertIn(null["g1>g2"].ndim, [1, 2])
+        self.assertEqual(p_vals["negative"].shape, (N, N))
+        self.assertEqual(adj["negative"].shape, (N, N))
+        self.assertIn(null["negative"].ndim, [1, 2])
 
     def test_symmetry_of_adjacency(self):
         """Adjacency matrix should be symmetric."""
@@ -126,7 +126,7 @@ class TestNBSBCT(TestCase):
             test_type='paired', use_mp=False,
         )
         self.assertIsInstance(p_vals, dict)
-        self.assertIn("g1>g2", p_vals)
+        self.assertIn("negative", p_vals)
 
 
 if __name__ == "__main__":

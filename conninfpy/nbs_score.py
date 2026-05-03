@@ -225,13 +225,14 @@ def _score_nbs_from_diffs(
     threshold: float,
     stat_type: str,
 ) -> Dict[str, npt.NDArray[np.float64]]:
+    from ._compat import make_tail_result
     from .pairwise_stats import compute_t_stat_diff
 
     t_stat_dict = compute_t_stat_diff(diffs)
-    return {
-        "g2>g1": get_nbs_score(t_stat_dict["g2>g1"], threshold=threshold, stat_type=stat_type),
-        "g1>g2": get_nbs_score(t_stat_dict["g1>g2"], threshold=threshold, stat_type=stat_type),
-    }
+    return make_tail_result(
+        get_nbs_score(t_stat_dict["positive"], threshold=threshold, stat_type=stat_type),
+        get_nbs_score(t_stat_dict["negative"], threshold=threshold, stat_type=stat_type),
+    )
 
 
 def _score_nbs_two_sample(
@@ -241,13 +242,14 @@ def _score_nbs_two_sample(
     threshold: float,
     stat_type: str,
 ) -> Dict[str, npt.NDArray[np.float64]]:
+    from ._compat import make_tail_result
     from .pairwise_stats import compute_t_stat
 
     t_stat_dict = compute_t_stat(group1, group2, test_type=test_type)
-    return {
-        "g2>g1": get_nbs_score(t_stat_dict["g2>g1"], threshold=threshold, stat_type=stat_type),
-        "g1>g2": get_nbs_score(t_stat_dict["g1>g2"], threshold=threshold, stat_type=stat_type),
-    }
+    return make_tail_result(
+        get_nbs_score(t_stat_dict["positive"], threshold=threshold, stat_type=stat_type),
+        get_nbs_score(t_stat_dict["negative"], threshold=threshold, stat_type=stat_type),
+    )
 
 
 def nbs_bct(

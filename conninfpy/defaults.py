@@ -25,6 +25,19 @@ The only path-specific default is ``n`` (threshold integration steps):
 permutation (Hao 2024 reports n=10 is sufficient for FDR control on
 network data; lower n keeps the permutation loop affordable).
 
+Threshold tie-breaking convention
+---------------------------------
+ConnInfPy's TFCE integral uses ``edge_t >= threshold`` (inclusive lower
+bound) at each integration step. Smith & Nichols (2009) define the
+TFCE indicator as ``e(h) = 1 if t > h``, i.e. strict inequality. The
+inclusive convention is mathematically equivalent under continuous
+``t``-statistics and computationally simpler. We retain ``>=`` because
+the production FPR calibration on 1{,}000 null repeats × 9 methods × 4
+sample sizes (see ``examples/miccai_paper_reproducing/``) confirms all
+36 cells PASS the one-sided FWER ≤ α rule with this choice. A v2.1
+release will switch to ``>`` to match the literal Smith & Nichols
+formula and rerun calibration as a regression check.
+
 References
 ----------
 - Smith & Nichols (2009). Threshold-free cluster enhancement.

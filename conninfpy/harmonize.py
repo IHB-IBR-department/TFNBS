@@ -63,6 +63,7 @@ __all__ = [
     "design_diagnostics",
     "flatten_upper",
     "unflatten_upper",
+    "block_mass",
 ]
 
 
@@ -617,3 +618,83 @@ def design_diagnostics(
         "names": list(names),
         "flags": flags,
     }
+
+
+# =============================================================================
+# Block-mass aggregation (promoted from examples/abide_validation)
+# =============================================================================
+
+def block_mass(
+    p_full: npt.NDArray[np.float64],
+    net_labels: npt.NDArray[np.int_],
+    alpha: float = 0.05,
+    *,
+    return_upper: bool = True,
+) -> npt.NDArray[np.int_]:
+    r"""Aggregate edge-level survival counts into a network-block matrix.
+
+    For an upper-triangular set of significant edges (``p <= alpha``),
+    count how many fall within each unordered pair of network labels
+    ``(i, j)``. The diagonal counts within-network edges.
+
+    Parameters
+    ----------
+    p_full : ndarray of shape (N, N)
+        Edge-wise p-value matrix (typically symmetric, with diagonal=1).
+    net_labels : ndarray of shape (N,)
+        Integer network assignment per node, ``0..K-1``. The Yeo-7
+        partition stored in ``abide_prepared.npz['net_labels']`` is the
+        canonical use case.
+    alpha : float, default ``0.05``
+        Significance threshold; edges with ``p <= alpha`` are counted.
+    return_upper : bool, default ``True``
+        If ``True``, the returned matrix is upper-triangular (lower
+        triangle zero-filled). If ``False``, the matrix is symmetric.
+
+    Returns
+    -------
+    M : ndarray of shape (K, K), int
+        Block-mass matrix where ``M[i, j]`` is the number of significant
+        edges with one endpoint in network ``i`` and the other in ``j``.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from conninfpy import block_mass
+    >>> p = np.array([[1, 0.01, 0.5], [0.01, 1, 0.6], [0.5, 0.6, 1]])
+    >>> labels = np.array([0, 0, 1])
+    >>> block_mass(p, labels, alpha=0.05)
+    array([[1, 0],
+           [0, 0]])
+    """
+    if p_full.ndim != 2 or p_full.shape[0] != p_full.shape[1]:
+        raise ValueError(
+            f"p_full must be (N, N), got {p_full.shape}."
+        )
+    if net_labels.shape[0] != p_full.shape[0]:
+        raise ValueError(
+            f"net_labels has {net_labels.shape[0]} entries but p_full is "
+            f"{p_full.shape[0]} × {p_full.shape[0]}."
+        )
+
+    K = int(net_labels.max() + 1)
+    M = np.zeros((K, K), dtype=np.int64)
+
+    sig = (p_full <= alpha) & np.isfinite(p_full)
+    np.fill_diagonal(sig, False)
+
+    iu, ju = np.triu_indices_from(p_full, k=1)
+    sig_idx = sig[iu, ju]
+    iu, ju = iu[sig_idx], ju[sig_idx]
+
+    bi = net_labels[iu]
+    bj = net_labels[ju]
+    lo = np.minimum(bi, bj)
+    hi = np.maximum(bi, bj)
+    np.add.at(M, (lo, hi), 1)
+
+    if not return_upper:
+        # mirror to lower triangle (off-diagonal only)
+        M = M + np.triu(M, 1).T
+
+    return M

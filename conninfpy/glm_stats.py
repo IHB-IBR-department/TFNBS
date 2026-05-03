@@ -56,7 +56,13 @@ from .pairwise_stats import (
     StatMethod,
     CONSTRAINED_METHODS,
 )
+import time
+
 from .acceleration import compute_p_values_accelerated
+from ._compat import TailResult, make_tail_result, normalize_keys
+from ._progress import run_permutations
+from ._result import InferenceResult
+from ._rng import RngLike, resolve_seed, warn_legacy_random_state
 
 
 __all__ = [
@@ -283,7 +289,7 @@ def compute_glm_stat(
     positive = np.where(stat > 0, stat, 0.0)
     negative = np.where(stat < 0, -stat, 0.0)
 
-    return {"positive": positive, "negative": negative}
+    return make_tail_result(positive, negative)
 
 
 # =============================================================================
@@ -475,8 +481,10 @@ def compute_p_val_glm(
     two_tailed: bool = False,
     acceleration: Optional[str] = None,
     use_mp: bool = True,
-    random_state: Optional[int] = None,
+    rng: RngLike = None,
+    random_state: Optional[int] = None,  # deprecated alias for `rng`
     n_processes: Optional[int] = None,
+    verbose: bool = False,
     # --- Method-specific parameters ---
     net_labels: Optional[npt.NDArray[np.int_]] = None,
     threshold: float = DEFAULT_NBS_THRESHOLD,
@@ -554,6 +562,13 @@ def compute_p_val_glm(
     ValueError
         If API arguments are inconsistent or contrast is invalid.
     """
+    _t0 = time.perf_counter()
+
+    # ---- Resolve rng → seed ----
+    if random_state is not None and rng is None:
+        warn_legacy_random_state("random_state")
+    random_state = resolve_seed(rng, legacy_random_state=random_state)
+
     # ---- Resolve API mode ----
     if design_matrix is not None and interest is not None:
         raise ValueError(
@@ -692,15 +707,16 @@ def compute_p_val_glm(
 
     # ---- Run permutations ----
     _use_mp = use_mp and not _is_worker_process()
-
-    if _use_mp:
-        if n_processes is None:
-            n_processes = get_available_cores()
+    if _use_mp and n_processes is None:
+        n_processes = get_available_cores()
+    if _use_mp and n_processes is not None:
         n_processes = min(n_processes, n_permutations)
-        with Pool(processes=n_processes) as pool:
-            results = pool.map(task_func, seeds)
-    else:
-        results = [task_func(seed) for seed in seeds]
+
+    results = run_permutations(
+        task_func, list(seeds),
+        use_mp=_use_mp, n_processes=n_processes,
+        verbose=verbose, desc="glm_perm",
+    )
 
     max_null_dict = _collect_results_to_arrays(results, n_permutations)
 
@@ -724,10 +740,20 @@ def compute_p_val_glm(
 
     # ---- Compute p-values ----
     if acceleration is not None:
-        return compute_p_values_accelerated(
+        result = compute_p_values_accelerated(
             emp_stat_dict, max_null_dict, method=acceleration,
         )
-    return _compute_p_values_from_null(emp_stat_dict, max_null_dict)
+    else:
+        result = _compute_p_values_from_null(emp_stat_dict, max_null_dict)
+    if set(result.keys()) == {"positive", "negative"}:
+        method_str = method.value if hasattr(method, "value") else str(method)
+        return InferenceResult(
+            result["positive"], result["negative"],
+            method=method_str, n_permutations=n_permutations,
+            acceleration=acceleration,
+            wall_time_s=time.perf_counter() - _t0,
+        )
+    return result  # F-stat path: {'omnibus': ...}
 
 
 # =============================================================================
@@ -779,11 +805,12 @@ def compute_p_val_paired_glm(
     Returns
     -------
     dict
-        For the no-confound path: ``{'g2>g1', 'g1>g2'}`` (matches
-        ``compute_p_val(test_type='paired')`` output; ``g2>g1`` is the
-        ``Y_B > Y_A`` tail, i.e. condition B has greater connectivity).
-        For the with-confound path: ``{'positive', 'negative'}`` referring
-        to the sign of the ``Y_A - Y_B`` intercept, adjusted for ``Δ_C``.
+        ``{'positive', 'negative'}`` regardless of routing. For the
+        no-confound path, ``positive`` corresponds to ``Y_B > Y_A`` (B has
+        greater connectivity); for the with-confound path it corresponds
+        to the sign of the ``Y_A - Y_B`` intercept adjusted for ``Δ_C``.
+        Legacy keys ``'g2>g1'`` / ``'g1>g2'`` remain accessible with a
+        :class:`DeprecationWarning` until v2.1.
 
     Raises
     ------

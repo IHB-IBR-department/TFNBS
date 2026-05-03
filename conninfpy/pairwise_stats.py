@@ -43,7 +43,13 @@ from ._enhancement import (
     apply_ni_tfnbs,
     apply_tfnbs,
 )
+import time
+
 from .acceleration import compute_p_values_accelerated
+from ._compat import TailResult, make_tail_result, normalize_keys
+from ._progress import run_permutations
+from ._result import InferenceResult, make_inference_result
+from ._rng import RngLike, resolve_seed, warn_legacy_random_state
 
 
 __all__ = [
@@ -146,7 +152,7 @@ def _extract_max_stats(
     Extract maximum statistics from a stat dictionary.
 
     Handles both 2D matrices and multi-parameter 3D arrays.
-    Key-agnostic: works with any dictionary keys (e.g., 'g1>g2'/'g2>g1'
+    Key-agnostic: works with any dictionary keys (e.g., 'negative'/'positive'
     for t-test pipeline, 'positive'/'negative' for GLM pipeline).
 
     Parameters
@@ -161,7 +167,7 @@ def _extract_max_stats(
     dict
         Dictionary with maximum statistics for each key.
     """
-    result = {}
+    result: Dict[str, Any] = {}
     for key, arr in stat_dict.items():
         if arr.shape == reference_shape:
             result[key] = np.max(arr).astype(np.float64)
@@ -169,6 +175,8 @@ def _extract_max_stats(
             # Multi-parameter case: max over spatial dims, keep param dim
             spatial_axes = tuple(range(arr.ndim - 1))
             result[key] = np.max(arr, axis=spatial_axes).astype(np.float64)
+    if set(result.keys()) == {"positive", "negative"}:
+        return make_tail_result(result["positive"], result["negative"])
     return result
 
 
@@ -198,7 +206,7 @@ def _permutation_task_ind(
     Returns
     -------
     dict
-        Dictionary with max statistics for 'g1>g2' and 'g2>g1' directions.
+        Dictionary with max statistics for 'negative' and 'positive' directions.
     """
     rng = np.random.RandomState(seed)
     idx = rng.permutation(full_group.shape[0])
@@ -231,7 +239,7 @@ def _permutation_task_paired(
     Returns
     -------
     dict
-        Dictionary with max statistics for 'g1>g2' and 'g2>g1' directions.
+        Dictionary with max statistics for 'negative' and 'positive' directions.
     """
     n_dims = len(diffs.shape) - 1
     faked_dims = [1] * n_dims
@@ -276,6 +284,8 @@ def _collect_results_to_arrays(
         for i, perm_dict in enumerate(results):
             t_maxes_dict[key][i] = perm_dict[key]
 
+    if set(t_maxes_dict.keys()) == {"positive", "negative"}:
+        return make_tail_result(t_maxes_dict["positive"], t_maxes_dict["negative"])
     return t_maxes_dict
 
 
@@ -348,8 +358,8 @@ def _fast_permutation_task_paired(X, sumsq_all, seed):
     sum_perm = signs @ X
     t_pos, t_neg = _onesample_tstat_from_sums(sum_perm, sumsq_all, n_sub)
     return {
-        "g2>g1": np.float64(np.max(t_pos)),
-        "g1>g2": np.float64(np.max(t_neg)),
+        "positive": np.float64(np.max(t_pos)),
+        "negative": np.float64(np.max(t_neg)),
     }
 
 
@@ -366,8 +376,8 @@ def _fast_permutation_task_ind(Xall, Xall2, sum_all, sumsq_all, n1, seed):
     sumsq2 = sumsq_all - sumsq1
     t_pos, t_neg = _twosample_tstat_from_sums(sum1, sumsq1, n1, sum2, sumsq2, n2)
     return {
-        "g2>g1": np.float64(np.max(t_pos)),
-        "g1>g2": np.float64(np.max(t_neg)),
+        "positive": np.float64(np.max(t_pos)),
+        "negative": np.float64(np.max(t_neg)),
     }
 
 
@@ -378,7 +388,7 @@ def _fast_permutation_task_paired_edges(X, sumsq_all, seed):
     signs = rng.choice([1, -1], n_sub).astype(np.float64)
     sum_perm = signs @ X
     t_pos, t_neg = _onesample_tstat_from_sums(sum_perm, sumsq_all, n_sub)
-    return {"g2>g1": t_pos, "g1>g2": t_neg}
+    return {"positive": t_pos, "negative": t_neg}
 
 
 def _fast_permutation_task_ind_edges(Xall, Xall2, sum_all, sumsq_all, n1, seed):
@@ -393,7 +403,7 @@ def _fast_permutation_task_ind_edges(Xall, Xall2, sum_all, sumsq_all, n1, seed):
     sum2 = sum_all - sum1
     sumsq2 = sumsq_all - sumsq1
     t_pos, t_neg = _twosample_tstat_from_sums(sum1, sumsq1, n1, sum2, sumsq2, n2)
-    return {"g2>g1": t_pos, "g1>g2": t_neg}
+    return {"positive": t_pos, "negative": t_neg}
 
 
 # =============================================================================
@@ -421,7 +431,7 @@ def _fast_perm_task_enhanced_paired(
     sum_perm = signs @ X
     t_pos, t_neg = _onesample_tstat_from_sums(sum_perm, sumsq_all, n_sub)
     t_pos_mat, t_neg_mat = _tstat_edges_to_matrix(t_pos, t_neg, triu_idx, N)
-    stat_dict = {"g2>g1": t_pos_mat, "g1>g2": t_neg_mat}
+    stat_dict = {"positive": t_pos_mat, "negative": t_neg_mat}
     if enhance_func is not None:
         stat_dict = enhance_func(stat_dict, **enhance_kwargs)
     return _extract_max_stats(stat_dict, (N, N))
@@ -443,7 +453,7 @@ def _fast_perm_task_enhanced_ind(
     sumsq2 = sumsq_all - sumsq1
     t_pos, t_neg = _twosample_tstat_from_sums(sum1, sumsq1, n1, sum2, sumsq2, n2)
     t_pos_mat, t_neg_mat = _tstat_edges_to_matrix(t_pos, t_neg, triu_idx, N)
-    stat_dict = {"g2>g1": t_pos_mat, "g1>g2": t_neg_mat}
+    stat_dict = {"positive": t_pos_mat, "negative": t_neg_mat}
     if enhance_func is not None:
         stat_dict = enhance_func(stat_dict, **enhance_kwargs)
     return _extract_max_stats(stat_dict, (N, N))
@@ -485,6 +495,7 @@ def compute_null_dist(
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
     use_mp: bool = True,
+    verbose: bool = False,
     **func_kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
@@ -521,7 +532,7 @@ def compute_null_dist(
     Returns
     -------
     dict
-        Dictionary with 'g1>g2' and 'g2>g1' arrays of shape (n_permutations,)
+        Dictionary with 'negative' and 'positive' arrays of shape (n_permutations,)
         or (n_permutations, n_params) for multi-parameter TFCE.
 
     Raises
@@ -590,21 +601,18 @@ def compute_null_dist(
     # Generate seeds for reproducibility
     rng = np.random.RandomState(random_state)
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
-    
-    # Context-aware multiprocessing: disable inside worker processes
-    # to prevent nested pools that cause deadlocks
-    _use_mp = use_mp and not _is_worker_process()
 
-    if _use_mp:
-        if n_processes is None:
-            n_processes = get_available_cores()
+    _use_mp = use_mp and not _is_worker_process()
+    if _use_mp and n_processes is None:
+        n_processes = get_available_cores()
+    if _use_mp and n_processes is not None:
         n_processes = min(n_processes, n_permutations)
 
-        with Pool(processes=n_processes) as pool:
-            results = pool.map(task_func, seeds)
-    else:
-        # Sequential computation
-        results = [task_func(seed) for seed in seeds]
+    results = run_permutations(
+        task_func, list(seeds),
+        use_mp=_use_mp, n_processes=n_processes,
+        verbose=verbose, desc="compute_null_dist",
+    )
 
     return _collect_results_to_arrays(results, n_permutations)
 
@@ -619,6 +627,7 @@ def _compute_enhanced_null_dist(
     random_state: Optional[int] = None,
     n_processes: Optional[int] = None,
     use_mp: bool = True,
+    verbose: bool = False,
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """Null distribution for enhancement methods via pre-computed sums fast path.
 
@@ -660,15 +669,16 @@ def _compute_enhanced_null_dist(
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
 
     _use_mp = use_mp and not _is_worker_process()
-
-    if _use_mp:
-        if n_processes is None:
-            n_processes = get_available_cores()
+    if _use_mp and n_processes is None:
+        n_processes = get_available_cores()
+    if _use_mp and n_processes is not None:
         n_processes = min(n_processes, n_permutations)
-        with Pool(processes=n_processes) as pool:
-            results = pool.map(task_func, seeds)
-    else:
-        results = [task_func(seed) for seed in seeds]
+
+    results = run_permutations(
+        task_func, list(seeds),
+        use_mp=_use_mp, n_processes=n_processes,
+        verbose=verbose, desc="enhanced_null",
+    )
 
     return _collect_results_to_arrays(results, n_permutations)
 
@@ -681,6 +691,7 @@ def _compute_bh_fdr_perm_p_values(
     random_state: Optional[int],
     use_mp: bool,
     n_processes: Optional[int],
+    verbose: bool = False,
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
     Compute BH-FDR corrected p-values using permutation-based per-edge nulls.
@@ -701,7 +712,7 @@ def _compute_bh_fdr_perm_p_values(
     else:
         raise ValueError(f"Invalid test_type: '{test_type_str}'")
 
-    N = emp_t_dict["g2>g1"].shape[0]
+    N = emp_t_dict["positive"].shape[0]
     triu_idx = np.triu_indices(N, k=1)
     n_edges = len(triu_idx[0])
 
@@ -727,20 +738,21 @@ def _compute_bh_fdr_perm_p_values(
         )
 
     _use_mp = use_mp and not _is_worker_process()
-
-    if _use_mp:
-        if n_processes is None:
-            n_processes = get_available_cores()
+    if _use_mp and n_processes is None:
+        n_processes = get_available_cores()
+    if _use_mp and n_processes is not None:
         n_processes = min(n_processes, n_permutations)
-        with Pool(processes=n_processes) as pool:
-            perm_results = pool.map(task_func, seeds)
-    else:
-        perm_results = [task_func(seed) for seed in seeds]
+
+    perm_results = run_permutations(
+        task_func, list(seeds),
+        use_mp=_use_mp, n_processes=n_processes,
+        verbose=verbose, desc="bh_fdr_perm",
+    )
 
     # Compute per-edge p-values (with +1 correction — Phipson & Smyth 2010)
     # and apply BH-FDR correction
     p_values = {}
-    for key in ("g2>g1", "g1>g2"):
+    for key in ("positive", "negative"):
         emp_upper = emp_t_dict[key][triu_idx]
 
         # Count how many permutation t-stats >= observed for each edge
@@ -868,7 +880,7 @@ def _compute_parametric_p_values(
     Returns
     -------
     dict
-        Dictionary with 'g1>g2' and 'g2>g1' p-value arrays of shape (N, N).
+        Dictionary with 'negative' and 'positive' p-value arrays of shape (N, N).
     """
     # Compute t-statistics using existing infrastructure
     if test_type_str == TestType.PAIRED.value:
@@ -885,7 +897,7 @@ def _compute_parametric_p_values(
         raise ValueError(f"Invalid test_type: '{test_type_str}'")
 
     p_values = {}
-    for key in ("g1>g2", "g2>g1"):
+    for key in ("negative", "positive"):
         t_vals = t_dict[key]  # Non-negative (one-tailed)
         N = t_vals.shape[0]
 
@@ -968,9 +980,11 @@ def compute_p_val(
     test_type: Union[str, TestType] = TestType.PAIRED,
     method: Union[str, StatMethod] = StatMethod.TFNBS,
     use_mp: bool = True,
-    random_state: Optional[int] = None,
+    rng: RngLike = None,
+    random_state: Optional[int] = None,  # deprecated alias for `rng`
     n_processes: Optional[int] = None,
     acceleration: Optional[str] = None,
+    verbose: bool = False,
     # Method-specific parameters
     net_labels: Optional[npt.NDArray[np.int_]] = None,
     threshold: float = DEFAULT_NBS_THRESHOLD,
@@ -1053,8 +1067,8 @@ def compute_p_val(
     dict
         Dictionary with p-value arrays:
 
-        - 'g1>g2': P-values for group 1 > group 2.
-        - 'g2>g1': P-values for group 2 > group 1.
+        - 'negative': P-values for group 1 > group 2.
+        - 'positive': P-values for group 2 > group 1.
 
     Raises
     ------
@@ -1086,6 +1100,9 @@ def compute_p_val(
     # Normalize inputs
     test_type_str = test_type.value if isinstance(test_type, TestType) else test_type
     method_str = method.value if isinstance(method, StatMethod) else method
+    if random_state is not None and rng is None:
+        warn_legacy_random_state("random_state")
+    random_state = resolve_seed(rng, legacy_random_state=random_state)
 
     # Validate method
     try:
@@ -1103,20 +1120,34 @@ def compute_p_val(
             f"Constrained methods are: {[m.value for m in CONSTRAINED_METHODS]}"
         )
 
+    _t0 = time.perf_counter()
+
     # Parametric methods: compute p-values directly from t-distribution
     if method_enum in PARAMETRIC_METHODS:
-        return _compute_parametric_p_values(
+        result = _compute_parametric_p_values(
             group1, group2, test_type_str, method_enum
+        )
+        return InferenceResult(
+            result["positive"], result["negative"],
+            method=method_str, n_permutations=0, acceleration=None,
+            wall_time_s=time.perf_counter() - _t0,
         )
 
     # BH-FDR with permutation p-values: separate code path
     if method_enum == StatMethod.BH_FDR_PERM:
-        return _compute_bh_fdr_perm_p_values(
+        result = _compute_bh_fdr_perm_p_values(
             group1, group2, test_type_str,
             n_permutations=n_permutations,
             random_state=random_state,
             use_mp=use_mp,
             n_processes=n_processes,
+            verbose=verbose,
+        )
+        return InferenceResult(
+            result["positive"], result["negative"],
+            method=method_str, n_permutations=n_permutations,
+            acceleration=None,
+            wall_time_s=time.perf_counter() - _t0,
         )
 
     # Resolve enhancement wrapper (None for raw t-stat)
@@ -1171,6 +1202,7 @@ def compute_p_val(
             use_mp=use_mp,
             random_state=random_state,
             n_processes=n_processes,
+            verbose=verbose,
         )
     else:
         max_null_dict = _compute_enhanced_null_dist(
@@ -1181,13 +1213,21 @@ def compute_p_val(
             random_state=random_state,
             use_mp=use_mp,
             n_processes=n_processes,
+            verbose=verbose,
         )
 
     if acceleration is not None:
-        return compute_p_values_accelerated(
+        result = compute_p_values_accelerated(
             emp_t_dict, max_null_dict, method=acceleration,
         )
-    return _compute_p_values_from_null(emp_t_dict, max_null_dict)
+    else:
+        result = _compute_p_values_from_null(emp_t_dict, max_null_dict)
+    return InferenceResult(
+        result["positive"], result["negative"],
+        method=method_str, n_permutations=n_permutations,
+        acceleration=acceleration,
+        wall_time_s=time.perf_counter() - _t0,
+    )
 
 
 # =============================================================================
@@ -1215,7 +1255,7 @@ def compute_t_stat(
     Returns
     -------
     dict
-        Dictionary with 'g2>g1' and 'g1>g2' t-statistic arrays.
+        Dictionary with 'positive' and 'negative' t-statistic arrays.
 
     Raises
     ------
@@ -1264,8 +1304,8 @@ def compute_t_stat_diff(
     dict
         Dictionary with:
 
-        - 'g2>g1': Positive t-values (where group 2 > group 1).
-        - 'g1>g2': Negative t-values converted to positive.
+        - 'positive': Positive t-values (where group 2 > group 1).
+        - 'negative': Negative t-values converted to positive.
 
     Raises
     ------
@@ -1286,7 +1326,7 @@ def compute_t_stat_diff(
     pos_t = np.where(t_stat > 0, t_stat, 0)
     neg_t = np.where(t_stat < 0, -t_stat, 0)
 
-    return {"g2>g1": pos_t, "g1>g2": neg_t}
+    return make_tail_result(pos_t, neg_t)
 
 
 def _compute_t_stat_ind(
@@ -1308,8 +1348,8 @@ def _compute_t_stat_ind(
     dict
         Dictionary with:
 
-        - 'g2>g1': Positive t-values (where group 2 > group 1).
-        - 'g1>g2': Negative t-values converted to positive.
+        - 'positive': Positive t-values (where group 2 > group 1).
+        - 'negative': Negative t-values converted to positive.
 
     Raises
     ------
@@ -1334,5 +1374,5 @@ def _compute_t_stat_ind(
     pos_t = np.where(t_stat > 0, t_stat, 0)
     neg_t = np.where(t_stat < 0, -t_stat, 0)
 
-    return {"g2>g1": pos_t, "g1>g2": neg_t}
+    return make_tail_result(pos_t, neg_t)
 

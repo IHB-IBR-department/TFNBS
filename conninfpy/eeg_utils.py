@@ -1,8 +1,21 @@
+"""EEG-specific data structures and reshape helpers."""
 import numpy as np
 from enum import Enum
 from typing import List, Tuple, Union, Optional
 from itertools import combinations
 import pandas as pd
+
+
+__all__ = [
+    "Electrodes",
+    "Bands",
+    "PairsElectrodes1020",
+    "EEGData",
+    "read_from_eeg_dataframe",
+    "reshape_eeg_data",
+    "inverse_reshape_eeg_data",
+]
+
 
 class Electrodes(Enum):
     """

@@ -1,6 +1,13 @@
+"""Synthetic connectivity datasets for benchmarking and testing."""
 import numpy as np
 from scipy import linalg
 from sklearn.datasets import make_sparse_spd_matrix
+
+
+__all__ = [
+    "generate_fc_matrices",
+    "ModularDatasetGenerator",
+]
 
 
 def generate_fc_matrices(N,  effect_size, mask=None, n_samples_group1=50, n_samples_group2=50,

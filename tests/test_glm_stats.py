@@ -823,11 +823,10 @@ class TestPairedGLMWrapper(unittest.TestCase):
             n_permutations=50,
             use_mp=False, random_state=0,
         )
-        # Sanity: keys match the t-test pipeline convention
-        self.assertEqual(sorted(p_wrap.keys()), ['g1>g2', 'g2>g1'])
-        # Exact match: same seed, same pipeline
-        npt.assert_array_equal(p_wrap['g2>g1'], p_direct['g2>g1'])
-        npt.assert_array_equal(p_wrap['g1>g2'], p_direct['g1>g2'])
+        # v2.0+: both pipelines return canonical {'positive', 'negative'}
+        self.assertEqual(sorted(p_wrap.keys()), ['negative', 'positive'])
+        npt.assert_array_equal(p_wrap['positive'], p_direct['positive'])
+        npt.assert_array_equal(p_wrap['negative'], p_direct['negative'])
 
     def test_with_confound_returns_positive_negative(self):
         """With confounds, wrapper returns GLM-style {'positive', 'negative'}."""
@@ -847,14 +846,14 @@ class TestPairedGLMWrapper(unittest.TestCase):
         At the t-stat level: GLM on Δ = B − A with intercept contrast matches
         paired-t on (A, B) (``g2>g1`` = B>A by the t-test convention).
         """
-        Delta = self.Y_B - self.Y_A  # match compute_t_stat paired convention (g2 − g1)
+        Delta = self.Y_B - self.Y_A  # match compute_t_stat paired convention (positive = g2 − g1)
         X_int = np.ones((self.n, 1))
         contrast_int = np.array([1.0])
         res_glm = compute_glm_stat(Delta, X_int, contrast_int, stat_type='tstat')
         glm_signed = res_glm["positive"] - res_glm["negative"]
 
         res_t = compute_t_stat(self.Y_A, self.Y_B, test_type='paired')
-        t_signed = res_t["g2>g1"] - res_t["g1>g2"]
+        t_signed = res_t["positive"] - res_t["negative"]
 
         npt.assert_allclose(glm_signed, t_signed, atol=1e-10)
 

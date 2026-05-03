@@ -1,14 +1,20 @@
 """
 Shared enhancement wrappers for both t-test and GLM pipelines.
 
-Each wrapper is a pure transformation: `stat_dict → score_dict`. It takes a
-per-direction statistic dict (e.g. `{'g2>g1': t_pos, 'g1>g2': t_neg}` for the
-t-test pipeline, or `{'positive': ..., 'negative': ...}` for GLM) and applies
-the corresponding network-based enhancement to each direction independently.
+Each wrapper is a pure transformation: ``stat_dict → score_dict``. It takes a
+per-direction statistic dict (``{'positive': ..., 'negative': ...}``) and
+applies the corresponding network-based enhancement to each direction
+independently.
+
+Wrappers accept the legacy keys ``'g2>g1'`` / ``'g1>g2'`` from the v1.x
+t-test pipeline (silently remapped via :func:`conninfpy._compat.normalize_keys`)
+and always return a :class:`~conninfpy._compat.TailResult` with canonical
+``'positive'`` / ``'negative'`` keys. The legacy keys remain readable on
+the result with a :class:`DeprecationWarning` until v2.1.
 
 Wrappers do NOT compute statistics internally — the caller is responsible for
-providing the raw statistic (t-stat, β, etc.). This matches the design pattern
-documented in developer guide: enhancement methods accept pre-computed statistics.
+providing the raw statistic (t-stat, β, etc.). This matches the design
+pattern documented in developer guide.
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ from typing import Dict, List, Union
 import numpy.typing as npt
 import numpy as np
 
+from ._compat import TailResult, make_tail_result, normalize_keys
 from .defaults import (
     DEFAULT_EXTENT_EXPONENT,
     DEFAULT_HEIGHT_EXPONENT,
@@ -34,6 +41,31 @@ from .tfnbs_score import (
     get_tfnbs_score,
 )
 
+__all__ = [
+    "apply_tfnbs",
+    "apply_nbs",
+    "apply_cnbs",
+    "apply_ni_tfnbs",
+    "apply_fbc_tfnbs",
+]
+
+
+def _wrap(stat_dict: Dict[str, npt.NDArray[np.float64]],
+          score_fn) -> TailResult:
+    """Apply ``score_fn`` to each tail and wrap the result in a TailResult.
+
+    Accepts legacy keys via :func:`normalize_keys`; always emits canonical keys.
+    Falls back to a plain dict if the input has unexpected keys (e.g. F-stat
+    omnibus path with ``{'omnibus': ...}``).
+    """
+    norm = normalize_keys(stat_dict)
+    if set(norm.keys()) == {"positive", "negative"}:
+        return make_tail_result(
+            score_fn(norm["positive"]),
+            score_fn(norm["negative"]),
+        )
+    return {key: score_fn(arr) for key, arr in norm.items()}
+
 
 def apply_tfnbs(
     stat_dict: Dict[str, npt.NDArray[np.float64]],
@@ -42,12 +74,12 @@ def apply_tfnbs(
     n: int = DEFAULT_N_THRESHOLDS,
     start_thres: float = DEFAULT_START_THRESHOLD,
     **kwargs,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> TailResult:
     """Apply TFNBS (threshold-free cluster enhancement) to each direction."""
-    return {
-        key: get_tfnbs_score(arr, e, h, n, start_thres=start_thres)
-        for key, arr in stat_dict.items()
-    }
+    return _wrap(
+        stat_dict,
+        lambda arr: get_tfnbs_score(arr, e, h, n, start_thres=start_thres),
+    )
 
 
 def apply_nbs(
@@ -55,24 +87,24 @@ def apply_nbs(
     threshold: float = DEFAULT_NBS_THRESHOLD,
     nbs_stat: str = DEFAULT_NBS_STAT,
     **kwargs,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> TailResult:
     """Apply classical NBS (fixed threshold) to each direction."""
-    return {
-        key: get_nbs_score(arr, threshold=threshold, stat_type=nbs_stat)
-        for key, arr in stat_dict.items()
-    }
+    return _wrap(
+        stat_dict,
+        lambda arr: get_nbs_score(arr, threshold=threshold, stat_type=nbs_stat),
+    )
 
 
 def apply_cnbs(
     stat_dict: Dict[str, npt.NDArray[np.float64]],
     net_labels: npt.NDArray[np.int_],
     **kwargs,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> TailResult:
     """Apply constrained NBS (block-constrained scoring) to each direction."""
-    return {
-        key: get_cnbs_score(arr, net_labels)
-        for key, arr in stat_dict.items()
-    }
+    return _wrap(
+        stat_dict,
+        lambda arr: get_cnbs_score(arr, net_labels),
+    )
 
 
 def apply_ni_tfnbs(
@@ -84,15 +116,15 @@ def apply_ni_tfnbs(
     start_thres: float = DEFAULT_START_THRESHOLD,
     normalization: str = "sqrt",
     **kwargs,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> TailResult:
     """Apply network-informed TFNBS (block-density weighted) to each direction."""
-    return {
-        key: get_network_informed_tfnbs_score(
+    return _wrap(
+        stat_dict,
+        lambda arr: get_network_informed_tfnbs_score(
             arr, net_labels, e, h, n,
             start_thres=start_thres, normalization=normalization,
-        )
-        for key, arr in stat_dict.items()
-    }
+        ),
+    )
 
 
 def apply_fbc_tfnbs(
@@ -104,12 +136,12 @@ def apply_fbc_tfnbs(
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     **kwargs,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> TailResult:
     """Apply functional-block-clustering TFNBS to each direction."""
-    return {
-        key: get_fbc_tfnbs_score(
+    return _wrap(
+        stat_dict,
+        lambda arr: get_fbc_tfnbs_score(
             arr, net_labels, e, h, n,
             start_thres=start_thres, min_cluster_size=min_cluster_size,
-        )
-        for key, arr in stat_dict.items()
-    }
+        ),
+    )

@@ -39,8 +39,6 @@ except ImportError:
 
 __all__ = [
     "get_tfnbs_score",
-    "get_tfnbs_score_baseline",
-    "get_tfnbs_score_networkx",
     "get_network_informed_tfnbs_score",
     "get_fbc_tfnbs_score",
     "HAS_NUMBA",
@@ -614,6 +612,12 @@ def get_tfnbs_score_baseline(
     """
     Baseline (non-optimized) implementation of TFNBS for performance comparison.
 
+    .. deprecated:: 2.0
+        Removed from the public API in v2.0; the function lives on only as
+        an equivalence reference for internal tests. Will be deleted in
+        v2.1. Use :func:`get_tfnbs_score` instead — it is the optimised
+        production implementation.
+
     This is the original scipy-based implementation without optimizations.
     Use `get_tfnbs_score()` for production - it is ~1.5x faster.
 
@@ -706,6 +710,11 @@ def get_tfnbs_score_networkx(
 ) -> npt.NDArray[np.floating]:
     """
     Transform the connectivity matrix using Threshold-Free Network-Based Statistics.
+
+    .. deprecated:: 2.0
+        Removed from the public API in v2.0; the function lives on only as
+        an equivalence reference for internal tests. Will be deleted in
+        v2.1. Use :func:`get_tfnbs_score` instead.
 
     Legacy networkx implementation - use `get_tfnbs_score()` for better performance.
     This function is kept for comparison with other packages that use networkx.

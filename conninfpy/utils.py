@@ -1,8 +1,27 @@
+"""Statistical utilities for ConnInfPy.
+
+Includes:
+
+- :func:`fisher_r_to_z` / :func:`fisher_z_to_r` — Fisher transformations.
+- :func:`get_components` — connected components (BCT-style).
+- :func:`binarize` — threshold-and-binarize a connectivity matrix.
+- :func:`create_prior_weights` — block-density priors used by NI-TFNBS.
+"""
+
 from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 import warnings
+
+
+__all__ = [
+    "fisher_r_to_z",
+    "fisher_z_to_r",
+    "get_components",
+    "binarize",
+    "create_prior_weights",
+]
 
 
 def fisher_r_to_z(r: npt.NDArray[np.float64],

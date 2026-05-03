@@ -26,6 +26,13 @@ import numpy.typing as npt
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "fit_gpd_tail",
+    "fit_gamma_tail",
+    "compute_p_values_accelerated",
+]
+
+
 def _fit_gpd_mom(
     exceedances: npt.NDArray[np.float64],
 ) -> tuple[float, float, bool]:
