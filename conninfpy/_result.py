@@ -45,6 +45,15 @@ class InferenceResult(TailResult):
         ``store_null=True`` is passed to the pipeline).
     """
 
+    # Type hints for the metadata attributes set in __new__ (mypy needs
+    # explicit class-level declarations because dict subclasses with
+    # extra attributes confuse it otherwise).
+    method: str
+    n_permutations: int
+    acceleration: Optional[str]
+    wall_time_s: Optional[float]
+    null_max_dist: Optional[Dict[str, npt.NDArray[np.float64]]]
+
     def __new__(
         cls,
         positive: npt.NDArray[np.float64],

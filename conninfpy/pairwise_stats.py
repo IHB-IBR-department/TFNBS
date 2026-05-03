@@ -996,7 +996,7 @@ def compute_p_val(
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     normalization: str = "sqrt",
     **kwargs
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> InferenceResult:
     """
     Compute p-values using permutation testing with various network-based methods.
 
@@ -1154,7 +1154,7 @@ def compute_p_val(
     enhance_func = _ENHANCE_MAP[method_enum]
 
     # Build enhancement kwargs once (method-specific)
-    enhance_kwargs = {}
+    enhance_kwargs: Dict[str, Any] = {}
     if method_enum == StatMethod.NBS:
         enhance_kwargs = {"threshold": threshold, "nbs_stat": nbs_stat}
     elif method_enum in {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}:

@@ -89,6 +89,7 @@ from .glm_stats import (
     GLMStatType,
     compute_glm_stat,
     compute_p_val_glm,
+    compute_p_val_glm_multi,
     compute_p_val_paired_glm,
     build_design_matrix,
 )
@@ -138,6 +139,7 @@ __all__ = [
     "StatMethod",
     "TestType",
     "compute_p_val_glm",
+    "compute_p_val_glm_multi",
     "compute_p_val_paired_glm",
     "compute_glm_stat",
     "build_design_matrix",

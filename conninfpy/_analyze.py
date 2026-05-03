@@ -170,10 +170,12 @@ def analyze(
     # ---- ComBat ----
     if sites is not None:
         if glm_mode:
+            assert Y is not None
             res = combat_harmonize(Y, sites=np.asarray(sites), preserve=preserve)
             Y = res.Y_adjusted
             combat_diag = res.diagnostics
         else:
+            assert group1 is not None and group2 is not None
             n1 = group1.shape[0]
             stacked = np.concatenate([group1, group2], axis=0)
             res = combat_harmonize(
@@ -205,6 +207,16 @@ def analyze(
             acceleration=acceleration,
             e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
             **method_kwargs,
+        )
+
+    if not isinstance(result, InferenceResult):
+        # F-stat 'omnibus' path returns a plain dict with a single key.
+        # Wrap it so AnalyzeResult always carries an InferenceResult.
+        omnibus = result["omnibus"] if "omnibus" in result else next(iter(result.values()))
+        result = InferenceResult(
+            omnibus, np.zeros_like(omnibus),
+            method=str(method), n_permutations=n_permutations,
+            acceleration=acceleration,
         )
 
     return AnalyzeResult(
