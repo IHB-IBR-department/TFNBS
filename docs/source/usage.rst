@@ -13,7 +13,9 @@ Pipeline                                                       Use case
 ============================================================  ============================================================
 :func:`conninfpy.compute_p_val`                                Group / paired / one-sample t-test
 :func:`conninfpy.compute_p_val_glm`                            Continuous predictors with confound regression (Freedman–Lane)
+:func:`conninfpy.compute_p_val_glm_multi`                      Several contrasts under a shared nuisance model in **one** permutation pass
 :func:`conninfpy.compute_p_val_paired_glm`                     Paired A vs B with Δ-level confounds
+:func:`conninfpy.analyze`                                      One-shot Fisher-z → ComBat → GLM/t-test → :class:`InferenceResult`
 ============================================================  ============================================================
 
 Two helper layers wrap them:
@@ -27,10 +29,13 @@ Input conventions
 - Connectivity tensors: shape ``(n_subjects, N, N)``, symmetric, zero diagonal.
 - Edge weights: Fisher-z transformed correlation coefficients. Use
   :func:`conninfpy.fisher_r_to_z` before any inference call.
-- The package returns dictionaries keyed by effect direction so that
-  two-tailed FWER decisions are explicit:
-  ``{'g2>g1', 'g1>g2'}`` for the t-test family, ``{'positive', 'negative'}``
-  for the GLM family, or ``{'omnibus'}`` for the F-contrast pipeline.
+- The package returns :class:`~conninfpy.InferenceResult` objects, which
+  behave as ``{'positive', 'negative'}`` dicts (canonical keys since
+  v2.0) and additionally carry attributes ``positive`` / ``negative`` /
+  ``method`` / ``n_permutations`` / ``acceleration`` / ``wall_time_s``.
+  The legacy v1.x keys ``'g2>g1'`` / ``'g1>g2'`` (t-test family) remain
+  readable but emit a :class:`DeprecationWarning` and will be removed in
+  v2.1. F-stat omnibus tests still return ``{'omnibus': arr}``.
 
 t-test pipeline — :func:`compute_p_val`
 ---------------------------------------
@@ -115,6 +120,48 @@ designs or testing several predictors jointly:
    )
    # F-pipeline returns a single non-negative tail:
    # p['omnibus'] : (N, N) FWER-corrected p-map
+
+Multi-contrast GLM in one pass — :func:`compute_p_val_glm_multi`
+----------------------------------------------------------------
+
+If you need to test several contrasts of interest under the same
+nuisance model — e.g. ``age``, ``sex``, and ``mean_fd`` separately
+while treating the others as nuisance — calling
+:func:`compute_p_val_glm` once per contrast wastes work: the
+reduced-model residual fit and the per-permutation
+``X_pinv @ Y_perm`` matrix multiplication are identical. The
+multi-contrast wrapper does it in one pass.
+
+.. code-block:: python
+
+   from conninfpy import compute_p_val_glm_multi
+
+   X = np.column_stack([np.ones(n), age, sex, mean_fd])  # (n, 4)
+   contrasts = {
+       "age":     np.array([0.0, 1.0, 0.0, 0.0]),
+       "sex":     np.array([0.0, 0.0, 1.0, 0.0]),
+       "motion":  np.array([0.0, 0.0, 0.0, 1.0]),
+   }
+
+   results = compute_p_val_glm_multi(
+       Y, design_matrix=X, contrasts=contrasts,
+       method="tfnbs", n_permutations=5000,
+       acceleration="gpd", rng=42,
+   )
+   # results = {'age': InferenceResult, 'sex': ..., 'motion': ...}
+   results["age"].positive          # (N, N) FWER p-map
+   results["age"].n_significant(0.05)
+
+For ``K`` contrasts the wall-time is roughly that of a single
+:func:`compute_p_val_glm` call rather than ``K`` calls — typically a
+3× speedup for the canonical age + sex + motion design.
+
+By default the reduced model excludes any column touched by *any*
+contrast in the dictionary. Pass ``nuisance_contrast=`` to override
+explicitly, e.g. when you want sex and motion treated as nuisance for
+the age contrast even though you also test them separately. F-stat /
+multi-row contrasts are unsupported in this wrapper — call
+:func:`compute_p_val_glm` once per omnibus test.
 
 Paired A vs B with Δ-level confounds — :func:`compute_p_val_paired_glm`
 ------------------------------------------------------------------------

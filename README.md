@@ -54,7 +54,7 @@ a distinct stage of the inference pipeline:
 | **A** | Ground truth | Side-by-side Group 1 (no effect) vs Group 2 (planted effect on a within-module-dense topology); 30×30 modular matrices in viridis | `conninfpy.topologies` (19-scenario library), `generate_fc_matrices` |
 | **B** | Multi-site FC | Stack of per-subject Fisher-$z$ FC matrices coloured by acquisition site, exhibiting visible site-effect heterogeneity | `fisher_r_to_z` |
 | **C** | Harmonization (NEW) | ComBat before/after — between-site mean FC visibly homogenised while age/sex/diagnosis are preserved | `combat_harmonize`, `combat_fit`/`combat_apply`, `design_diagnostics` |
-| **D** | GLM + Freedman–Lane (NEW) | Design matrix $X$ → reduced-model residual permutation → reconstructed $y^{\pi}$ → per-edge $t$ / $\beta$ / $F$ | `compute_p_val_glm`, `compute_p_val_paired_glm`, `build_design_matrix` |
+| **D** | GLM + Freedman–Lane (NEW) | Design matrix $X$ → reduced-model residual permutation → reconstructed $y^{\pi}$ → per-edge $t$ / $\beta$ / $F$. **Multi-contrast support**: several contrasts of interest (e.g. age, sex, motion) are evaluated under one shared nuisance model in a single permutation pass — $\hat\beta^\pi$ is reused across all $K$ contrasts. | `compute_p_val_glm`, `compute_p_val_glm_multi` (NEW), `compute_p_val_paired_glm`, `build_design_matrix` |
 | **E** | NBS | Fixed cluster-defining threshold $\tau$ + connected-components labelling — illustrates the parameter that TFNBS eliminates | `nbs_bct`, `compute_p_val(method="nbs")` |
 | **F** | TFNBS | Threshold-free integration $S_e = \sum_h [\eta_h(e)]^E h^H \Delta h$ across $\mathcal{H}$; FDR-calibrated regime $(E, H) = (0.4, 3.0)$ | `get_tfnbs_score`, `apply_tfnbs`, `compute_p_val(method="tfnbs")` |
 | **G** | Block-prior methods (NEW) | cNBS (Yeo-7 block aggregation) · **NI-TFNBS** (block-density soft prior, $\omega_B(h) = k_B(h)/\sqrt{|B|}$) · **FBC-TFNBS** (atomic blocks with $m_{\min}$ threshold) | `apply_cnbs`, `apply_ni_tfnbs`, `apply_fbc_tfnbs` |
@@ -122,6 +122,7 @@ sphinx-build source _build
 |---|---|---|
 | `compute_p_val` | Permutation p-values for group comparisons | Two-sample, paired, or one-sample |
 | `compute_p_val_glm` | GLM with confound regression | Continuous predictors + nuisance, Freedman-Lane permutation; supports 1D contrast (t-stat/beta) and 2D contrast (omnibus F-test) |
+| `compute_p_val_glm_multi` | Several contrasts under one shared nuisance model in **one** permutation pass | Reuses the reduced-model residual reconstruction across `K` contrasts → ~`K`× speedup vs `K` independent calls; returns `Dict[str, InferenceResult]` keyed by user-supplied contrast names |
 | `compute_p_val_paired_glm` | Paired A vs B with Δ-level confounds | Convenience wrapper — routes to paired-t when no confounds, else one-sample GLM on Δ |
 | `compute_null_dist` | Generate null distribution only | For custom workflows |
 | `compute_t_stat` / `compute_t_stat_diff` | Edge-wise t-statistics | Paired / one-sample / two-sample |
@@ -235,6 +236,38 @@ p_vals = compute_p_val_paired_glm(
 )
 # Tests A vs B within-subject, partialling out Δmotion = fd_A − fd_B.
 ```
+
+### Multi-contrast GLM in one permutation pass (new in v2.0)
+
+```python
+import numpy as np
+from conninfpy import compute_p_val_glm_multi
+
+# Same 4-column design ([intercept, age, sex, motion]); test 3 contrasts
+# under one shared nuisance model.
+X = np.column_stack([np.ones(n), age, sex, motion])
+contrasts = {
+    "age":    np.array([0, 1, 0, 0]),
+    "sex":    np.array([0, 0, 1, 0]),
+    "motion": np.array([0, 0, 0, 1]),
+}
+
+results = compute_p_val_glm_multi(
+    Y, X, contrasts,
+    method="tfnbs", n_permutations=5000, acceleration="gpd",
+    rng=42,
+)
+# → {'age': InferenceResult, 'sex': InferenceResult, 'motion': InferenceResult}
+
+print(results["age"])           # InferenceResult repr w/ wall_time, n_sig
+results["motion"].n_significant(0.05)
+```
+
+The reduced-model residual reconstruction and ``X_pinv @ Y_perm``
+matrix multiplication are reused across all contrasts, so wall-time is
+~1× a single ``compute_p_val_glm`` call rather than 3×. F-stat /
+multi-row contrasts are unsupported here — call
+``compute_p_val_glm`` once per omnibus test.
 
 ### Omnibus F-contrast for ≥3 conditions (new)
 

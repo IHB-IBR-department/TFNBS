@@ -226,15 +226,28 @@ def panel_C_combat(ax, fc, site_codes, rng):
 
 
 def panel_D_glm(ax):
-    """D — Edge-wise GLM with Freedman–Lane (full-width schematic)."""
+    """D — Edge-wise GLM with Freedman–Lane, multi-contrast in one pass.
+
+    Three sub-panels:
+      (left)   Design X with three contrasts c_age, c_sex, c_FD
+               highlighted as separate "of-interest" columns.
+      (centre) Freedman–Lane flowchart with the shared-nuisance loop
+               annotated — one residual fit, K contrast evaluations.
+      (right)  Three resulting per-edge stat maps t_e^{age}, t_e^{sex},
+               t_e^{FD} produced in a single permutation pass via
+               compute_p_val_glm_multi.
+    """
     ax.axis("off")
     fig = ax.figure
     sub = ax.get_subplotspec().subgridspec(
-        1, 5, width_ratios=[1.4, 0.3, 2.6, 0.3, 2.4], wspace=0.08
+        1, 5, width_ratios=[1.5, 0.25, 2.6, 0.3, 2.6], wspace=0.08
     )
 
-    # Design matrix X
-    a_x = fig.add_subplot(sub[0])
+    # ---- Design matrix X with contrast-row strip below ----
+    a_x_outer = fig.add_subplot(sub[0])
+    a_x_outer.axis("off")
+    inner_x = sub[0].subgridspec(2, 1, height_ratios=[5, 1], hspace=0.05)
+    a_x = fig.add_subplot(inner_x[0])
     n = 30
     rng = np.random.default_rng(7)
     X = np.column_stack([
@@ -248,16 +261,37 @@ def panel_D_glm(ax):
     a_x.set_xticklabels(["1", "age", "sex", "FD"], fontsize=6)
     a_x.set_ylabel("subjects", fontsize=6.5)
     a_x.set_title("Design $X$", fontsize=7)
+    # Highlight the three "of interest" columns (1, 2, 3 — exclude intercept)
+    for col in (1, 2, 3):
+        a_x.add_patch(plt.Rectangle(
+            (col - 0.45, -0.5), 0.9, n - 0.0,
+            fill=False, edgecolor="#c33", linewidth=1.0,
+        ))
+    # Tiny contrast strip below: 3 stacked one-hot rows
+    a_c = fig.add_subplot(inner_x[1])
+    contrasts = np.array([
+        [0, 1, 0, 0],  # age
+        [0, 0, 1, 0],  # sex
+        [0, 0, 0, 1],  # FD
+    ])
+    a_c.imshow(contrasts, cmap="Reds", vmin=0, vmax=1, aspect="auto")
+    a_c.set_yticks(range(3))
+    a_c.set_yticklabels(["$c_{\\rm age}$", "$c_{\\rm sex}$", "$c_{\\rm FD}$"],
+                        fontsize=5.5)
+    a_c.set_xticks([]); a_c.tick_params(axis="y", length=0, pad=1)
+    a_c.set_title("3 contrasts", fontsize=6, pad=1)
 
-    # FL flowchart (centre)
+    # ---- Freedman–Lane flowchart, annotated as shared-nuisance loop ----
     a_f = fig.add_subplot(sub[2])
     a_f.set_xlim(0, 1); a_f.set_ylim(0, 1); a_f.axis("off")
-    a_f.set_title("Freedman–Lane permutation", fontsize=7)
+    a_f.set_title("Freedman–Lane  ·  shared nuisance, $K$ contrasts in one pass",
+                  fontsize=6.8)
     boxes = [
         (0.04, 0.78, 0.30, 0.16, "Reduced fit\n$y = X_Z\\hat\\gamma$"),
         (0.04, 0.50, 0.30, 0.16, "Residuals $\\hat r$"),
         (0.04, 0.22, 0.30, 0.16, "Permute  $P_\\pi \\hat r$"),
-        (0.55, 0.50, 0.42, 0.16, "Reconstruct\n$y^\\pi = X_Z\\hat\\gamma + P_\\pi \\hat r$"),
+        (0.46, 0.50, 0.50, 0.16,
+         "Reconstruct + full fit\n$y^\\pi = X_Z\\hat\\gamma + P_\\pi \\hat r$"),
     ]
     for (x, y, w, h, txt) in boxes:
         a_f.add_patch(FancyBboxPatch((x, y - h/2), w, h,
@@ -267,25 +301,48 @@ def panel_D_glm(ax):
     arrows = [
         ((0.19, 0.70), (0.19, 0.58)),
         ((0.19, 0.42), (0.19, 0.30)),
-        ((0.34, 0.50), (0.55, 0.50)),
+        ((0.34, 0.50), (0.46, 0.50)),
     ]
     for (xy0, xy1) in arrows:
         a_f.add_patch(FancyArrowPatch(xy0, xy1, arrowstyle="-|>",
                                       mutation_scale=8, color="#345", lw=0.7))
+    # Annotation: one beta vector per perm, K stats per beta
+    a_f.text(0.71, 0.32,
+             r"$\hat\beta^\pi$ reused" + "\n" + r"for all $K$ contrasts",
+             ha="center", va="center", fontsize=6.0, color="#a33",
+             style="italic")
 
-    # Per-edge statistics (3 thumbnails — let the labels speak; no header)
+    # ---- Three per-edge stat maps, one per contrast ----
     a_t = fig.add_subplot(sub[4])
     a_t.axis("off")
-    inner = sub[4].subgridspec(1, 3, wspace=0.10)
+    inner = sub[4].subgridspec(1, 3, wspace=0.18)
     rng2 = np.random.default_rng(3)
-    for j, label in enumerate(["$t_e$", r"$\beta_e$", "$F_e$"]):
+    contrast_labels = [
+        ("$t_e^{\\rm age}$", "#c33"),
+        ("$t_e^{\\rm sex}$", "#c33"),
+        ("$t_e^{\\rm FD}$", "#c33"),
+    ]
+    for j, (label, color) in enumerate(contrast_labels):
         a_in = fig.add_subplot(inner[j])
-        Tmap = np.abs(rng2.normal(0, 1.5, (20, 20)))
+        # Each contrast gets a slightly different signal pattern
+        rng_j = np.random.default_rng(3 + j)
+        Tmap = np.abs(rng_j.normal(0, 1.0, (20, 20)))
+        if j == 0:  # age — strong cluster top-left
+            Tmap[:6, :6] += 2.5
+        elif j == 1:  # sex — single hub
+            Tmap[7, :] += 1.8; Tmap[:, 7] += 1.8
+        else:  # FD — diffuse
+            Tmap += 0.6
         Tmap = (Tmap + Tmap.T) / 2
         np.fill_diagonal(Tmap, 0)
-        a_in.imshow(Tmap, cmap="magma")
+        a_in.imshow(Tmap, cmap="magma", vmin=0, vmax=4)
         a_in.set_xticks([]); a_in.set_yticks([])
-        a_in.set_title(label, fontsize=8.5, pad=1)
+        a_in.set_title(label, fontsize=8, pad=1, color=color)
+    # Banner under the three thumbnails
+    a_t.text(0.5, -0.06,
+             r"$\rightarrow$ compute_p_val_glm_multi  ·  one perm pass",
+             transform=a_t.transAxes, ha="center", va="top",
+             fontsize=6.5, style="italic", color="#a33")
 
 
 def _make_t_for_NBS(rng):
