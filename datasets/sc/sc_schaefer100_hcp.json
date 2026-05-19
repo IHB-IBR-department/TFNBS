@@ -1,0 +1,16 @@
+{
+  "parcellation": "schaefer_100",
+  "n_nodes": 100,
+  "enigmatoolbox_version": "2.0.3",
+  "source": "ENIGMA Toolbox load_sc() \u2014 HCP-derived group mean",
+  "weight_min": -0.21205,
+  "weight_max": 11.707,
+  "weight_mean": 1.5961884929292929,
+  "edge_density_nonzero": 0.22363636363636363,
+  "isolated_nodes": 0,
+  "files": {
+    "matrix": "datasets/sc/sc_schaefer100_hcp.npy",
+    "labels": "datasets/sc/sc_schaefer100_hcp.labels.txt",
+    "sidecar": "datasets/sc/sc_schaefer100_hcp.json"
+  }
+}
