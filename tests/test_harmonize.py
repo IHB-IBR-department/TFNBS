@@ -206,6 +206,61 @@ class TestComBat(unittest.TestCase):
         )
 
 
+class TestVarianceFloorWarning(unittest.TestCase):
+    """Variance-floor RuntimeWarnings on catastrophic-cancellation cases.
+
+    Build a multi-site dataset where one edge is held constant within one
+    site (within-site variance is exactly zero) so the per-site delta floor
+    must fire. The pooled-sigma path is exercised by holding the same edge
+    constant across the *whole* dataset.
+    """
+
+    def test_per_site_delta_floor_warns(self):
+        Y, sites, _, _ = _make_site_planted_data(
+            n_per_site=10, n_sites=3, N=5, seed=11
+        )
+        # Force one edge to be a within-site constant on site 0 → δ²₀ = 0.
+        mask = sites == 0
+        Y[mask, 0, 1] = 0.42
+        Y[mask, 1, 0] = 0.42
+        with self.assertWarns(RuntimeWarning) as ctx:
+            combat_harmonize(Y, sites)
+        msgs = [str(w.message) for w in ctx.warnings]
+        self.assertTrue(
+            any("per-site delta" in m for m in msgs),
+            f"expected a per-site delta warning, got: {msgs}",
+        )
+
+    def test_pooled_sigma_floor_warns(self):
+        Y, sites, _, _ = _make_site_planted_data(
+            n_per_site=10, n_sites=3, N=5, seed=12
+        )
+        # Force one edge to a global constant → residuals = 0 → σ² = 0.
+        Y[:, 0, 1] = 0.13
+        Y[:, 1, 0] = 0.13
+        with self.assertWarns(RuntimeWarning) as ctx:
+            combat_harmonize(Y, sites)
+        msgs = [str(w.message) for w in ctx.warnings]
+        self.assertTrue(
+            any("pooled sigma" in m for m in msgs),
+            f"expected a pooled-sigma warning, got: {msgs}",
+        )
+
+    def test_no_warning_on_clean_data(self):
+        import warnings as _w
+
+        Y, sites, _, _ = _make_site_planted_data(seed=13)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            combat_harmonize(Y, sites)
+        floor_warnings = [
+            w for w in caught
+            if issubclass(w.category, RuntimeWarning)
+            and "variance" in str(w.message).lower()
+        ]
+        self.assertEqual(floor_warnings, [])
+
+
 class TestVIF(unittest.TestCase):
     """Variance inflation factor correctness."""
 

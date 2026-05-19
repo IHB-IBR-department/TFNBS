@@ -10,9 +10,18 @@ ComBat model per feature j:
     Y_ij_s = α_j + X_i β_j + γ_sj + δ_sj · ε_ij_s,   ε ~ N(0, σ_j²)
 
 where ``s`` indexes site, ``i`` indexes subject within site, and ``X_i`` holds
-covariates to preserve (age, sex, diagnosis). Estimation:
+covariates to preserve (age, sex, diagnosis). The parameterization follows
+Fortin 2017 / neuroCombat: site dummies are encoded one-hot (no reference
+site dropped); ``α`` is the sample-size-weighted grand mean of per-site
+intercepts; ``σ²`` uses the biased ``var.pooled`` denominator (divide by
+``n``, not ``n − p``). This matches the canonical neuroCombat reference
+implementation to machine precision under EB and without — validated in
+``tests/test_combat_equivalence.py``.
 
-1. Fit OLS with preserved covariates + site dummies to obtain ``α̂, β̂, σ̂_j``.
+Estimation:
+
+1. Fit OLS with site dummies + preserved covariates to obtain per-site
+   intercepts, ``β̂``, and pooled ``σ̂_j``.
 2. Standardize residuals per feature.
 3. Estimate per-(site, feature) location ``γ̂`` and scale ``δ̂²`` from the
    standardized data.
@@ -46,11 +55,49 @@ across scanners and sites. NeuroImage 167:104-120.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
+
+
+# Floor applied to variance estimates inside ComBat. Matches the
+# `np.maximum(·, _VAR_FLOOR)` calls in `combat_fit`. Below this value we
+# emit a RuntimeWarning so catastrophic cancellations (e.g. Fisher-z near
+# saturation, |r|→1, where within-site var collapses to zero) don't pass
+# silently. Clip behavior is unchanged.
+_VAR_FLOOR = 1e-12
+
+
+def _warn_variance_floor(
+    var: npt.NDArray[np.float64],
+    stage: str,
+    *,
+    site_label: Optional[Any] = None,
+) -> None:
+    """Emit a RuntimeWarning listing how many entries fell at/below the floor.
+
+    ``stage`` names the call site ('pooled sigma', 'per-site delta',
+    'EB-shrunken delta'); ``site_label`` is the human-readable site name if
+    the offending entries are per-site.
+    """
+    bad = np.asarray(var <= _VAR_FLOOR)
+    if not bad.any():
+        return
+    n_bad = int(bad.sum())
+    finite = var[np.isfinite(var)]
+    min_val = float(finite.min()) if finite.size else float("nan")
+    where = f" at site {site_label!r}" if site_label is not None else ""
+    warnings.warn(
+        f"ComBat: {n_bad} feature(s){where} had variance ≤ {_VAR_FLOOR:.1e} "
+        f"at '{stage}' (min value = {min_val:.3e}); clipped to {_VAR_FLOOR:.1e}. "
+        "This commonly indicates catastrophic cancellation (Fisher-z near "
+        "saturation |r|→1) or a within-site constant feature.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
 
 
 __all__ = [
@@ -126,13 +173,19 @@ def _encode_sites(sites: Sequence[Any]) -> Tuple[npt.NDArray[np.int_], List[Any]
 
 
 def _site_dummies(site_codes: npt.NDArray[np.int_], n_sites: int) -> npt.NDArray[np.float64]:
-    """Grand-mean coded site dummies: n_sites - 1 columns, first site is reference."""
+    """One-hot site dummies: ``n_sites`` columns, no reference dropped.
+
+    Canonical Fortin 2017 / Johnson 2007 parameterization — the per-site
+    intercepts in the OLS fit are then per-site feature means, and the
+    grand-mean α is recovered as a sample-size-weighted average of them.
+    Combined with `preserve` columns, the design ``[D | preserve]`` is
+    full-rank (the one-hot dummies sum to ones but the preserve block
+    typically has nontrivial variation; no separate intercept needed).
+    """
     n = site_codes.shape[0]
-    if n_sites <= 1:
-        return np.zeros((n, 0), dtype=np.float64)
-    D = np.zeros((n, n_sites - 1), dtype=np.float64)
-    for s in range(1, n_sites):
-        D[:, s - 1] = (site_codes == s).astype(np.float64)
+    D = np.zeros((n, n_sites), dtype=np.float64)
+    for s in range(n_sites):
+        D[:, s] = (site_codes == s).astype(np.float64)
     return D
 
 
@@ -297,28 +350,39 @@ def combat_fit(
             f"no harmonization is needed."
         )
 
-    # Build design: [intercept, preserve_cols, site_dummies(1..n_sites-1)]
-    intercept = np.ones((n, 1), dtype=np.float64)
-    D = _site_dummies(site_codes, n_sites)
-    cols = [intercept]
+    # Build design: [site_dummies (all K, one-hot) | preserve_cols].
+    # Canonical Fortin 2017 / neuroCombat parameterization — no reference
+    # site dropped; α is recovered as the sample-size-weighted average of
+    # the per-site intercepts. No separate intercept column needed (one-hot
+    # dummies already span the constants).
+    D = _site_dummies(site_codes, n_sites)              # (n, n_sites)
+    cols = [D]
     k = 0
     if preserve is not None:
         cols.append(preserve)
         k = preserve.shape[1]
-    cols.append(D)
     X_full = np.hstack(cols)
 
-    # OLS fit. α̂_j is col 0, β̂_j is cols 1..k, γ̂_raw_sj in the rest.
+    # OLS fit. First n_sites rows of beta_full = per-site intercepts
+    # (per-site feature mean after preserve adjustment); next k rows = β̂.
     beta_full, *_ = np.linalg.lstsq(X_full, features, rcond=None)
-    alpha = beta_full[0]  # (p,)
-    beta_cov = beta_full[1:1 + k] if k > 0 else None
 
-    # Pooled residual variance (divide by n - p_design)
+    # α̂_j = weighted grand mean = Σ_s (n_s/n) · per_site_intercept_s
+    n_per_site = np.array(
+        [int(np.sum(site_codes == s)) for s in range(n_sites)],
+        dtype=np.float64,
+    )
+    site_weights = n_per_site / float(n)                 # (n_sites,)
+    alpha = site_weights @ beta_full[:n_sites]           # (p,)
+    beta_cov = beta_full[n_sites:n_sites + k] if k > 0 else None
+
+    # Pooled residual variance — Fortin 2017 var.pooled (biased MLE,
+    # divide by n). This matches neuroCombat's reference convention.
     preds = X_full @ beta_full
     residuals = features - preds
-    df = max(n - X_full.shape[1], 1)
-    sigma_sq = np.sum(residuals ** 2, axis=0) / df
-    sigma = np.sqrt(np.maximum(sigma_sq, 1e-12))
+    sigma_sq = np.sum(residuals ** 2, axis=0) / float(n)
+    _warn_variance_floor(sigma_sq, "pooled sigma")
+    sigma = np.sqrt(np.maximum(sigma_sq, _VAR_FLOOR))
 
     # Standardize: Z_ij = (Y_ij - α̂_j - X_i β̂_j) / σ̂_j
     # Note: site effects are NOT subtracted here — we want Z to retain them.
@@ -339,7 +403,10 @@ def combat_fit(
             continue
         gamma_hat[s] = np.mean(Z[mask], axis=0)
         delta_sq_hat[s] = np.var(Z[mask], axis=0, ddof=1)
-        delta_sq_hat[s] = np.maximum(delta_sq_hat[s], 1e-12)
+        _warn_variance_floor(
+            delta_sq_hat[s], "per-site delta", site_label=site_labels[s]
+        )
+        delta_sq_hat[s] = np.maximum(delta_sq_hat[s], _VAR_FLOOR)
 
     if eb:
         gamma_star = np.zeros_like(gamma_hat)
@@ -363,7 +430,8 @@ def combat_fit(
                 Z[mask], gamma_hat[s], delta_sq_hat[s],
                 g_bar, t_sq, lam, theta,
             )
-        delta_star = np.sqrt(np.maximum(delta_star_sq, 1e-12))
+        _warn_variance_floor(delta_star_sq, "EB-shrunken delta")
+        delta_star = np.sqrt(np.maximum(delta_star_sq, _VAR_FLOOR))
     else:
         gamma_star = gamma_hat
         delta_star = np.sqrt(delta_sq_hat)
