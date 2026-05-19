@@ -61,7 +61,7 @@ import time
 from .acceleration import compute_p_values_accelerated
 from ._compat import TailResult, make_tail_result, normalize_keys
 from ._progress import run_permutations
-from ._result import InferenceResult
+from ._result import InferenceResult, OmnibusInferenceResult
 from ._rng import RngLike, resolve_seed, warn_legacy_random_state
 
 
@@ -495,7 +495,7 @@ def compute_p_val_glm(
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     normalization: str = "sqrt",
-) -> Union[InferenceResult, Dict[str, npt.NDArray[np.float64]]]:
+) -> Union[InferenceResult, OmnibusInferenceResult]:
     """
     Compute p-values for connectivity data using GLM with Freedman-Lane permutation.
 
@@ -745,15 +745,26 @@ def compute_p_val_glm(
         )
     else:
         result = _compute_p_values_from_null(emp_stat_dict, max_null_dict)
+    method_str = method.value if hasattr(method, "value") else str(method)
     if set(result.keys()) == {"positive", "negative"}:
-        method_str = method.value if hasattr(method, "value") else str(method)
         return InferenceResult(
             result["positive"], result["negative"],
             method=method_str, n_permutations=n_permutations,
             acceleration=acceleration,
             wall_time_s=time.perf_counter() - _t0,
+            stat_positive=emp_stat_dict["positive"],
+            stat_negative=emp_stat_dict["negative"],
+            stat_type=stat_type_str,
         )
-    return result  # F-stat path: {'omnibus': ...}
+    # F-stat path: single 'omnibus' map → OmnibusInferenceResult
+    return OmnibusInferenceResult(
+        result["omnibus"],
+        method=method_str, n_permutations=n_permutations,
+        acceleration=acceleration,
+        wall_time_s=time.perf_counter() - _t0,
+        stat_omnibus=emp_stat_dict["omnibus"],
+        stat_type="fstat",
+    )
 
 
 # =============================================================================
@@ -962,11 +973,16 @@ def compute_p_val_glm_multi(
 
     # ---- Empirical stats per contrast ----
     emp_dicts: Dict[str, Dict[str, npt.NDArray[np.float64]]] = {}
+    raw_stat_dicts: Dict[str, Dict[str, npt.NDArray[np.float64]]] = {}
     for name, contrast in zip(contrast_names, contrast_arrays):
         emp = compute_glm_stat(
             Y, X, contrast, stat_type=stat_type_str,
             X_pinv=X_pinv, XtX_inv_diag=XtX_inv_diag, XtX_inv=XtX_inv,
         )
+        # Snapshot the raw (pre-enhancement) statistic for the result
+        # object — the user-facing effect map should be t/β, not the
+        # enhanced score.
+        raw_stat_dicts[name] = emp
         if enhance_func is not None:
             emp = enhance_func(emp, **enhance_kwargs)
         emp_dicts[name] = emp
@@ -1039,11 +1055,15 @@ def compute_p_val_glm_multi(
             res = compute_p_values_accelerated(emp, null, method=acceleration)
         else:
             res = _compute_p_values_from_null(emp, null)
+        raw = raw_stat_dicts[name]
         out[name] = InferenceResult(
             res["positive"], res["negative"],
             method=method_str, n_permutations=n_permutations,
             acceleration=acceleration,
             wall_time_s=per_contrast_wall,
+            stat_positive=raw["positive"],
+            stat_negative=raw["negative"],
+            stat_type=stat_type_str,
         )
     return out
 

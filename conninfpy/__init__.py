@@ -22,7 +22,7 @@ __version__ = "2.0.0"
 
 from ._analyze import AnalyzeResult, analyze
 from ._compat import TailResult
-from ._result import InferenceResult
+from ._result import InferenceResult, OmnibusInferenceResult
 from .defaults import (
     DEFAULT_EXTENT_EXPONENT,
     DEFAULT_HEIGHT_EXPONENT,
@@ -119,6 +119,7 @@ __all__ = [
     "__version__",
     "TailResult",
     "InferenceResult",
+    "OmnibusInferenceResult",
     "AnalyzeResult",
     "analyze",
     # defaults

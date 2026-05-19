@@ -19,7 +19,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 import numpy as np
 import numpy.typing as npt
 
-from ._result import InferenceResult
+from ._result import InferenceResult, OmnibusInferenceResult
 from ._rng import RngLike
 from .glm_stats import compute_p_val_glm
 from .harmonize import combat_harmonize
@@ -31,23 +31,43 @@ from .utils import fisher_r_to_z
 class AnalyzeResult:
     """Bundle of inference + harmonization diagnostics from :func:`analyze`."""
 
-    inference: InferenceResult
+    inference: Union[InferenceResult, OmnibusInferenceResult]
     combat_diagnostics: Optional[Dict[str, Any]] = None
     design_diagnostics: Optional[Dict[str, Any]] = None
     flags: list = field(default_factory=list)
 
     def __getitem__(self, key: str) -> Any:
-        # Forward dict-style access to the underlying InferenceResult so
-        # `analyze(...)['positive']` works without users unwrapping.
+        # Forward dict-style access to the underlying result so
+        # `analyze(...)['positive']` or ['omnibus'] works without users
+        # unwrapping.
         return self.inference[key]
 
     @property
     def positive(self) -> npt.NDArray[np.float64]:
+        if isinstance(self.inference, OmnibusInferenceResult):
+            raise AttributeError(
+                "AnalyzeResult.positive is undefined for the F-stat omnibus "
+                "path; use AnalyzeResult.omnibus instead."
+            )
         return self.inference.positive
 
     @property
     def negative(self) -> npt.NDArray[np.float64]:
+        if isinstance(self.inference, OmnibusInferenceResult):
+            raise AttributeError(
+                "AnalyzeResult.negative is undefined for the F-stat omnibus "
+                "path; use AnalyzeResult.omnibus instead."
+            )
         return self.inference.negative
+
+    @property
+    def omnibus(self) -> npt.NDArray[np.float64]:
+        if not isinstance(self.inference, OmnibusInferenceResult):
+            raise AttributeError(
+                "AnalyzeResult.omnibus is only defined for the F-stat path; "
+                "use .positive / .negative for t / β contrasts."
+            )
+        return self.inference.omnibus
 
     def __repr__(self) -> str:  # pragma: no cover (cosmetic)
         parts = [
@@ -209,15 +229,16 @@ def analyze(
             **method_kwargs,
         )
 
-    if not isinstance(result, InferenceResult):
-        # F-stat 'omnibus' path returns a plain dict with a single key.
-        # Wrap it so AnalyzeResult always carries an InferenceResult.
-        omnibus = result["omnibus"] if "omnibus" in result else next(iter(result.values()))
-        result = InferenceResult(
-            omnibus, np.zeros_like(omnibus),
-            method=str(method), n_permutations=n_permutations,
-            acceleration=acceleration,
-        )
+    # ---- Provenance threading ----
+    # The lower-level compute_p_val* entry-points don't know that
+    # analyze() ran ComBat upstream; thread that information onto the
+    # result so downstream consumers (significant_edges, summary_figure,
+    # exporters) can report what preprocessing applied.
+    result.harmonized = sites is not None
+    result.preserve_provided = preserve is not None
+    result.combat_diagnostics = combat_diag
+    # strata_provided defaults to False; will flip to True once PR-3
+    # plumbs `strata=` through the permutation engines.
 
     return AnalyzeResult(
         inference=result,

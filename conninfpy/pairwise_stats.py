@@ -692,7 +692,7 @@ def _compute_bh_fdr_perm_p_values(
     use_mp: bool,
     n_processes: Optional[int],
     verbose: bool = False,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> Tuple[Dict[str, npt.NDArray[np.float64]], Dict[str, npt.NDArray[np.float64]]]:
     """
     Compute BH-FDR corrected p-values using permutation-based per-edge nulls.
 
@@ -773,7 +773,7 @@ def _compute_bh_fdr_perm_p_values(
         p_mat[(triu_idx[1], triu_idx[0])] = corrected_p
         p_values[key] = p_mat
 
-    return p_values
+    return p_values, emp_t_dict
 
 
 # =============================================================================
@@ -860,7 +860,7 @@ def _compute_parametric_p_values(
     test_type_str: str,
     method_enum: "StatMethod",
     alpha: float = 0.05,
-) -> Dict[str, npt.NDArray[np.float64]]:
+) -> Tuple[Dict[str, npt.NDArray[np.float64]], Dict[str, npt.NDArray[np.float64]]]:
     """
     Compute parametric p-values with Bonferroni or BH-FDR correction.
 
@@ -879,8 +879,11 @@ def _compute_parametric_p_values(
 
     Returns
     -------
-    dict
-        Dictionary with 'negative' and 'positive' p-value arrays of shape (N, N).
+    (p_values, t_dict) : tuple of dict
+        ``p_values`` — per-tail corrected p-value arrays of shape (N, N).
+        ``t_dict`` — per-tail observed one-tail-clipped (non-negative)
+        t-statistic maps, used to populate ``stat_positive``/
+        ``stat_negative`` on :class:`InferenceResult`.
     """
     # Compute t-statistics using existing infrastructure
     if test_type_str == TestType.PAIRED.value:
@@ -927,7 +930,7 @@ def _compute_parametric_p_values(
 
         p_values[key] = p_corrected
 
-    return p_values
+    return p_values, t_dict
 
 
 def _bh_fdr_correction(
@@ -1124,18 +1127,21 @@ def compute_p_val(
 
     # Parametric methods: compute p-values directly from t-distribution
     if method_enum in PARAMETRIC_METHODS:
-        result = _compute_parametric_p_values(
+        result, obs_t_dict = _compute_parametric_p_values(
             group1, group2, test_type_str, method_enum
         )
         return InferenceResult(
             result["positive"], result["negative"],
             method=method_str, n_permutations=0, acceleration=None,
             wall_time_s=time.perf_counter() - _t0,
+            stat_positive=obs_t_dict["positive"],
+            stat_negative=obs_t_dict["negative"],
+            stat_type="tstat",
         )
 
     # BH-FDR with permutation p-values: separate code path
     if method_enum == StatMethod.BH_FDR_PERM:
-        result = _compute_bh_fdr_perm_p_values(
+        result, obs_t_dict = _compute_bh_fdr_perm_p_values(
             group1, group2, test_type_str,
             n_permutations=n_permutations,
             random_state=random_state,
@@ -1148,6 +1154,9 @@ def compute_p_val(
             method=method_str, n_permutations=n_permutations,
             acceleration=None,
             wall_time_s=time.perf_counter() - _t0,
+            stat_positive=obs_t_dict["positive"],
+            stat_negative=obs_t_dict["negative"],
+            stat_type="tstat",
         )
 
     # Resolve enhancement wrapper (None for raw t-stat)
@@ -1182,6 +1191,10 @@ def compute_p_val(
             f"Must be one of: {[t.value for t in TestType]}"
         )
 
+    # Keep a reference to the raw (pre-enhancement) t-stat dict for
+    # InferenceResult.stat_positive/stat_negative — the user-facing
+    # effect map should be the t-statistic, not the enhanced score.
+    raw_t_dict = emp_t_dict
     if enhance_func is not None:
         emp_t_dict = enhance_func(emp_t_dict, **enhance_kwargs)
 
@@ -1227,6 +1240,9 @@ def compute_p_val(
         method=method_str, n_permutations=n_permutations,
         acceleration=acceleration,
         wall_time_s=time.perf_counter() - _t0,
+        stat_positive=raw_t_dict["positive"],
+        stat_negative=raw_t_dict["negative"],
+        stat_type="tstat",
     )
 
 
