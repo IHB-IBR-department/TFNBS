@@ -208,8 +208,8 @@ class TestAnalyzeProvenanceThreading(unittest.TestCase):
         self.assertTrue(out.inference.harmonized)
         self.assertFalse(out.inference.preserve_provided)
         self.assertIsNotNone(out.inference.combat_diagnostics)
-        # strata_provided wired in PR-3; not yet
-        self.assertFalse(out.inference.strata_provided)
+        # PR-3 auto-strata: passing sites= flips strata_provided=True
+        self.assertTrue(out.inference.strata_provided)
 
     def test_no_sites_means_not_harmonized(self):
         Y, age = _make_glm_data(n=20, N=5, seed=7)

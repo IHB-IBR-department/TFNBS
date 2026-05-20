@@ -144,6 +144,79 @@ PARAMETRIC_METHODS = {StatMethod.BONFERRONI, StatMethod.BH_FDR}
 # Helper functions for permutation testing
 # =============================================================================
 
+def _encode_strata(strata: Any) -> npt.NDArray[np.int_]:
+    """Map an arbitrary stratum-label sequence to contiguous integer codes."""
+    arr = np.asarray(strata)
+    _, codes = np.unique(arr, return_inverse=True)
+    return codes.astype(np.int_)
+
+
+def _stratified_perm(
+    strata: npt.NDArray[np.int_], rng: np.random.RandomState
+) -> npt.NDArray[np.int_]:
+    """Return a permutation index honoring exchangeability blocks.
+
+    Within each unique stratum value, indices are independently
+    permuted; across strata, indices do not move. This implements
+    within-block exchangeability used by Freedman-Lane permutation
+    on multi-site or otherwise blocked designs.
+
+    Parameters
+    ----------
+    strata : ndarray of shape (n,)
+        Integer stratum codes (use :func:`_encode_strata` first).
+    rng : numpy.random.RandomState
+        Already-seeded RNG.
+
+    Returns
+    -------
+    perm : ndarray of shape (n,)
+        Permutation index such that ``perm[i]`` is the new position of
+        the data point originally at ``i``. Equivalent: for any array
+        ``a``, ``a[perm]`` is the stratum-respecting permutation of ``a``.
+    """
+    n = strata.shape[0]
+    perm = np.arange(n)
+    for s in np.unique(strata):
+        idx = np.where(strata == s)[0]
+        if idx.size > 1:
+            perm[idx] = rng.permutation(idx)
+    return perm
+
+
+def _stratified_choice_n1(
+    strata: npt.NDArray[np.int_],
+    n1_per_stratum: npt.NDArray[np.int_],
+    rng: np.random.RandomState,
+) -> npt.NDArray[np.float64]:
+    """Length-n binary mask honoring per-stratum group-1 counts.
+
+    For the two-sample fast permutation path under exchangeability
+    blocking: within each stratum ``s``, sample exactly
+    ``n1_per_stratum[s]`` indices to label as group 1 (the rest are
+    group 2). Across strata, the per-stratum group totals are held
+    fixed.
+
+    Parameters
+    ----------
+    strata : ndarray of shape (n,)
+        Integer stratum codes.
+    n1_per_stratum : ndarray of shape (n_unique_strata,)
+        Group-1 count per stratum (computed once from the observed
+        group labels and reused across permutations).
+    rng : numpy.random.RandomState
+    """
+    n = strata.shape[0]
+    g = np.zeros(n, dtype=np.float64)
+    for s_code, n1_s in enumerate(n1_per_stratum):
+        if n1_s <= 0:
+            continue
+        idx = np.where(strata == s_code)[0]
+        chosen = rng.choice(idx, size=int(n1_s), replace=False)
+        g[chosen] = 1.0
+    return g
+
+
 def _extract_max_stats(
     stat_dict: Dict[str, npt.NDArray],
     reference_shape: Tuple[int, ...]
@@ -363,13 +436,21 @@ def _fast_permutation_task_paired(X, sumsq_all, seed):
     }
 
 
-def _fast_permutation_task_ind(Xall, Xall2, sum_all, sumsq_all, n1, seed):
-    """Two-sample permutation via group-label shuffle + sums. Returns max stats."""
+def _fast_permutation_task_ind(Xall, Xall2, sum_all, sumsq_all, n1, seed,
+                               strata=None, n1_per_stratum=None):
+    """Two-sample permutation via group-label shuffle + sums. Returns max stats.
+
+    When ``strata`` is provided (with ``n1_per_stratum``), the group-label
+    draw honors per-stratum group totals — exchangeability blocking.
+    """
     rng = np.random.RandomState(seed)
     n_all = Xall.shape[0]
     n2 = n_all - n1
-    g = np.zeros(n_all, dtype=np.float64)
-    g[rng.choice(n_all, n1, replace=False)] = 1.0
+    if strata is None:
+        g = np.zeros(n_all, dtype=np.float64)
+        g[rng.choice(n_all, n1, replace=False)] = 1.0
+    else:
+        g = _stratified_choice_n1(strata, n1_per_stratum, rng)
     sum1 = g @ Xall
     sumsq1 = g @ Xall2
     sum2 = sum_all - sum1
@@ -391,13 +472,17 @@ def _fast_permutation_task_paired_edges(X, sumsq_all, seed):
     return {"positive": t_pos, "negative": t_neg}
 
 
-def _fast_permutation_task_ind_edges(Xall, Xall2, sum_all, sumsq_all, n1, seed):
+def _fast_permutation_task_ind_edges(Xall, Xall2, sum_all, sumsq_all, n1, seed,
+                                     strata=None, n1_per_stratum=None):
     """Two-sample permutation returning upper-triangle t-stat vectors (for BH-FDR-perm)."""
     rng = np.random.RandomState(seed)
     n_all = Xall.shape[0]
     n2 = n_all - n1
-    g = np.zeros(n_all, dtype=np.float64)
-    g[rng.choice(n_all, n1, replace=False)] = 1.0
+    if strata is None:
+        g = np.zeros(n_all, dtype=np.float64)
+        g[rng.choice(n_all, n1, replace=False)] = 1.0
+    else:
+        g = _stratified_choice_n1(strata, n1_per_stratum, rng)
     sum1 = g @ Xall
     sumsq1 = g @ Xall2
     sum2 = sum_all - sum1
@@ -440,13 +525,21 @@ def _fast_perm_task_enhanced_paired(
 def _fast_perm_task_enhanced_ind(
     Xall, Xall2, sum_all, sumsq_all, n1, triu_idx, N,
     enhance_func, enhance_kwargs, seed,
+    strata=None, n1_per_stratum=None,
 ):
-    """Two-sample permutation: group shuffle + fast t-stat + enhancement → max."""
+    """Two-sample permutation: group shuffle + fast t-stat + enhancement → max.
+
+    When ``strata`` is provided, the group-label draw is stratified
+    (per-stratum group totals held fixed).
+    """
     rng = np.random.RandomState(seed)
     n_all = Xall.shape[0]
     n2 = n_all - n1
-    g = np.zeros(n_all, dtype=np.float64)
-    g[rng.choice(n_all, n1, replace=False)] = 1.0
+    if strata is None:
+        g = np.zeros(n_all, dtype=np.float64)
+        g[rng.choice(n_all, n1, replace=False)] = 1.0
+    else:
+        g = _stratified_choice_n1(strata, n1_per_stratum, rng)
     sum1 = g @ Xall
     sumsq1 = g @ Xall2
     sum2 = sum_all - sum1
@@ -496,6 +589,7 @@ def compute_null_dist(
     n_processes: Optional[int] = None,
     use_mp: bool = True,
     verbose: bool = False,
+    strata: Optional[npt.NDArray[Any]] = None,
     **func_kwargs
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """
@@ -576,11 +670,35 @@ def compute_null_dist(
             task_func = partial(_permutation_task_paired, array_to_permute, func, **func_kwargs)
 
     elif test_type_str == TestType.TWO_SAMPLE.value:
+        strata_codes = None
+        n1_per_stratum = None
+        if strata is not None:
+            strata_codes = _encode_strata(strata)
+            if strata_codes.shape[0] != n1 + n2:
+                raise ValueError(
+                    f"strata length {strata_codes.shape[0]} does not match "
+                    f"n1+n2={n1+n2} for the two-sample test."
+                )
+            # Observed group-1 counts per stratum (first n1 entries are group 1
+            # by construction of the concatenated stack).
+            n1_per_stratum = np.bincount(
+                strata_codes[:n1], minlength=int(strata_codes.max()) + 1
+            )
         if use_fast_tstat:
             Xall_3d = np.concatenate((group1, group2), axis=0)
             Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(Xall_3d)
-            task_func = partial(_fast_permutation_task_ind, Xall, Xall2, sum_all, sumsq_all, n1)
+            task_func = partial(
+                _fast_permutation_task_ind, Xall, Xall2, sum_all, sumsq_all, n1,
+                strata=strata_codes, n1_per_stratum=n1_per_stratum,
+            )
         else:
+            if strata is not None:
+                raise NotImplementedError(
+                    "strata= is only wired into the fast t-stat path for "
+                    "two-sample tests. Pass one of the canonical t-stat "
+                    "functions (compute_t_stat / _compute_t_stat_ind) to "
+                    "exercise the stratified-permutation path."
+                )
             array_to_permute = np.concatenate((group1, group2), axis=0)
             task_func = partial(_permutation_task_ind, array_to_permute, func, n1, **func_kwargs)
 
@@ -628,11 +746,17 @@ def _compute_enhanced_null_dist(
     n_processes: Optional[int] = None,
     use_mp: bool = True,
     verbose: bool = False,
+    strata: Optional[npt.NDArray[Any]] = None,
 ) -> Dict[str, npt.NDArray[np.float64]]:
     """Null distribution for enhancement methods via pre-computed sums fast path.
 
     Each permutation: sign-flip or group-shuffle → fast t-stat via sums →
     reconstruct (N, N) → apply shared enhancement wrapper → extract max.
+
+    When ``strata`` is provided, the two-sample group-shuffle path
+    honors per-stratum group totals (exchangeability blocking). Sign-
+    flip paths are stratum-invariant by construction; ``strata`` is
+    silently accepted but has no effect there.
     """
     N = group1.shape[1]
     triu_idx = np.triu_indices(N, k=1)
@@ -652,12 +776,26 @@ def _compute_enhanced_null_dist(
         )
     elif test_type_str == TestType.TWO_SAMPLE.value:
         n1 = group1.shape[0]
+        n_all = n1 + group2.shape[0]
+        strata_codes = None
+        n1_per_stratum = None
+        if strata is not None:
+            strata_codes = _encode_strata(strata)
+            if strata_codes.shape[0] != n_all:
+                raise ValueError(
+                    f"strata length {strata_codes.shape[0]} does not match "
+                    f"n1+n2={n_all} for the two-sample test."
+                )
+            n1_per_stratum = np.bincount(
+                strata_codes[:n1], minlength=int(strata_codes.max()) + 1
+            )
         Xall_3d = np.concatenate((group1, group2), axis=0)
         Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(Xall_3d)
         task_func = partial(
             _fast_perm_task_enhanced_ind,
             Xall, Xall2, sum_all, sumsq_all, n1, triu_idx, N,
             enhance_func, enhance_kwargs,
+            strata=strata_codes, n1_per_stratum=n1_per_stratum,
         )
     else:
         raise ValueError(
@@ -692,6 +830,7 @@ def _compute_bh_fdr_perm_p_values(
     use_mp: bool,
     n_processes: Optional[int],
     verbose: bool = False,
+    strata: Optional[npt.NDArray[Any]] = None,
 ) -> Tuple[Dict[str, npt.NDArray[np.float64]], Dict[str, npt.NDArray[np.float64]]]:
     """
     Compute BH-FDR corrected p-values using permutation-based per-edge nulls.
@@ -733,8 +872,22 @@ def _compute_bh_fdr_perm_p_values(
         Xall_3d = np.concatenate((group1, group2), axis=0)
         Xall, Xall2, sum_all, sumsq_all = _precompute_twosample_sums(Xall_3d)
         n1 = group1.shape[0]
+        strata_codes = None
+        n1_per_stratum = None
+        if strata is not None:
+            strata_codes = _encode_strata(strata)
+            n_all = Xall_3d.shape[0]
+            if strata_codes.shape[0] != n_all:
+                raise ValueError(
+                    f"strata length {strata_codes.shape[0]} does not match "
+                    f"n1+n2={n_all} for the two-sample test."
+                )
+            n1_per_stratum = np.bincount(
+                strata_codes[:n1], minlength=int(strata_codes.max()) + 1
+            )
         task_func = partial(
-            _fast_permutation_task_ind_edges, Xall, Xall2, sum_all, sumsq_all, n1
+            _fast_permutation_task_ind_edges, Xall, Xall2, sum_all, sumsq_all, n1,
+            strata=strata_codes, n1_per_stratum=n1_per_stratum,
         )
 
     _use_mp = use_mp and not _is_worker_process()
@@ -998,10 +1151,21 @@ def compute_p_val(
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     normalization: str = "sqrt",
+    strata: Optional[npt.NDArray[Any]] = None,
     **kwargs
 ) -> InferenceResult:
     """
     Compute p-values using permutation testing with various network-based methods.
+
+    .. warning:: **Welch + group-label permutation under unequal variances**
+
+       The two-sample path uses Welch's t (unequal-variance) unconditionally.
+       Under unequal variances with unbalanced group sizes the exchangeability
+       assumption underlying permutation breaks and Type I error inflates
+       (Anderson & Robinson 2001; Hayes 2000). A pooled-variance option will
+       be added in v2.2 with an explicit ``var_equal=True|False`` knob; until
+       then, treat two-sample results with caution when both group sizes
+       and variances differ substantially.
 
     Supports multiple statistical methods: tfnbs, tstat, nbs, cnbs, ni_tfnbs,
     fbc_tfnbs, bonferroni, bh_fdr, bh_fdr_perm.
@@ -1062,6 +1226,15 @@ def compute_p_val(
         Minimum cluster size for FBC-TFNBS (only used when method='fbc_tfnbs').
     normalization : {'sqrt', 'linear', 'none'}, default='sqrt'
         Block density normalization for NI-TFNBS (only used when method='ni_tfnbs').
+    strata : array-like of shape (n,), optional
+        Exchangeability-block labels per subject (e.g. site IDs after ComBat
+        harmonization). When provided, the two-sample group-label permutation
+        is restricted to *within-stratum* swaps, holding per-stratum group
+        totals fixed. This prevents the shadow-of-H₀ leak that occurs when
+        ComBat is fit on observed labels but downstream permutation reshuffles
+        across sites. Paired / one-sample sign-flip paths are stratum-invariant
+        by construction; ``strata`` is silently accepted but has no effect
+        there.
     **kwargs
         Additional keyword arguments (for future extensions).
 
@@ -1148,6 +1321,7 @@ def compute_p_val(
             use_mp=use_mp,
             n_processes=n_processes,
             verbose=verbose,
+            strata=strata,
         )
         return InferenceResult(
             result["positive"], result["negative"],
@@ -1157,6 +1331,7 @@ def compute_p_val(
             stat_positive=obs_t_dict["positive"],
             stat_negative=obs_t_dict["negative"],
             stat_type="tstat",
+            strata_provided=strata is not None,
         )
 
     # Resolve enhancement wrapper (None for raw t-stat)
@@ -1216,6 +1391,7 @@ def compute_p_val(
             random_state=random_state,
             n_processes=n_processes,
             verbose=verbose,
+            strata=strata,
         )
     else:
         max_null_dict = _compute_enhanced_null_dist(
@@ -1227,6 +1403,7 @@ def compute_p_val(
             use_mp=use_mp,
             n_processes=n_processes,
             verbose=verbose,
+            strata=strata,
         )
 
     if acceleration is not None:
@@ -1243,6 +1420,7 @@ def compute_p_val(
         stat_positive=raw_t_dict["positive"],
         stat_negative=raw_t_dict["negative"],
         stat_type="tstat",
+        strata_provided=strata is not None,
     )
 
 

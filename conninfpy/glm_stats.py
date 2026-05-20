@@ -393,12 +393,14 @@ def _freedman_lane_permutation_task(
     stat_type: str,
     enhance_func: Optional[Callable] = None,
     seed: Optional[int] = None,
+    strata_codes: Optional[npt.NDArray[np.int_]] = None,
     **enhance_kwargs,
 ) -> Dict[str, np.float64]:
     """
     Single Freedman-Lane permutation step.
 
-    1. Permute reduced-model residuals across subjects
+    1. Permute reduced-model residuals across subjects (within-stratum
+       only when ``strata_codes`` is provided — PALM ``-eb`` semantics).
     2. Reconstruct Y_perm = Y_hat_reduced + permuted residuals
     3. Fit full model to Y_perm
     4. Optionally apply enhancement
@@ -419,6 +421,8 @@ def _freedman_lane_permutation_task(
         Enhancement function to apply to GLM stats.
     seed : int
         Random seed for this permutation.
+    strata_codes : ndarray of shape (n_subjects,), optional
+        Integer stratum codes for within-block residual permutation.
     **enhance_kwargs
         Keyword arguments for enhance_func.
 
@@ -428,7 +432,11 @@ def _freedman_lane_permutation_task(
         Maximum statistics per direction.
     """
     rng = np.random.RandomState(seed)
-    perm_idx = rng.permutation(residuals_reduced.shape[0])
+    if strata_codes is None:
+        perm_idx = rng.permutation(residuals_reduced.shape[0])
+    else:
+        from .pairwise_stats import _stratified_perm
+        perm_idx = _stratified_perm(strata_codes, rng)
     residuals_perm = residuals_reduced[perm_idx]
     Y_perm = Y_hat_reduced + residuals_perm
 
@@ -495,6 +503,7 @@ def compute_p_val_glm(
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     normalization: str = "sqrt",
+    strata: Optional[npt.NDArray[Any]] = None,
 ) -> Union[InferenceResult, OmnibusInferenceResult]:
     """
     Compute p-values for connectivity data using GLM with Freedman-Lane permutation.
@@ -685,6 +694,17 @@ def compute_p_val_glm(
 
     reference_shape = (N, N)
 
+    # ---- Encode strata for within-block exchangeability (PALM -eb) ----
+    strata_codes = None
+    if strata is not None:
+        from .pairwise_stats import _encode_strata
+        strata_codes = _encode_strata(strata)
+        if strata_codes.shape[0] != n_subjects:
+            raise ValueError(
+                f"strata length {strata_codes.shape[0]} does not match "
+                f"n_subjects={n_subjects}."
+            )
+
     # ---- Generate seeds ----
     rng = np.random.RandomState(random_state)
     seeds = rng.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
@@ -702,6 +722,7 @@ def compute_p_val_glm(
         reference_shape,
         stat_type_str,
         enhance_func,
+        strata_codes=strata_codes,
         **enhance_kwargs,
     )
 
@@ -755,6 +776,7 @@ def compute_p_val_glm(
             stat_positive=emp_stat_dict["positive"],
             stat_negative=emp_stat_dict["negative"],
             stat_type=stat_type_str,
+            strata_provided=strata is not None,
         )
     # F-stat path: single 'omnibus' map → OmnibusInferenceResult
     return OmnibusInferenceResult(
@@ -764,6 +786,7 @@ def compute_p_val_glm(
         wall_time_s=time.perf_counter() - _t0,
         stat_omnibus=emp_stat_dict["omnibus"],
         stat_type="fstat",
+        strata_provided=strata is not None,
     )
 
 
@@ -785,15 +808,21 @@ def _multi_contrast_perm_task(
     enhance_func: Optional[Callable],
     enhance_kwargs: Dict[str, Any],
     seed: Optional[int] = None,
+    strata_codes: Optional[npt.NDArray[np.int_]] = None,
 ) -> Dict[str, Dict[str, np.float64]]:
     """Single Freedman-Lane permutation, evaluated against multiple contrasts.
 
-    Permutes residuals once, fits the full model once, then for each
-    contrast extracts the per-edge statistic, optionally enhances, and
-    records max-stats. Returns a nested dict ``{contrast_name: {tail: max_stat}}``.
+    Permutes residuals once (within-stratum when ``strata_codes`` is
+    provided), fits the full model once, then for each contrast extracts
+    the per-edge statistic, optionally enhances, and records max-stats.
+    Returns a nested dict ``{contrast_name: {tail: max_stat}}``.
     """
     rng = np.random.RandomState(seed)
-    perm_idx = rng.permutation(residuals_reduced.shape[0])
+    if strata_codes is None:
+        perm_idx = rng.permutation(residuals_reduced.shape[0])
+    else:
+        from .pairwise_stats import _stratified_perm
+        perm_idx = _stratified_perm(strata_codes, rng)
     Y_perm = Y_hat_reduced + residuals_reduced[perm_idx]
 
     out: Dict[str, Dict[str, np.float64]] = {}
@@ -837,6 +866,7 @@ def compute_p_val_glm_multi(
     start_thres: float = DEFAULT_START_THRESHOLD,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     normalization: str = "sqrt",
+    strata: Optional[npt.NDArray[Any]] = None,
 ) -> Dict[str, InferenceResult]:
     """Run several contrasts under a shared nuisance model in one perm pass.
 
@@ -995,6 +1025,17 @@ def compute_p_val_glm_multi(
 
     reference_shape = (N, N)
 
+    # ---- Encode strata for within-block exchangeability (PALM -eb) ----
+    strata_codes = None
+    if strata is not None:
+        from .pairwise_stats import _encode_strata
+        strata_codes = _encode_strata(strata)
+        if strata_codes.shape[0] != n_subjects:
+            raise ValueError(
+                f"strata length {strata_codes.shape[0]} does not match "
+                f"n_subjects={n_subjects}."
+            )
+
     # ---- Permutation seeds ----
     rng_local = np.random.RandomState(random_state)
     seeds = rng_local.randint(0, 2**32 - 1, size=n_permutations, dtype=np.int64)
@@ -1013,6 +1054,7 @@ def compute_p_val_glm_multi(
         stat_type_str,
         enhance_func,
         enhance_kwargs,
+        strata_codes=strata_codes,
     )
 
     _use_mp = use_mp and not _is_worker_process()
@@ -1064,6 +1106,7 @@ def compute_p_val_glm_multi(
             stat_positive=raw["positive"],
             stat_negative=raw["negative"],
             stat_type=stat_type_str,
+            strata_provided=strata is not None,
         )
     return out
 

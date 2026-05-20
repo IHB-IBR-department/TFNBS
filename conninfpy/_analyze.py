@@ -127,10 +127,14 @@ def analyze(
         ``'one-sample'``).
     sites : sequence, optional
         Per-subject site labels. If provided, ComBat harmonisation runs
-        before inference. Either ``Y`` or both ``group1``/``group2`` must
+        before inference AND the permutation engine is auto-stratified on
+        ``sites`` (within-block exchangeability — equivalent to PALM's
+        ``-eb`` option). Either ``Y`` or both ``group1``/``group2`` must
         share the site vector indexing — for the two-sample pipeline,
         pass concatenated ``[group1, group2]`` as ``Y`` if you want
-        ComBat first.
+        ComBat first. The auto-stratification prevents the shadow-of-H₀
+        leak that occurs when ComBat is fit on observed labels but
+        downstream permutation reshuffles across sites freely.
     preserve : ndarray, optional
         Covariates whose effect should be preserved through ComBat.
     fisher_z : bool, default ``True``
@@ -212,12 +216,31 @@ def analyze(
             )
 
     # ---- Inference ----
+    # Auto-stratify the permutation engine on sites when present (PALM -eb
+    # semantics). This is the second half of the harmonization-stratification
+    # pair: ComBat fits site means then permutation respects site structure.
+    # An explicit strata= passed via **method_kwargs wins (e.g. for
+    # study-specific blocking that doesn't match the site label).
+    if "strata" in method_kwargs:
+        user_strata = method_kwargs.pop("strata")
+        auto_strata = (
+            np.asarray(user_strata) if user_strata is not None else None
+        )
+    else:
+        auto_strata = np.asarray(sites) if sites is not None else None
+        if auto_strata is not None:
+            flags.append(
+                "strata= auto-set to `sites`; pass strata= explicitly "
+                "(or strata=None) to override."
+            )
+
     if glm_mode:
         result = compute_p_val_glm(
             Y, interest=interest, confounds=confounds,
             method=method, n_permutations=n_permutations,
             acceleration=acceleration,
             e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
+            strata=auto_strata,
             **method_kwargs,
         )
     else:
@@ -226,6 +249,7 @@ def analyze(
             method=method, n_permutations=n_permutations,
             acceleration=acceleration,
             e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
+            strata=auto_strata,
             **method_kwargs,
         )
 
@@ -237,8 +261,8 @@ def analyze(
     result.harmonized = sites is not None
     result.preserve_provided = preserve is not None
     result.combat_diagnostics = combat_diag
-    # strata_provided defaults to False; will flip to True once PR-3
-    # plumbs `strata=` through the permutation engines.
+    # strata_provided was set inside compute_p_val{,_glm} from the strata=
+    # argument; preserved here for clarity.
 
     return AnalyzeResult(
         inference=result,
