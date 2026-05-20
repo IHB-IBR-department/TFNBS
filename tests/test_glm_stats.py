@@ -19,6 +19,7 @@ from conninfpy.glm_stats import (
     _compute_reduced_model,
     compute_glm_stat,
     compute_p_val_glm,
+    compute_p_val_glm_multi,
     compute_p_val_paired_glm,
     build_design_matrix,
 )
@@ -546,6 +547,22 @@ class TestComputePValGLM(unittest.TestCase):
         with self.assertRaises(ValueError):
             compute_p_val_glm(Y, design_matrix=X, contrast=[0, 0],
                               n_permutations=10, use_mp=False)
+
+    def test_glm_multi_rejects_ttest_only_methods(self):
+        """Parametric/FDR t-test-only methods must not silently run as GLM multi."""
+        rng = np.random.RandomState(777)
+        n, N = 12, 5
+        Y = rng.randn(n, N, N)
+        for s in range(n):
+            Y[s] = (Y[s] + Y[s].T) / 2
+            np.fill_diagonal(Y[s], 0)
+        X = np.column_stack([np.ones(n), rng.randn(n), rng.randn(n)])
+        contrasts = {"x1": np.array([0.0, 1.0, 0.0])}
+        with self.assertRaises(ValueError):
+            compute_p_val_glm_multi(
+                Y, X, contrasts, method="bonferroni",
+                n_permutations=10, use_mp=False,
+            )
 
 
 # =============================================================================

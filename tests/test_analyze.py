@@ -143,6 +143,55 @@ class TestAutoPreserveTwoSample(unittest.TestCase):
 
 
 # =============================================================================
+# One-sample t-test mode
+# =============================================================================
+
+class TestAnalyzeOneSample(unittest.TestCase):
+
+    def test_one_sample_without_sites_runs_with_default_fisher_z(self):
+        rng = np.random.RandomState(30)
+        Y = rng.uniform(-0.2, 0.2, size=(12, 5, 5))
+        Y = (Y + Y.transpose(0, 2, 1)) / 2
+        for i in range(Y.shape[0]):
+            np.fill_diagonal(Y[i], 0.0)
+
+        out = analyze(
+            group1=Y, test_type="one-sample",
+            method="tstat", n_permutations=20,
+            use_mp=False, acceleration=None, rng=30,
+        )
+
+        self.assertIn("positive", out.inference)
+        self.assertIn("negative", out.inference)
+        self.assertFalse(out.inference.harmonized)
+        self.assertFalse(out.inference.preserve_provided)
+
+    def test_one_sample_with_sites_runs_combat_without_group_indicator(self):
+        rng = np.random.RandomState(31)
+        Y = rng.randn(12, 5, 5) * 0.1
+        Y = (Y + Y.transpose(0, 2, 1)) / 2
+        for i in range(Y.shape[0]):
+            np.fill_diagonal(Y[i], 0.0)
+        sites = np.array([0] * 6 + [1] * 6)
+
+        out = analyze(
+            group1=Y, test_type="one-sample", sites=sites,
+            fisher_z=False, method="tstat", n_permutations=20,
+            use_mp=False, acceleration=None, rng=31,
+        )
+
+        self.assertTrue(out.inference.harmonized)
+        self.assertFalse(out.inference.preserve_provided)
+        self.assertTrue(out.inference.strata_provided)
+        self.assertIsNotNone(out.combat_diagnostics)
+        self.assertFalse(
+            any("group indicator" in f for f in out.flags),
+            f"one-sample mode should not auto-build a group indicator; "
+            f"got {out.flags}",
+        )
+
+
+# =============================================================================
 # Design coupling check (Tier 1.3)
 # =============================================================================
 

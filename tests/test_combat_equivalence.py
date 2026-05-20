@@ -29,8 +29,8 @@ sqrt of neuroCombat's). The tests below take ``sqrt`` of neuroCombat's
 ``delta.star`` before comparing.
 
 Plan / scope / paper-paragraph template: see
-``Projects/NetworkStatistics/combat_validation.md`` in the Obsidian
-vault.
+``Projects/NetworkStatistics/paper/paper_validation_combat_equivalence.md``
+in the Obsidian vault.
 
 Tests skip cleanly if neuroCombat is not installed.
 """

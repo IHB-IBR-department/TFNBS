@@ -233,6 +233,7 @@ def analyze(
 
     glm_mode = interest is not None
     ttest_mode = group1 is not None or group2 is not None
+    test_type_str = test_type.value if hasattr(test_type, "value") else str(test_type)
     if glm_mode and ttest_mode:
         raise ValueError(
             "analyze() takes either (interest, [confounds]) for the GLM path or "
@@ -253,8 +254,10 @@ def analyze(
         if glm_mode:
             Y = fisher_r_to_z(Y)
         else:
-            group1 = fisher_r_to_z(group1)
-            group2 = fisher_r_to_z(group2)
+            if group1 is not None:
+                group1 = fisher_r_to_z(group1)
+            if group2 is not None:
+                group2 = fisher_r_to_z(group2)
 
     # ---- Auto-preserve (PR-4 of implementation_plan_2026-05-19) ----
     # When ComBat runs, any variance the user wants preserved through
@@ -275,16 +278,18 @@ def analyze(
                     "pass preserve= explicitly to override."
                 )
         else:
-            assert group1 is not None and group2 is not None
-            n1 = group1.shape[0]
-            n2 = group2.shape[0]
-            preserve = np.concatenate(
-                [np.zeros(n1), np.ones(n2)]
-            )[:, np.newaxis]
-            flags.append(
-                "preserve auto-built from the (g1 vs g2) group indicator; "
-                "pass preserve= explicitly to override."
-            )
+            assert group1 is not None
+            if test_type_str != "one-sample":
+                assert group2 is not None
+                n1 = group1.shape[0]
+                n2 = group2.shape[0]
+                preserve = np.concatenate(
+                    [np.zeros(n1), np.ones(n2)]
+                )[:, np.newaxis]
+                flags.append(
+                    "preserve auto-built from the (g1 vs g2) group indicator; "
+                    "pass preserve= explicitly to override."
+                )
 
     # ---- Design coupling check (PR-4 / Tier 1.3) ----
     # If preserve and the GLM design are passed as labeled DataFrames /
@@ -310,15 +315,23 @@ def analyze(
             Y = res.Y_adjusted
             combat_diag = res.diagnostics
         else:
-            assert group1 is not None and group2 is not None
-            n1 = group1.shape[0]
-            stacked = np.concatenate([group1, group2], axis=0)
-            res = combat_harmonize(
-                stacked, sites=np.asarray(sites), preserve=preserve
-            )
-            stacked = res.Y_adjusted
-            group1, group2 = stacked[:n1], stacked[n1:]
-            combat_diag = res.diagnostics
+            assert group1 is not None
+            if test_type_str == "one-sample":
+                res = combat_harmonize(
+                    group1, sites=np.asarray(sites), preserve=preserve
+                )
+                group1 = res.Y_adjusted
+                combat_diag = res.diagnostics
+            else:
+                assert group2 is not None
+                n1 = group1.shape[0]
+                stacked = np.concatenate([group1, group2], axis=0)
+                res = combat_harmonize(
+                    stacked, sites=np.asarray(sites), preserve=preserve
+                )
+                stacked = res.Y_adjusted
+                group1, group2 = stacked[:n1], stacked[n1:]
+                combat_diag = res.diagnostics
         ratio = combat_diag.get("between_site_variance_ratio_after_over_before")
         if ratio is not None and ratio > 0.5:
             flags.append(

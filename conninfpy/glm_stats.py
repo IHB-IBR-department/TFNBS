@@ -961,6 +961,12 @@ def compute_p_val_glm_multi(
     except ValueError:
         valid = [m.value for m in StatMethod]
         raise ValueError(f"Invalid method: {method_str!r}. Must be one of {valid}.")
+    if method_enum not in _ENHANCE_MAP:
+        valid = [m.value for m in _ENHANCE_MAP]
+        raise ValueError(
+            f"Method {method_str!r} is not supported in the GLM multi-contrast "
+            f"pipeline. Must be one of {valid}."
+        )
 
     if method_enum in CONSTRAINED_METHODS and net_labels is None:
         raise ValueError(
