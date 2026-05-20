@@ -84,8 +84,56 @@ class AnalyzeResult:
         return "\n".join(parts)
 
 
+def _as_2d(a: Any) -> np.ndarray:
+    """Promote a 1D regressor to a column matrix, leave 2D untouched."""
+    arr = np.asarray(a)
+    if arr.ndim == 1:
+        return arr[:, np.newaxis]
+    return arr
+
+
+def _column_names(a: Any) -> Optional[list]:
+    """Return column names for a labeled 2D container, else None.
+
+    Recognized: pandas DataFrame, numpy structured array. Plain ndarrays
+    (1D or 2D) return None — the coupling check needs labels to compare.
+    """
+    if hasattr(a, "columns"):  # pandas DataFrame-like
+        return list(a.columns)
+    arr = np.asarray(a)
+    if arr.dtype.names is not None:
+        return list(arr.dtype.names)
+    return None
+
+
+def _design_coupling_leak(
+    preserve: Any,
+    interest: Optional[Any],
+    confounds: Optional[Any],
+) -> Optional[list]:
+    """Return names of preserve-columns not present in the GLM design.
+
+    Returns ``None`` when we cannot compare (any input is unlabeled);
+    returns an empty list when all preserve columns are accounted for;
+    returns a list of leaking column names otherwise.
+    """
+    pres_names = _column_names(preserve)
+    if pres_names is None:
+        return None  # raw ndarray: skip silently
+    design_names: list = []
+    for source in (interest, confounds):
+        if source is None:
+            continue
+        names = _column_names(source)
+        if names is None:
+            return None  # mixed labeled/unlabeled — can't compare
+        design_names.extend(names)
+    leak = [c for c in pres_names if c not in design_names]
+    return leak or None
+
+
 def analyze(
-    Y: npt.NDArray[np.float64],
+    Y: Optional[npt.NDArray[np.float64]] = None,
     *,
     interest: Optional[npt.NDArray[np.float64]] = None,
     confounds: Optional[npt.NDArray[np.float64]] = None,
@@ -110,10 +158,10 @@ def analyze(
 
     Parameters
     ----------
-    Y : ndarray of shape (n_subjects, N, N)
-        Per-subject connectivity matrices. Pass either this (with
-        ``interest``/``confounds`` for GLM) **or** ``group1`` + ``group2``
-        for the two-sample t-test pipeline.
+    Y : ndarray of shape (n_subjects, N, N), optional
+        Per-subject connectivity matrices for the GLM path. Pass this
+        with ``interest``/``confounds``. Leave as ``None`` (or simply
+        omit) when using the two-sample path via ``group1``/``group2``.
     interest : ndarray, optional
         GLM regressor of interest (e.g. ``age`` or a 0/1 group dummy).
         Triggers the GLM pipeline.
@@ -136,7 +184,19 @@ def analyze(
         leak that occurs when ComBat is fit on observed labels but
         downstream permutation reshuffles across sites freely.
     preserve : ndarray, optional
-        Covariates whose effect should be preserved through ComBat.
+        Covariates whose effect should be preserved through ComBat. If
+        ``sites`` is provided but ``preserve`` is left ``None``,
+        ``analyze`` auto-builds ``preserve`` from the design:
+        ``np.column_stack([interest, confounds])`` in GLM mode, or a
+        0/1 group indicator ``[0…0, 1…1]`` in two-sample mode. An
+        explicit ``preserve=`` always wins. The auto-built default
+        prevents a common pitfall in which biological variance is
+        partially absorbed into the site adjustments. When ``preserve``
+        and the GLM design are passed as labeled DataFrames (or numpy
+        structured arrays), ``analyze`` additionally checks for columns
+        present in ``preserve`` but absent from ``(interest, confounds)``
+        and flags them — the test for that variance survives
+        harmonization but isn't partialled out at inference.
     fisher_z : bool, default ``True``
         Apply Fisher r→z to ``Y`` (or ``group1``/``group2``) first.
     method : str, default ``'tfnbs'``
@@ -182,6 +242,11 @@ def analyze(
         raise ValueError(
             "analyze() requires either an `interest` regressor or `group1`/`group2`."
         )
+    if glm_mode and Y is None:
+        raise ValueError(
+            "analyze() requires Y when using the GLM path (interest=, "
+            "[confounds=]). Pass Y as the first positional argument."
+        )
 
     # ---- Fisher r→z ----
     if fisher_z:
@@ -190,6 +255,52 @@ def analyze(
         else:
             group1 = fisher_r_to_z(group1)
             group2 = fisher_r_to_z(group2)
+
+    # ---- Auto-preserve (PR-4 of implementation_plan_2026-05-19) ----
+    # When ComBat runs, any variance the user wants preserved through
+    # harmonization MUST be passed via preserve=; otherwise its
+    # variance gets partially absorbed into the site adjustments. If
+    # the caller forgot to pass preserve=, build it from the design:
+    # interest + confounds (GLM mode), or the group indicator (t-test
+    # mode). An explicit preserve= always wins.
+    if sites is not None and preserve is None:
+        if glm_mode:
+            cols = [c for c in (interest, confounds) if c is not None]
+            if cols:
+                preserve = np.column_stack(
+                    [_as_2d(c) for c in cols]
+                )
+                flags.append(
+                    "preserve auto-built from (interest, confounds); "
+                    "pass preserve= explicitly to override."
+                )
+        else:
+            assert group1 is not None and group2 is not None
+            n1 = group1.shape[0]
+            n2 = group2.shape[0]
+            preserve = np.concatenate(
+                [np.zeros(n1), np.ones(n2)]
+            )[:, np.newaxis]
+            flags.append(
+                "preserve auto-built from the (g1 vs g2) group indicator; "
+                "pass preserve= explicitly to override."
+            )
+
+    # ---- Design coupling check (PR-4 / Tier 1.3) ----
+    # If preserve and the GLM design are passed as labeled DataFrames /
+    # structured arrays, warn when a column in preserve doesn't have a
+    # counterpart in the GLM design — its variance survived
+    # harmonization unadjusted at inference, a silent confound leak.
+    # For raw ndarrays we can't compare column identity; silent skip.
+    if sites is not None and glm_mode and preserve is not None:
+        leak = _design_coupling_leak(preserve, interest, confounds)
+        if leak:
+            flags.append(
+                "Column(s) {!r} in preserve= are not represented in "
+                "(interest, confounds); their variance survives "
+                "harmonization but is unadjusted in the contrast."
+                .format(leak)
+            )
 
     # ---- ComBat ----
     if sites is not None:

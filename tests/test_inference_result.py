@@ -206,7 +206,10 @@ class TestAnalyzeProvenanceThreading(unittest.TestCase):
             n_permutations=20, use_mp=False, acceleration=None, rng=6,
         )
         self.assertTrue(out.inference.harmonized)
-        self.assertFalse(out.inference.preserve_provided)
+        # PR-4 auto-preserve: sites= + interest= without explicit preserve
+        # auto-builds preserve from (interest, confounds), flipping
+        # preserve_provided=True
+        self.assertTrue(out.inference.preserve_provided)
         self.assertIsNotNone(out.inference.combat_diagnostics)
         # PR-3 auto-strata: passing sites= flips strata_provided=True
         self.assertTrue(out.inference.strata_provided)
