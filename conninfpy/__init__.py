@@ -35,7 +35,11 @@ from .defaults import (
     DEFAULT_MIN_CLUSTER_SIZE,
 )
 
-from .synth_datasets import generate_fc_matrices, ModularDatasetGenerator
+from .synth_datasets import (
+    generate_fc_matrices,
+    generate_multisite_glm_dataset,
+    ModularDatasetGenerator,
+)
 from .topologies import (
     TopologyDataset,
     TopologyDatasetGenerator,
@@ -173,6 +177,7 @@ __all__ = [
     "block_mass",
     # synthetic data + topologies
     "generate_fc_matrices",
+    "generate_multisite_glm_dataset",
     "ModularDatasetGenerator",
     "TopologyDataset",
     "TopologyDatasetGenerator",

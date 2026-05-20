@@ -6,8 +6,175 @@ from sklearn.datasets import make_sparse_spd_matrix
 
 __all__ = [
     "generate_fc_matrices",
+    "generate_multisite_glm_dataset",
     "ModularDatasetGenerator",
 ]
+
+
+def generate_multisite_glm_dataset(
+    n_subjects: int = 30,
+    N: int = 100,
+    n_sites: int = 3,
+    effect_size: float = 0.0,
+    site_shift_sigma: float = 0.2,
+    corr_site_interest: float = 0.0,
+    n_signal_edges: int = 0,
+    base_corr_sparsity: float = 0.9,
+    seed: int | None = None,
+) -> dict:
+    """Multi-site GLM connectivity dataset, sized to mimic a Schaefer-100 study.
+
+    Built for the v2.1 full-pipeline calibration tests
+    (`tests/test_full_pipeline.py`) and for the matrix-level phase of the
+    SC-prior validation work in
+    `Projects/NetworkStatistics/_wiki/pseudo_real_validation.md`.
+
+    Output is in **Fisher-z** units already (so callers should pass
+    ``fisher_z=False`` to ``analyze()``). Site effects are additive on
+    Fisher-z; signal is linear in the regressor of interest at a fixed
+    set of signal edges.
+
+    Parameters
+    ----------
+    n_subjects : int, default 30
+        Total subjects, evenly distributed across ``n_sites``.
+    N : int, default 100
+        Number of ROIs. Default 100 mimics Schaefer-100.
+    n_sites : int, default 3
+        Number of distinct sites; each contributes a fixed symmetric
+        Fisher-z offset on all edges.
+    effect_size : float, default 0.0
+        Slope of the linear-in-interest perturbation at signal edges.
+        Set to ``0.0`` for an H₀ dataset (no group / regressor effect).
+    site_shift_sigma : float, default 0.2
+        Scale of the per-site additive Fisher-z offset. Each site's
+        offset is drawn from ``N(0, σ_site²)`` once per simulation.
+    corr_site_interest : float in [0, 1], default 0.0
+        Population correlation between ``sites`` (as an integer code)
+        and the ``interest`` regressor. ``0.0`` = independent (the
+        H₀-friendly regime); ``0.6`` = the regime where unrestricted
+        permutation after harmonisation leaks Type-I.
+    n_signal_edges : int, default 0
+        Number of edges carrying the planted signal. Ignored when
+        ``effect_size == 0``. Edges are drawn uniformly from the upper
+        triangle (excluding diagonal).
+    base_corr_sparsity : float, default 0.9
+        ``alpha`` for ``make_sparse_spd_matrix`` controlling baseline
+        connectivity sparsity (higher → sparser).
+    seed : int, optional
+        Reproducibility handle.
+
+    Returns
+    -------
+    dict with keys
+        - ``"Y"`` — ``(n_subjects, N, N)`` Fisher-z connectivity tensor,
+          symmetric with zero diagonal.
+        - ``"interest"`` — ``(n_subjects,)`` regressor of interest.
+        - ``"sites"`` — ``(n_subjects,)`` integer site labels.
+        - ``"signal_mask"`` — ``(N, N)`` boolean upper-triangle mask of
+          true positive edges (all False when ``effect_size == 0`` or
+          ``n_signal_edges == 0``).
+
+    Notes
+    -----
+    Designed for end-to-end exercise of
+    ``analyze(Y, interest=..., sites=...)``: it triggers the auto-
+    preserve, auto-strata, ComBat-with-preserve, Freedman-Lane with
+    within-block exchangeability path in a single call. Calibration
+    tests use ``effect_size=0.0`` (H₀); strata-vs-no-strata sanity
+    tests use ``corr_site_interest > 0`` to bring the leak into view.
+
+    Examples
+    --------
+    >>> data = generate_multisite_glm_dataset(
+    ...     n_subjects=24, N=20, n_sites=3,
+    ...     site_shift_sigma=0.3, corr_site_interest=0.6, seed=0,
+    ... )
+    >>> data["Y"].shape
+    (24, 20, 20)
+    >>> data["sites"].shape, data["interest"].shape
+    ((24,), (24,))
+    """
+    if not 0.0 <= corr_site_interest <= 1.0:
+        raise ValueError(
+            f"corr_site_interest must be in [0, 1], got {corr_site_interest}."
+        )
+    if n_subjects < n_sites:
+        raise ValueError(
+            f"Need at least one subject per site (n_subjects={n_subjects}, "
+            f"n_sites={n_sites})."
+        )
+
+    rng = np.random.default_rng(seed)
+
+    # ---- Site assignment (round-robin) ----
+    sites = np.tile(np.arange(n_sites), n_subjects // n_sites + 1)[:n_subjects]
+
+    # ---- Regressor of interest with target corr(site, interest) ----
+    # Project site labels to mean-zero, unit-variance to make the
+    # correlation parameter well-defined.
+    site_codes = sites.astype(np.float64)
+    site_centered = (site_codes - site_codes.mean()) / max(site_codes.std(), 1e-12)
+    noise = rng.standard_normal(n_subjects)
+    interest = (
+        corr_site_interest * site_centered
+        + np.sqrt(max(1.0 - corr_site_interest ** 2, 0.0)) * noise
+    )
+
+    # ---- Base covariance + per-subject sampled correlation ----
+    base_cov = make_sparse_spd_matrix(
+        N, alpha=base_corr_sparsity, norm_diag=True,
+        random_state=rng.integers(0, 2**31 - 1),
+    )
+    n_obs_for_corr = max(N + 1, 200)  # ensure stable per-subject correlation
+    Y = np.zeros((n_subjects, N, N), dtype=np.float64)
+    for i in range(n_subjects):
+        samples = rng.multivariate_normal(
+            mean=np.zeros(N), cov=base_cov, size=n_obs_for_corr,
+        )
+        Y[i] = np.corrcoef(samples.T)
+
+    # Fisher r→z (clip to avoid arctanh blow-up at |r|→1)
+    Y = np.clip(Y, -0.9999, 0.9999)
+    Y = np.arctanh(Y)
+    for i in range(n_subjects):
+        np.fill_diagonal(Y[i], 0.0)
+
+    # ---- Per-site additive shift (symmetric, zero diagonal) ----
+    if site_shift_sigma > 0:
+        iu = np.triu_indices(N, k=1)
+        site_shifts = np.zeros((n_sites, N, N), dtype=np.float64)
+        for s in range(n_sites):
+            shift_upper = rng.standard_normal(iu[0].size) * site_shift_sigma
+            site_shifts[s][iu] = shift_upper
+            site_shifts[s] = site_shifts[s] + site_shifts[s].T
+        for i in range(n_subjects):
+            Y[i] += site_shifts[sites[i]]
+
+    # ---- Signal injection ----
+    signal_mask = np.zeros((N, N), dtype=bool)
+    if effect_size != 0.0 and n_signal_edges > 0:
+        iu = np.triu_indices(N, k=1)
+        chosen = rng.choice(iu[0].size, size=n_signal_edges, replace=False)
+        signal_rows = iu[0][chosen]
+        signal_cols = iu[1][chosen]
+        for i in range(n_subjects):
+            delta = effect_size * interest[i]
+            Y[i, signal_rows, signal_cols] += delta
+            Y[i, signal_cols, signal_rows] += delta
+        signal_mask[signal_rows, signal_cols] = True
+        signal_mask[signal_cols, signal_rows] = True
+
+    # Re-zero diagonal (site shifts and signal already preserve it)
+    for i in range(n_subjects):
+        np.fill_diagonal(Y[i], 0.0)
+
+    return {
+        "Y": Y,
+        "interest": interest,
+        "sites": sites,
+        "signal_mask": signal_mask,
+    }
 
 
 def generate_fc_matrices(N,  effect_size, mask=None, n_samples_group1=50, n_samples_group2=50,
