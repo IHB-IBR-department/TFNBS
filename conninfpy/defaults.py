@@ -22,8 +22,29 @@ a sensitivity knob: ablate within Hao's recommended box
 
 The only path-specific default is ``n`` (threshold integration steps):
 ``n=100`` for scoring (high resolution, single-shot), ``n=10`` for
-permutation (Hao 2024 reports n=10 is sufficient for FDR control on
-network data; lower n keeps the permutation loop affordable).
+permutation (lower ``n`` keeps the permutation loop affordable).
+
+The rationale for ``n=10`` inside the permutation loop differs between
+the two error-control regimes ConnInfPy supports, and the literature
+strictly speaking only validates one of them at this resolution:
+
+* **FDR control (``method='bh_fdr_perm'``).** Hao et al. (2024)
+  empirically benchmark TFNOS at ``E=0.4, H=3.0, n=10`` on synthetic
+  network data and report FDR < 10% — this is the regime their result
+  underwrites. Using ``n=10`` for the permutation-calibrated BH path
+  is directly supported.
+
+* **FWER control via max-statistic permutation.** No specific
+  literature endorses ``n=10`` for this path; the choice is a
+  pragmatic compromise between integration resolution and permutation
+  budget. ConnInfPy's MICCAI-reproducing calibration grid
+  (1 000 null repeats × 9 methods × 4 sample sizes, see
+  ``examples/miccai_paper_reproducing/``) confirms that the
+  one-sided FWER ≤ α rule still holds in all 36 cells at ``n=10``,
+  but this is an empirical observation rather than a theoretical
+  guarantee — users with budget for ``n=30+`` permutation-time
+  integration steps can pass ``n=30`` to ``compute_p_val(...)`` /
+  ``compute_p_val_glm(...)`` without changing any other default.
 
 Threshold tie-breaking convention
 ---------------------------------
@@ -34,7 +55,7 @@ inclusive convention is mathematically equivalent under continuous
 ``t``-statistics and computationally simpler. We retain ``>=`` because
 the production FPR calibration on 1{,}000 null repeats × 9 methods × 4
 sample sizes (see ``examples/miccai_paper_reproducing/``) confirms all
-36 cells PASS the one-sided FWER ≤ α rule with this choice. A v2.1
+36 cells PASS the one-sided FWER ≤ α rule with this choice. A future
 release will switch to ``>`` to match the literal Smith & Nichols
 formula and rerun calibration as a regression check.
 

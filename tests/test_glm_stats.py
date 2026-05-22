@@ -230,6 +230,37 @@ class TestComputeGLMStat(unittest.TestCase):
         self.assertTrue(np.all(result["positive"] >= 0))
         self.assertTrue(np.all(result["negative"] >= 0))
 
+    def test_f_equals_t_squared_for_rank1_contrast(self):
+        """Regression guard: F = t² for a rank-1 (1D) contrast.
+
+        ``compute_glm_stat(stat_type='fstat')`` with a 1D contrast is
+        documented to be equivalent to the squared t-statistic from the
+        same contrast. This identity must hold to float tolerance —
+        any refactor that breaks it silently diverges the omnibus and
+        t-stat paths on rank-1 designs.
+        """
+        rng = np.random.RandomState(0)
+        n, N = 25, 6
+        Y = rng.randn(n, N, N)
+        # Symmetrise so the GLM sees the same edges in both paths.
+        Y = 0.5 * (Y + np.swapaxes(Y, 1, 2))
+        age = rng.randn(n)
+        X, contrast = build_design_matrix(age)
+
+        t_out = compute_glm_stat(Y, X, contrast, stat_type="tstat")
+        f_out = compute_glm_stat(Y, X, contrast, stat_type="fstat")
+
+        # Reconstruct signed t and compute t² off-diagonal
+        t_signed = t_out["positive"] - t_out["negative"]
+        t_sq = t_signed ** 2
+
+        # F is non-negative by construction; positions where t² is
+        # numerically zero map to F = 0.
+        np.testing.assert_allclose(
+            f_out["omnibus"], t_sq, rtol=1e-10, atol=1e-12,
+            err_msg="F = t² identity broken for a 1D rank-1 contrast",
+        )
+
 
 # =============================================================================
 # 2. Build Design Matrix
