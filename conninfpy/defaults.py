@@ -12,7 +12,7 @@ in their benchmarks; Vinokur et al. (2023) report 75-fold variation in
 detected edge counts across (E,H) within Baggio's recommended range.
 The package does not impose Hao's defaults globally to preserve
 backward compatibility, but every validation pipeline in
-``examples/`` (ABIDE, Open-Close, MICCAI reproduction) calls
+``examples/`` (ABIDE, Open-Close, simulation) calls
 ``compute_p_val(...)`` / ``compute_p_val_glm(...)`` with explicit
 ``e=0.4, h=3.0, n=10`` — that is the regime our paper figures use.
 
@@ -37,9 +37,9 @@ strictly speaking only validates one of them at this resolution:
 * **FWER control via max-statistic permutation.** No specific
   literature endorses ``n=10`` for this path; the choice is a
   pragmatic compromise between integration resolution and permutation
-  budget. ConnInfPy's MICCAI-reproducing calibration grid
+  budget. ConnInfPy's simulation calibration grid
   (1 000 null repeats × 9 methods × 4 sample sizes, see
-  ``examples/miccai_paper_reproducing/``) confirms that the
+  ``examples/simulation_validation/``) confirms that the
   one-sided FWER ≤ α rule still holds in all 36 cells at ``n=10``,
   but this is an empirical observation rather than a theoretical
   guarantee — users with budget for ``n=30+`` permutation-time
@@ -54,7 +54,7 @@ TFCE indicator as ``e(h) = 1 if t > h``, i.e. strict inequality. The
 inclusive convention is mathematically equivalent under continuous
 ``t``-statistics and computationally simpler. We retain ``>=`` because
 the production FPR calibration on 1{,}000 null repeats × 9 methods × 4
-sample sizes (see ``examples/miccai_paper_reproducing/``) confirms all
+sample sizes (see ``examples/simulation_validation/``) confirms all
 36 cells PASS the one-sided FWER ≤ α rule with this choice. A future
 release will switch to ``>`` to match the literal Smith & Nichols
 formula and rerun calibration as a regression check.

@@ -94,4 +94,4 @@ checkpoint_every: 5
 # OUTPUT
 # =============================================================================
 
-output_dir: examples/miccai_paper_reproducing/results/fpr_calibration_quick
+output_dir: examples/simulation_validation/results/fpr_calibration_quick

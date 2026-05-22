@@ -16,8 +16,8 @@
 #   power_analysis.py prints a runtime estimate before launching.
 #
 # Usage:
-#   python examples/miccai_paper_reproducing/power_test/power_analysis.py \
-#     --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml
+#   python examples/simulation_validation/power_test/power_analysis.py \
+#     --config examples/simulation_validation/power_test/sweep_config_power_1000.yaml
 
 # =============================================================================
 # EFFECT SIZE ANALYSIS
@@ -112,4 +112,4 @@ noise_level: 0.05
 
 seed: 42
 use_mp: false          # mp.Pool at outer level only, not inside permutations
-output_dir: examples/miccai_paper_reproducing/results/power_analysis_local
+output_dir: examples/simulation_validation/results/power_analysis_local

@@ -11,26 +11,26 @@ Reads CSV output from power_analysis.py and produces:
 
 Usage:
     # All plots from a results directory
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local
 
     # Method comparison only
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local \
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local \
         --plot comparison
 
     # Plot specific scenarios from per-scenario CSVs (fast, no full CSV load)
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local \
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local \
         --scenario hub within_module_dense
 
     # List available per-scenario CSVs
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local \
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local \
         --list-scenarios
 
     # Only (e,h) heatmaps for a specific effect size
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local \
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local \
         --plot eh-heatmap --effect-size 0.25
 
     # Custom metric and output directory
-    python plot_power_analysis_results.py examples/miccai_paper_reproducing/results/power_analysis_local \
+    python plot_power_analysis_results.py examples/simulation_validation/results/power_analysis_local \
         --metric FDR --output-dir plots/
 """
 

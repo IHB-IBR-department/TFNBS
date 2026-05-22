@@ -23,32 +23,32 @@ within_module_dense, hub, chain, scattered_cross_block, etc.).
 
 Usage:
     # Run both analyses with a YAML config (recommended)
-    python examples/miccai_paper_reproducing/power_test/power_analysis.py \\
-        --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml
+    python examples/simulation_validation/power_test/power_analysis.py \\
+        --config examples/simulation_validation/power_test/sweep_config_power_1000.yaml
 
     # Power vs effect size only
-    python examples/miccai_paper_reproducing/power_test/power_analysis.py \\
-        --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml \\
+    python examples/simulation_validation/power_test/power_analysis.py \\
+        --config examples/simulation_validation/power_test/sweep_config_power_1000.yaml \\
         --mode effect-size
 
     # Power vs sample size only
-    python examples/miccai_paper_reproducing/power_test/power_analysis.py \\
-        --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml \\
+    python examples/simulation_validation/power_test/power_analysis.py \\
+        --config examples/simulation_validation/power_test/sweep_config_power_1000.yaml \\
         --mode sample-size
 
     # Resume an interrupted run
-    python examples/miccai_paper_reproducing/power_test/power_analysis.py \\
-        --config examples/miccai_paper_reproducing/power_test/sweep_config_power_1000.yaml --resume
+    python examples/simulation_validation/power_test/power_analysis.py \\
+        --config examples/simulation_validation/power_test/sweep_config_power_1000.yaml --resume
 
     # CLI overrides (no YAML)
-    python examples/miccai_paper_reproducing/power_test/power_analysis.py \\
+    python examples/simulation_validation/power_test/power_analysis.py \\
         --effect-sizes 0.15 0.25 0.50 \\
         --sample-sizes 10 30 50 \\
         --scenarios within_module_dense hub \\
         --methods tstat tfnbs nbs_extent \\
         --n-repeats 10 --n-permutations 500
 
-Output (saved to --output-dir, default examples/miccai_paper_reproducing/results/power_analysis):
+Output (saved to --output-dir, default examples/simulation_validation/results/power_analysis):
     power_vs_effect_size.csv          — raw results (all methods × scenarios × repeats)
     power_vs_effect_size_summary.csv  — aggregated mean/std per condition
     power_vs_sample_size.csv          — raw results
@@ -59,8 +59,8 @@ Output (saved to --output-dir, default examples/miccai_paper_reproducing/results
 
 Plotting:
     Use plot_power_analysis_results.py to visualize results:
-        python examples/miccai_paper_reproducing/power_test/plot_power_analysis_results.py \\
-            examples/miccai_paper_reproducing/results/power_analysis_local
+        python examples/simulation_validation/power_test/plot_power_analysis_results.py \\
+            examples/simulation_validation/results/power_analysis_local
 """
 
 from __future__ import annotations

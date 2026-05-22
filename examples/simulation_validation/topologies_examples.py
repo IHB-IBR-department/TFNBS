@@ -9,9 +9,9 @@ Generation parameters match fpr_config_local.yaml / sweep_config_power_local.yam
   n_nodes=60, n_modules=4, intra_corr=0.3, inter_corr=0.05, noise_level=0.05
 
 Usage:
-    python examples/miccai_paper_reproducing/topologies_examples.py
-    python examples/miccai_paper_reproducing/topologies_examples.py --output-dir examples/miccai_paper_reproducing/results/topologies
-    python examples/miccai_paper_reproducing/topologies_examples.py --effect-size 0.5 --n-samples 50
+    python examples/simulation_validation/topologies_examples.py
+    python examples/simulation_validation/topologies_examples.py --output-dir examples/simulation_validation/results/topologies
+    python examples/simulation_validation/topologies_examples.py --effect-size 0.5 --n-samples 50
 """
 from __future__ import annotations
 

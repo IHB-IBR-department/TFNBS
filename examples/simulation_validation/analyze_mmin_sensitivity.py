@@ -6,16 +6,16 @@ Shows TPR/FDR vs min_cluster_size for FBC-TFNBS across topologies.
 Usage:
     # After running 5 sweeps with different fbc_min_cluster values:
     python examples/paper_reproducing/analyze_mmin_sensitivity.py \
-        --results-dirs examples/miccai_paper_reproducing/results/mmin_1 examples/miccai_paper_reproducing/results/mmin_2 examples/miccai_paper_reproducing/results/mmin_3 examples/miccai_paper_reproducing/results/mmin_5 examples/miccai_paper_reproducing/results/mmin_10 \
+        --results-dirs examples/simulation_validation/results/mmin_1 examples/simulation_validation/results/mmin_2 examples/simulation_validation/results/mmin_3 examples/simulation_validation/results/mmin_5 examples/simulation_validation/results/mmin_10 \
         --mmin-values 1 2 3 5 10 \
-        --output-dir examples/miccai_paper_reproducing/results/mmin_comparison
+        --output-dir examples/simulation_validation/results/mmin_comparison
 
 Run the sweeps with:
     for M in 1 2 3 5 10; do
         python examples/power_test/power_analysis.py \
             --config examples/power_test/sweep_config_mmin.yaml \
             --fbc-min-cluster $M \
-            --output-dir examples/miccai_paper_reproducing/results/mmin_$M
+            --output-dir examples/simulation_validation/results/mmin_$M
     done
 """
 
@@ -116,7 +116,7 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze m_min sensitivity")
     parser.add_argument("--results-dirs", type=Path, nargs="+", required=True)
     parser.add_argument("--mmin-values", type=int, nargs="+", required=True)
-    parser.add_argument("--output-dir", type=Path, default=Path("examples/miccai_paper_reproducing/results/mmin_comparison"))
+    parser.add_argument("--output-dir", type=Path, default=Path("examples/simulation_validation/results/mmin_comparison"))
     args = parser.parse_args()
 
     if len(args.results_dirs) != len(args.mmin_values):

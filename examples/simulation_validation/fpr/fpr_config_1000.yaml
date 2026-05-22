@@ -121,7 +121,7 @@ checkpoint_every: 20
 # OUTPUT
 # =============================================================================
 
-output_dir: examples/miccai_paper_reproducing/results/fpr_calibration_V1
+output_dir: examples/simulation_validation/results/fpr_calibration_V1
 
 # =============================================================================
 # EXPECTED RESULTS

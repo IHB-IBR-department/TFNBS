@@ -1,13 +1,13 @@
 """
 Exp 1: Compute 95% confidence intervals for TPR/FDR from existing results.
 
-Reads per-scenario CSVs from examples/miccai_paper_reproducing/results/power_analysis_1000_30/per_scenario/
+Reads per-scenario CSVs from examples/simulation_validation/results/power_analysis_1000_30/per_scenario/
 and outputs summary tables with mean, SE, 95% CI (normal + bootstrap).
 
 Usage:
     python examples/paper_reproducing/compute_confidence_intervals.py \
-        --results-dir examples/miccai_paper_reproducing/results/power_analysis_1000_30 \
-        --output-dir examples/miccai_paper_reproducing/results/confidence_intervals
+        --results-dir examples/simulation_validation/results/power_analysis_1000_30 \
+        --output-dir examples/simulation_validation/results/confidence_intervals
 """
 
 from __future__ import annotations
@@ -75,12 +75,12 @@ def main():
     parser = argparse.ArgumentParser(description="Compute CIs for power analysis results")
     parser.add_argument(
         "--results-dir", type=Path,
-        default=Path("examples/miccai_paper_reproducing/results/power_analysis_1000_30"),
+        default=Path("examples/simulation_validation/results/power_analysis_1000_30"),
         help="Directory containing per_scenario/ CSVs",
     )
     parser.add_argument(
         "--output-dir", type=Path,
-        default=Path("examples/miccai_paper_reproducing/results/confidence_intervals"),
+        default=Path("examples/simulation_validation/results/confidence_intervals"),
         help="Output directory for CI tables",
     )
     args = parser.parse_args()

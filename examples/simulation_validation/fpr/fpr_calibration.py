@@ -133,7 +133,7 @@ class FPRConfig:
     checkpoint_every: int = 10  # Save checkpoint every N runs per method
 
     # Output
-    output_dir: Path = Path("examples/miccai_paper_reproducing/results/fpr_calibration")
+    output_dir: Path = Path("examples/simulation_validation/results/fpr_calibration")
 
     @property
     def effective_sample_sizes(self) -> List[int]:

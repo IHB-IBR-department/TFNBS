@@ -39,25 +39,25 @@ echo "Log: $LOG"
 echo ""
 
 # Run in foreground (use nohup ... & for background)
-python -u examples/miccai_paper_reproducing/power_test/power_analysis.py \
-  --config examples/miccai_paper_reproducing/power_test/sweep_config_power_server_short.yaml \
+python -u examples/simulation_validation/power_test/power_analysis.py \
+  --config examples/simulation_validation/power_test/sweep_config_power_server_short.yaml \
   --mode effect-size \
   --n-permutations 200 \
   --n-repeats 5 \
   --scenarios within_module_dense chain hub \
   --effect-sizes 0.15 0.25 0.40 0.60 \
-  --output-dir examples/miccai_paper_reproducing/results/power_analysis_test \
+  --output-dir examples/simulation_validation/results/power_analysis_test \
   --checkpoint-every 5 \
   2>&1 | tee "$LOG"
 
 # To also run sample-size mode, uncomment:
-# python -u examples/miccai_paper_reproducing/power_test/power_analysis.py \
-#   --config examples/miccai_paper_reproducing/power_test/sweep_config_power_server_short.yaml \
+# python -u examples/simulation_validation/power_test/power_analysis.py \
+#   --config examples/simulation_validation/power_test/sweep_config_power_server_short.yaml \
 #   --mode sample-size \
 #   --n-permutations 200 \
 #   --n-repeats 5 \
 #   --scenarios within_module_dense chain hub \
 #   --sample-sizes 15 25 50 100 \
-#   --output-dir examples/miccai_paper_reproducing/results/power_analysis_test \
+#   --output-dir examples/simulation_validation/results/power_analysis_test \
 #   --checkpoint-every 5 \
 #   2>&1 | tee -a "$LOG"

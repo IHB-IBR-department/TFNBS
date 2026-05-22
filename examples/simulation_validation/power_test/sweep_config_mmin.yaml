@@ -8,7 +8,7 @@
 #     python examples/power_test/power_analysis.py \
 #       --config examples/power_test/sweep_config_mmin.yaml \
 #       --fbc-min-cluster $M \
-#       --output-dir examples/miccai_paper_reproducing/results/mmin_$M \
+#       --output-dir examples/simulation_validation/results/mmin_$M \
 #       --mode effect-size
 #   done
 

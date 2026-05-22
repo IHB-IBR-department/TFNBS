@@ -10,23 +10,23 @@ with TFNBS and BH-FDR as label-independent controls.
 Usage:
     # After running the 3 prior misspecification sweeps:
     python examples/paper_reproducing/analyze_prior_misspec.py \
-        --true-dir examples/miccai_paper_reproducing/results/prior_misspec_true \
-        --seven-dir examples/miccai_paper_reproducing/results/prior_misspec_7blocks \
-        --two-dir examples/miccai_paper_reproducing/results/prior_misspec_2blocks \
-        --output-dir examples/miccai_paper_reproducing/results/prior_misspec_comparison
+        --true-dir examples/simulation_validation/results/prior_misspec_true \
+        --seven-dir examples/simulation_validation/results/prior_misspec_7blocks \
+        --two-dir examples/simulation_validation/results/prior_misspec_2blocks \
+        --output-dir examples/simulation_validation/results/prior_misspec_comparison
 
 Run the sweeps with:
     python examples/power_test/power_analysis.py \
         --config examples/power_test/sweep_config_prior_misspec.yaml \
-        --label-override true --output-dir examples/miccai_paper_reproducing/results/prior_misspec_true
+        --label-override true --output-dir examples/simulation_validation/results/prior_misspec_true
 
     python examples/power_test/power_analysis.py \
         --config examples/power_test/sweep_config_prior_misspec.yaml \
-        --label-override 7blocks --output-dir examples/miccai_paper_reproducing/results/prior_misspec_7blocks
+        --label-override 7blocks --output-dir examples/simulation_validation/results/prior_misspec_7blocks
 
     python examples/power_test/power_analysis.py \
         --config examples/power_test/sweep_config_prior_misspec.yaml \
-        --label-override 2blocks --output-dir examples/miccai_paper_reproducing/results/prior_misspec_2blocks
+        --label-override 2blocks --output-dir examples/simulation_validation/results/prior_misspec_2blocks
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def main():
     parser.add_argument("--true-dir", type=Path, required=True)
     parser.add_argument("--seven-dir", type=Path, required=True)
     parser.add_argument("--two-dir", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, default=Path("examples/miccai_paper_reproducing/results/prior_misspec_comparison"))
+    parser.add_argument("--output-dir", type=Path, default=Path("examples/simulation_validation/results/prior_misspec_comparison"))
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

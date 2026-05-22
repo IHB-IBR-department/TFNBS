@@ -8,7 +8,7 @@
 #     python examples/power_test/power_analysis.py \
 #       --config examples/power_test/sweep_config_prior_misspec.yaml \
 #       --label-override $LABEL \
-#       --output-dir examples/miccai_paper_reproducing/results/prior_misspec_$LABEL \
+#       --output-dir examples/simulation_validation/results/prior_misspec_$LABEL \
 #       --mode effect-size
 #   done
 

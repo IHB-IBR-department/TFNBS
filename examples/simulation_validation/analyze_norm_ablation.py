@@ -9,17 +9,17 @@ Compares 3 normalization variants for NI-TFNBS:
 Usage:
     # After running 3 sweeps with different ni_normalization:
     python examples/paper_reproducing/analyze_norm_ablation.py \
-        --sqrt-dir examples/miccai_paper_reproducing/results/norm_sqrt \
-        --linear-dir examples/miccai_paper_reproducing/results/norm_linear \
-        --none-dir examples/miccai_paper_reproducing/results/norm_none \
-        --output-dir examples/miccai_paper_reproducing/results/norm_ablation_comparison
+        --sqrt-dir examples/simulation_validation/results/norm_sqrt \
+        --linear-dir examples/simulation_validation/results/norm_linear \
+        --none-dir examples/simulation_validation/results/norm_none \
+        --output-dir examples/simulation_validation/results/norm_ablation_comparison
 
 Run the sweeps with:
     for NORM in sqrt linear none; do
         python examples/power_test/power_analysis.py \
             --config examples/power_test/sweep_config_norm_ablation.yaml \
             --ni-normalization $NORM \
-            --output-dir examples/miccai_paper_reproducing/results/norm_$NORM
+            --output-dir examples/simulation_validation/results/norm_$NORM
     done
 """
 
@@ -138,7 +138,7 @@ def main():
     parser.add_argument("--sqrt-dir", type=Path, required=True)
     parser.add_argument("--linear-dir", type=Path, required=True)
     parser.add_argument("--none-dir", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, default=Path("examples/miccai_paper_reproducing/results/norm_ablation_comparison"))
+    parser.add_argument("--output-dir", type=Path, default=Path("examples/simulation_validation/results/norm_ablation_comparison"))
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
