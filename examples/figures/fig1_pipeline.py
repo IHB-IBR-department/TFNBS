@@ -12,8 +12,8 @@ Descriptive captions are moved to the LaTeX figure caption (not overlaid
 on the figure). NEW badges are kept inside panel bounds.
 
 Output:
-    examples/paper_figures/fig1_pipeline.pdf
-    examples/paper_figures/fig1_pipeline.png    (300 dpi)
+    examples/figures/fig1_pipeline.pdf
+    examples/figures/fig1_pipeline.png    (300 dpi)
 """
 
 from __future__ import annotations

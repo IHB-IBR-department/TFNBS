@@ -6,9 +6,9 @@ All benchmarks use biologically realistic synthetic data built on top of
 This replaces ad-hoc ``rng.randn`` baselines that don't reflect real BOLD
 signal structure.
 
-The **four canonical topologies** are those highlighted in Figure 1 of
-the MICCAI 2026 ConnInfPy paper — they span the meaningful structural
-regimes for method comparison:
+The **four canonical topologies** below span the meaningful structural
+regimes for method comparison and are used across the simulation
+validation suite (``examples/simulation_validation/``):
 
     - ``within_module_dense``     — block-aligned effect; cNBS/FBC-TFNBS win
     - ``hub``                     — star topology spanning blocks; stress test for cNBS
@@ -37,7 +37,7 @@ from conninfpy.topologies import TopologyDatasetGenerator
 from conninfpy.utils import fisher_r_to_z
 
 
-# The 4 topologies highlighted in MICCAI 2026 Figure 1 rows 2-3.
+# The 4 topologies used for the canonical method-comparison panel.
 PAPER_TOPOLOGIES: Tuple[str, ...] = (
     "within_module_dense",
     "hub",

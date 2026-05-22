@@ -27,6 +27,7 @@ Each notebook is self-contained, runs on synthetic data (or bundled demo data fo
 | [`abide_validation/`](abide_validation/) | Real-data validation on ABIDE I (871 subjects, Schaefer 100): ComBat harmonization + naive / GLM / severity / method comparison / acceleration / within-site replication |
 | [`openclose_validation/`](openclose_validation/) | Open-Close validation (IHB + China Schaefer-200, 182 ROIs): paired TFNBS, cross-cohort agreement, cohort-as-site ComBat, bidirectional ML transfer from p-value maps |
 | [`simulation_validation/`](simulation_validation/) | Synthetic FPR calibration + power-curve sweeps + hyperparameter ablations (renamed from `miccai_paper_reproducing/` after the 2026-05-22 refactor) |
+| [`figures/`](figures/) | Paper-figure generators and static artefacts (PDF/PNG/SVG). Renamed from `paper_figures/` after the 2026-05-22 refactor. |
 | `sim_topology_examples.py` | Topology gallery demo (visualizes the ground-truth masks from the `conninfpy.topologies` library) |
 
 ## Running notebooks
