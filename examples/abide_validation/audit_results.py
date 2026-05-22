@@ -19,13 +19,28 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from glob import glob
+from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+# Shared agreement helpers (examples/_audit_utils.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _audit_utils import (  # noqa: E402
+    upper_triangle,
+    jaccard,
+    jaccard_random_baseline,
+    fisher_exact_2x2,
+    spearman_neglog10,
+    topk_concordance,
+    block_mass,
+    block_mass_correlation,
+)
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -52,84 +67,10 @@ def load_pmap(path: str) -> Dict[str, np.ndarray]:
 
 
 # =============================================================================
-# §2.5 agreement metrics
+# §2.5 agreement metrics — most helpers come from examples/_audit_utils.py.
+# The agreement_quartet() wrapper below renames keys to this script's
+# historical schema (n_sig_a / topk_10 / etc.) for backward compatibility.
 # =============================================================================
-
-
-def upper_triangle(arr: np.ndarray) -> np.ndarray:
-    N = arr.shape[0]
-    return arr[np.triu_indices(N, k=1)]
-
-
-def jaccard(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
-    inter = (mask_a & mask_b).sum()
-    union = (mask_a | mask_b).sum()
-    return float(inter / union) if union > 0 else 0.0
-
-
-def jaccard_random_baseline(k_a: int, k_b: int, n_edges: int) -> float:
-    # Expected Jaccard for two random draws of sizes k_a, k_b from n_edges.
-    # Derivation: P(edge in A) * P(edge in B) averaged over the two intersections.
-    if k_a + k_b == 0:
-        return 0.0
-    exp_inter = k_a * k_b / n_edges
-    exp_union = k_a + k_b - exp_inter
-    return float(exp_inter / exp_union) if exp_union > 0 else 0.0
-
-
-def fisher_exact_2x2(sig_a: np.ndarray, sig_b: np.ndarray) -> float:
-    """One-sided Fisher exact test for 'sig in A' vs 'sig in B' overlap."""
-    tp = int((sig_a & sig_b).sum())
-    fp = int((sig_a & ~sig_b).sum())
-    fn = int((~sig_a & sig_b).sum())
-    tn = int((~sig_a & ~sig_b).sum())
-    _, p = stats.fisher_exact([[tp, fp], [fn, tn]], alternative="greater")
-    return float(p)
-
-
-def spearman_neglog10(p_a: np.ndarray, p_b: np.ndarray) -> float:
-    eps = 1e-12
-    r, _ = stats.spearmanr(-np.log10(p_a + eps), -np.log10(p_b + eps))
-    return float(r)
-
-
-def topk_concordance(p_a: np.ndarray, p_b: np.ndarray, k: int) -> float:
-    # Lower p = higher rank. Fraction of top-k in A that are also in top-k of B.
-    if k <= 0 or k > p_a.size:
-        return float("nan")
-    rank_a = np.argsort(p_a)[:k]
-    rank_b = np.argsort(p_b)[:k]
-    return float(len(np.intersect1d(rank_a, rank_b)) / k)
-
-
-def block_mass(p_full: np.ndarray, net_labels: np.ndarray) -> np.ndarray:
-    """Per-block sum of -log10 p. Returns a (K, K) matrix of block mass."""
-    N = p_full.shape[0]
-    K = int(net_labels.max() + 1)
-    iu = np.triu_indices(N, k=1)
-    eps = 1e-12
-    neglog = -np.log10(p_full + eps)
-    mass = np.zeros((K, K), dtype=np.float64)
-    count = np.zeros((K, K), dtype=np.int64)
-    for i_node, j_node in zip(*iu):
-        bi, bj = net_labels[i_node], net_labels[j_node]
-        r, c = (bi, bj) if bi <= bj else (bj, bi)
-        mass[r, c] += neglog[i_node, j_node]
-        count[r, c] += 1
-    # Symmetrise
-    mass = mass + mass.T
-    np.fill_diagonal(mass, mass.diagonal() / 2)
-    return mass
-
-
-def block_mass_correlation(
-    p_a: np.ndarray, p_b: np.ndarray, net_labels: np.ndarray
-) -> float:
-    ma = block_mass(p_a, net_labels)
-    mb = block_mass(p_b, net_labels)
-    tri = np.triu_indices_from(ma)
-    r, _ = stats.pearsonr(ma[tri], mb[tri])
-    return float(r)
 
 
 def agreement_quartet(
@@ -138,13 +79,12 @@ def agreement_quartet(
 ) -> Dict[str, float]:
     p_a = upper_triangle(p_a_full); p_b = upper_triangle(p_b_full)
     sig_a = p_a < alpha; sig_b = p_b < alpha
-    n_edges = p_a.size
     k_a = int(sig_a.sum()); k_b = int(sig_b.sum())
     return {
         "n_sig_a": k_a,
         "n_sig_b": k_b,
         "jaccard": jaccard(sig_a, sig_b),
-        "jaccard_random_null": jaccard_random_baseline(k_a, k_b, n_edges),
+        "jaccard_random_null": jaccard_random_baseline(k_a, k_b, p_a.size),
         "fisher_exact_p": fisher_exact_2x2(sig_a, sig_b),
         "spearman_neglog10": spearman_neglog10(p_a, p_b),
         "topk_10":  topk_concordance(p_a, p_b, 10),

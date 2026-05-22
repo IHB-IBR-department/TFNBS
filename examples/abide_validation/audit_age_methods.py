@@ -17,13 +17,28 @@ Outputs CSV + PNG figures under results/combat/age/methods/audit/.
 from __future__ import annotations
 
 import os
+import sys
 from glob import glob
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+# Shared agreement helpers (examples/_audit_utils.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _audit_utils import (  # noqa: E402
+    upper_triangle as upper,
+    jaccard,
+    jaccard_random_baseline,
+    fisher_exact_2x2,
+    spearman_neglog10,
+    topk_concordance as topk,
+    block_mass,
+    block_mass_correlation as block_mass_corr,
+)
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -49,73 +64,16 @@ def load_pmap(path: str) -> Dict[str, np.ndarray]:
     return {k: d[k] for k in d.files if k in ("positive", "negative")}
 
 
-def upper(arr):
-    N = arr.shape[0]
-    return arr[np.triu_indices(N, k=1)]
-
-
-def jaccard(a, b):
-    inter = (a & b).sum()
-    union = (a | b).sum()
-    return float(inter / union) if union > 0 else 0.0
-
-
-def spearman_neglog10(pa, pb):
-    eps = 1e-12
-    r, _ = stats.spearmanr(-np.log10(pa + eps), -np.log10(pb + eps))
-    return float(r)
-
-
-def topk(pa, pb, k):
-    if k <= 0 or k > pa.size:
-        return float("nan")
-    ra = np.argsort(pa)[:k]
-    rb = np.argsort(pb)[:k]
-    return float(len(np.intersect1d(ra, rb)) / k)
-
-
-def block_mass(p_full, net_labels):
-    N = p_full.shape[0]
-    K = int(net_labels.max() + 1)
-    iu = np.triu_indices(N, k=1)
-    eps = 1e-12
-    neglog = -np.log10(p_full + eps)
-    mass = np.zeros((K, K))
-    for ii, jj in zip(*iu):
-        bi, bj = sorted([net_labels[ii], net_labels[jj]])
-        mass[bi, bj] += neglog[ii, jj]
-    mass = mass + mass.T
-    np.fill_diagonal(mass, mass.diagonal() / 2)
-    return mass
-
-
-def block_mass_corr(pa, pb, labels):
-    ma = block_mass(pa, labels); mb = block_mass(pb, labels)
-    tri = np.triu_indices_from(ma)
-    r, _ = stats.pearsonr(ma[tri], mb[tri])
-    return float(r)
-
-
 def agreement(pa_full, pb_full, labels, alpha=0.05):
+    """§2.5 agreement bundle. Thin wrapper over the shared helper to
+    preserve this script's historical output schema."""
     pa = upper(pa_full); pb = upper(pb_full)
     sa = pa < alpha; sb = pb < alpha
     ka, kb = int(sa.sum()), int(sb.sum())
-    n_edges = pa.size
-    # random Jaccard baseline
-    if ka + kb == 0:
-        rand = 0.0
-    else:
-        exp_inter = ka * kb / n_edges
-        exp_union = ka + kb - exp_inter
-        rand = float(exp_inter / exp_union) if exp_union > 0 else 0.0
-    # Fisher exact
-    tp = int((sa & sb).sum()); fp = int((sa & ~sb).sum())
-    fn = int((~sa & sb).sum()); tn = int((~sa & ~sb).sum())
-    _, fexact = stats.fisher_exact([[tp, fp], [fn, tn]], alternative="greater")
     return {
         "jaccard": jaccard(sa, sb),
-        "jaccard_random": rand,
-        "fisher_exact_p": float(fexact),
+        "jaccard_random": jaccard_random_baseline(ka, kb, pa.size),
+        "fisher_exact_p": fisher_exact_2x2(sa, sb),
         "spearman": spearman_neglog10(pa, pb),
         "top10": topk(pa, pb, 10),
         "top50": topk(pa, pb, 50),

@@ -18,6 +18,7 @@ Outputs: :file:`examples/openclose_validation/results/audit/*`.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Dict
 
@@ -27,6 +28,19 @@ import pandas as pd
 from scipy import stats
 
 from examples.openclose_validation.openclose_loader import OpenCloseDataset
+
+# Shared agreement helpers (examples/_audit_utils.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _audit_utils import (  # noqa: E402
+    upper_triangle as _upper,
+    jaccard as _jaccard,
+    jaccard_random_baseline as _jaccard_random,
+    fisher_exact_2x2 as _fisher_exact,
+    spearman_neglog10 as _spearman,
+    topk_concordance as _topk,
+    block_mass as _block_mass,
+    block_mass_correlation as _block_mass_corr,
+)
 
 
 HERE = Path(__file__).resolve().parent
@@ -40,70 +54,22 @@ def _load(name: str) -> Dict[str, np.ndarray]:
     return {k: d[k] for k in d.files}
 
 
-def _upper(a): return a[np.triu_indices(a.shape[0], k=1)]
-
-
-def _jaccard(a, b):
-    u = (a | b).sum()
-    return float((a & b).sum() / u) if u > 0 else 0.0
-
-
-def _jaccard_random(k_a, k_b, n):
-    if k_a + k_b == 0:
-        return 0.0
-    exp_inter = k_a * k_b / n
-    exp_union = k_a + k_b - exp_inter
-    return float(exp_inter / exp_union) if exp_union > 0 else 0.0
-
-
-def _spearman(pa, pb):
-    r, _ = stats.spearmanr(-np.log10(pa + 1e-12), -np.log10(pb + 1e-12))
-    return float(r)
-
-
-def _topk(pa, pb, k):
-    if k <= 0 or k > pa.size: return float("nan")
-    ia = np.argsort(pa)[:k]; ib = np.argsort(pb)[:k]
-    return float(len(np.intersect1d(ia, ib)) / k)
-
-
-def _block_mass(p_full, lab):
-    N = p_full.shape[0]; K = int(lab.max() + 1)
-    iu = np.triu_indices(N, k=1)
-    neglog = -np.log10(p_full + 1e-12)
-    M = np.zeros((K, K))
-    for i, j in zip(*iu):
-        bi, bj = sorted([lab[i], lab[j]])
-        M[bi, bj] += neglog[i, j]
-    M = M + M.T; np.fill_diagonal(M, M.diagonal() / 2)
-    return M
-
-
 def _quartet(pa_full, pb_full, lab, alpha=0.05):
+    """§2.5 agreement bundle keyed for this script's historical schema."""
     pa = _upper(pa_full); pb = _upper(pb_full)
     sa = pa < alpha; sb = pb < alpha
-    ka, kb, n = int(sa.sum()), int(sb.sum()), pa.size
-
-    # Fisher's exact "overlap better than chance"
-    tp = int((sa & sb).sum()); fp = int((sa & ~sb).sum())
-    fn = int((~sa & sb).sum()); tn = int((~sa & ~sb).sum())
-    _, fex = stats.fisher_exact([[tp, fp], [fn, tn]], alternative="greater")
-
-    ma = _block_mass(pa_full, lab); mb = _block_mass(pb_full, lab)
-    tri = np.triu_indices_from(ma)
-    bm_r, _ = stats.pearsonr(ma[tri], mb[tri])
-
+    ka, kb = int(sa.sum()), int(sb.sum())
     return {
         "n_sig_a": ka, "n_sig_b": kb,
         "jaccard": _jaccard(sa, sb),
-        "jaccard_random": _jaccard_random(ka, kb, n),
-        "fisher_exact_p": float(fex),
+        "jaccard_random": _jaccard_random(ka, kb, pa.size),
+        "fisher_exact_p": _fisher_exact(sa, sb),
         "spearman_neglog10p": _spearman(pa, pb),
         "top10": _topk(pa, pb, 10),
         "top50": _topk(pa, pb, 50),
         "top100": _topk(pa, pb, 100),
         "top500": _topk(pa, pb, 500),
-        "block_mass_pearson": float(bm_r),
+        "block_mass_pearson": _block_mass_corr(pa_full, pb_full, lab),
     }
 
 

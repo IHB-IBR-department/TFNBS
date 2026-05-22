@@ -9,13 +9,27 @@ single summary CSV and a four-panel figure.
 from __future__ import annotations
 
 import os
+import sys
 from glob import glob
+from pathlib import Path
 from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+# Shared agreement helpers (examples/_audit_utils.py).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _audit_utils import (  # noqa: E402
+    upper_triangle as upper,
+    jaccard,
+    jaccard_random_baseline as j_random_baseline,
+    fisher_exact_2x2,
+    spearman_neglog10 as spearman,
+    topk_concordance as top_k,
+    block_mass_correlation as block_corr,
+)
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,65 +56,16 @@ def load_pmap(path):
     return out
 
 
-def upper(a): return a[np.triu_indices(a.shape[0], k=1)]
-
-
-def jaccard(a, b):
-    u = (a | b).sum()
-    return float((a & b).sum() / u) if u > 0 else 0.0
-
-
-def j_random_baseline(k_a, k_b, n):
-    if k_a + k_b == 0:
-        return 0.0
-    exp_inter = k_a * k_b / n
-    exp_union = k_a + k_b - exp_inter
-    return float(exp_inter / exp_union) if exp_union > 0 else 0.0
-
-
-def spearman(pa, pb):
-    eps = 1e-12
-    r, _ = stats.spearmanr(-np.log10(pa + eps), -np.log10(pb + eps))
-    return float(r)
-
-
-def top_k(pa, pb, k):
-    if k <= 0 or k > pa.size: return float("nan")
-    ia = np.argsort(pa)[:k]; ib = np.argsort(pb)[:k]
-    return float(len(np.intersect1d(ia, ib)) / k)
-
-
-def block_mass(p_full, lab):
-    N = p_full.shape[0]; K = int(lab.max() + 1); iu = np.triu_indices(N, k=1)
-    neglog = -np.log10(p_full + 1e-12)
-    M = np.zeros((K, K))
-    for i, j in zip(*iu):
-        bi, bj = sorted([lab[i], lab[j]])
-        M[bi, bj] += neglog[i, j]
-    M = M + M.T; np.fill_diagonal(M, M.diagonal() / 2)
-    return M
-
-
-def block_corr(pa, pb, lab):
-    ma = block_mass(pa, lab); mb = block_mass(pb, lab)
-    tri = np.triu_indices_from(ma)
-    r, _ = stats.pearsonr(ma[tri], mb[tri])
-    return float(r)
-
-
 def quartet(pa_full, pb_full, lab, alpha=0.05):
+    """§2.5 agreement bundle keyed for this script's historical schema."""
     pa = upper(pa_full); pb = upper(pb_full)
     sa = pa < alpha; sb = pb < alpha
-    ka, kb, n = int(sa.sum()), int(sb.sum()), pa.size
-    # Fisher exact
-    tp = int((sa & sb).sum()); fp = int((sa & ~sb).sum())
-    fn = int((~sa & sb).sum()); tn = int((~sa & ~sb).sum())
-    _, fex = stats.fisher_exact([[tp, fp], [fn, tn]], alternative="greater")
+    ka, kb = int(sa.sum()), int(sb.sum())
     return {
         "n_sig_a": ka, "n_sig_b": kb,
         "jaccard": jaccard(sa, sb),
-        "jaccard_random": j_random_baseline(ka, kb, n),
-        "fisher_exact_p": float(fex),
+        "jaccard_random": j_random_baseline(ka, kb, pa.size),
+        "fisher_exact_p": fisher_exact_2x2(sa, sb),
         "spearman": spearman(pa, pb),
         "top10": top_k(pa, pb, 10),
         "top50": top_k(pa, pb, 50),
