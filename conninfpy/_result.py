@@ -164,6 +164,110 @@ class InferenceResult(TailResult):
                 out[tail] = int(np.sum(arr <= alpha))
         return out
 
+    def significant_edges(
+        self,
+        atlas: Optional[Any] = None,
+        *,
+        alpha: float = 0.05,
+        tail: str = "both",
+        sort: str = "p",
+        include_nonsig: bool = False,
+        top_k: Optional[int] = None,
+    ) -> "Any":  # pd.DataFrame, kept loose to avoid hard typing import
+        """Sorted table of significant edges with optional atlas annotation.
+
+        Parameters
+        ----------
+        atlas : :class:`~conninfpy.AtlasInfo`, optional
+            When supplied, adds ROI names, RS-network labels,
+            hemisphere, and a canonical ``network_pair`` column. Length
+            must match ``self['positive'].shape[0]``.
+        alpha : float, default 0.05
+            Edge-wise significance threshold.
+        tail : {'both', 'positive', 'negative'}, default 'both'
+            Which tail(s) to filter on. ``'both'`` keeps edges where
+            either ``p_positive`` or ``p_negative`` falls below
+            ``alpha``; the per-row ``tail`` column reports which
+            tail(s) actually hit significance for that edge.
+        sort : {'p', 'effect_size', 'network_pair'}, default 'p'
+            Sort key. ``'p'`` — ascending ``min(p_positive, p_negative)``.
+            ``'effect_size'`` — descending ``|t_signed|``.
+            ``'network_pair'`` — group by canonical network pair,
+            then by ``p`` ascending within group; requires ``atlas``.
+        include_nonsig : bool, default False
+            If True, include all edges (not just significant ones).
+        top_k : int, optional
+            Keep only the top-K rows after sorting.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Columns (with atlas): ``edge_id, roi_i, roi_i_name,
+            roi_i_network, roi_j, roi_j_name, roi_j_network,
+            network_pair, t_signed, p_positive, p_negative, p_min,
+            tail, hemisphere_i, hemisphere_j``. Without an atlas the
+            ``roi_*_name``, ``roi_*_network``, ``hemisphere_*`` and
+            ``network_pair`` columns are omitted.
+
+        Notes
+        -----
+        Significance is an FWER/FDR-controlled claim about edge-wise
+        null rejection; it does not by itself establish that an edge
+        corresponds to a specific cognitive or biological mechanism.
+        For reporting, prefer block-level patterns
+        (``roi_i_network`` × ``roi_j_network``) over individual edges
+        — use ``sort='network_pair'`` to group them.
+
+        Raises
+        ------
+        ValueError
+            If ``stat_positive`` / ``stat_negative`` are missing (e.g.
+            pickled pre-v2.1 results), or if ``sort='network_pair'``
+            without an atlas.
+        """
+        from ._export import build_tailed_dataframe
+
+        return build_tailed_dataframe(
+            self["positive"],
+            self["negative"],
+            stat_signed=self.stat_signed,
+            atlas=atlas,
+            alpha=alpha,
+            tail=tail,
+            sort=sort,
+            include_nonsig=include_nonsig,
+            top_k=top_k,
+        )
+
+    def to_csv(
+        self,
+        path: "Any",
+        *,
+        atlas: Optional[Any] = None,
+        alpha: float = 0.05,
+        tail: str = "both",
+        sort: str = "p",
+        include_nonsig: bool = False,
+        top_k: Optional[int] = None,
+        index: bool = False,
+        **to_csv_kwargs: Any,
+    ) -> None:
+        """Convenience: ``self.significant_edges(...).to_csv(path, ...)``.
+
+        Same filtering / sorting / atlas keywords as
+        :meth:`significant_edges`. Extra keyword arguments are
+        forwarded to :meth:`pandas.DataFrame.to_csv`.
+        """
+        df = self.significant_edges(
+            atlas=atlas,
+            alpha=alpha,
+            tail=tail,
+            sort=sort,
+            include_nonsig=include_nonsig,
+            top_k=top_k,
+        )
+        df.to_csv(path, index=index, **to_csv_kwargs)
+
     def __repr__(self) -> str:  # pragma: no cover (cosmetic)
         nsig = self.n_significant(0.05)
         wall = (
@@ -257,6 +361,62 @@ class OmnibusInferenceResult(TailResult):
             iu = np.triu_indices_from(arr, k=1)
             return {"omnibus": int(np.sum(arr[iu] <= alpha))}
         return {"omnibus": int(np.sum(arr <= alpha))}
+
+    def significant_edges(
+        self,
+        atlas: Optional[Any] = None,
+        *,
+        alpha: float = 0.05,
+        sort: str = "p",
+        include_nonsig: bool = False,
+        top_k: Optional[int] = None,
+    ) -> "Any":
+        """Sorted table of significant edges (F-stat omnibus path).
+
+        Same conventions as
+        :meth:`InferenceResult.significant_edges` but with a single
+        unsigned ``F`` / ``p_omnibus`` pair instead of the tail split.
+        ``sort='effect_size'`` ranks by ``F`` descending.
+
+        Notes
+        -----
+        Significance is an FWER/FDR-controlled claim about edge-wise
+        null rejection; it does not by itself establish that an edge
+        corresponds to a specific cognitive or biological mechanism.
+        """
+        from ._export import build_omnibus_dataframe
+
+        return build_omnibus_dataframe(
+            self["omnibus"],
+            stat_omnibus=self.stat_omnibus,
+            atlas=atlas,
+            alpha=alpha,
+            sort=sort,
+            include_nonsig=include_nonsig,
+            top_k=top_k,
+        )
+
+    def to_csv(
+        self,
+        path: "Any",
+        *,
+        atlas: Optional[Any] = None,
+        alpha: float = 0.05,
+        sort: str = "p",
+        include_nonsig: bool = False,
+        top_k: Optional[int] = None,
+        index: bool = False,
+        **to_csv_kwargs: Any,
+    ) -> None:
+        """Convenience: ``self.significant_edges(...).to_csv(path, ...)``."""
+        df = self.significant_edges(
+            atlas=atlas,
+            alpha=alpha,
+            sort=sort,
+            include_nonsig=include_nonsig,
+            top_k=top_k,
+        )
+        df.to_csv(path, index=index, **to_csv_kwargs)
 
     def __repr__(self) -> str:  # pragma: no cover (cosmetic)
         nsig = self.n_significant(0.05)["omnibus"]
