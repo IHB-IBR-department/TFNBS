@@ -235,7 +235,8 @@ def build_tailed_dataframe(
     if top_k is not None:
         df = df.head(int(top_k))
 
-    return df[_column_order_tailed(with_atlas)].reset_index(drop=True)
+    cols = [c for c in _column_order_tailed(with_atlas) if c in df.columns]
+    return df[cols].reset_index(drop=True)
 
 
 def build_omnibus_dataframe(
@@ -294,7 +295,8 @@ def build_omnibus_dataframe(
     if top_k is not None:
         df = df.head(int(top_k))
 
-    return df[_column_order_omnibus(with_atlas)].reset_index(drop=True)
+    cols = [c for c in _column_order_omnibus(with_atlas) if c in df.columns]
+    return df[cols].reset_index(drop=True)
 
 
 def _sort_dataframe(
