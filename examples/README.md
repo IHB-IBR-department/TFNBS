@@ -2,6 +2,28 @@
 
 New to ConnInfPy? Start with the numbered tutorial series in [`notebooks/`](notebooks/) — open [`01_quickstart_ttest.ipynb`](notebooks/01_quickstart_ttest.ipynb) first.
 
+## v2.1 entry points
+
+The canonical v2.1 recipe (high-level wrapper + atlas-annotated edge export + publication figure) lives in [`notebooks/10_results_layer_atlas_export.ipynb`](notebooks/10_results_layer_atlas_export.ipynb):
+
+```python
+from conninfpy import AtlasInfo, analyze
+from conninfpy.plot import summary_figure
+
+atlas = AtlasInfo.schaefer_200_yeo7()              # or schaefer_100, schaefer_400, bna_246, from_csv(...)
+out = analyze(Y, interest=age, confounds=confounds, sites=site,
+              harmonize="auto", method="tfnbs", e=0.4, h=3.0, n=10, rng=42)
+out.to_csv("edges.csv", atlas=atlas, sort="network_pair")
+fig = summary_figure(out.inference, atlas=atlas)
+fig.savefig("summary.pdf", bbox_inches="tight")
+```
+
+Real-data exemplars using the same pattern:
+
+- [`abide_validation/run_age_combat_v2.py`](abide_validation/run_age_combat_v2.py) — `analyze(harmonize='auto')` Strategy B on ABIDE Age.
+- [`abide_validation/run_age_combat_v2_d.py`](abide_validation/run_age_combat_v2_d.py) — `analyze(harmonize='nuisance_only')` Strategy D for the B-vs-D ablation.
+- [`openclose_validation/run_openclose_paired_v2.py`](openclose_validation/run_openclose_paired_v2.py) — paired TFNBS through `analyze(test_type='paired')`.
+
 ## Tutorial notebooks
 
 Each notebook is self-contained, runs on synthetic data (or bundled demo data for 07/EEG), and targets ≲ 1 minute runtime.
@@ -16,7 +38,8 @@ Each notebook is self-contained, runs on synthetic data (or bundled demo data fo
 | 06 | [`06_topology_gallery.ipynb`](notebooks/06_topology_gallery.ipynb) | Visual atlas of `conninfpy.topologies` scenarios |
 | 07 | [`07_two_task_example.ipynb`](notebooks/07_two_task_example.ipynb) | Real TMFC dataset; TFNBS vs MATLAB NBS/FDR references |
 | 08 | [`08_eeg_example.ipynb`](notebooks/08_eeg_example.ipynb) | Real paired EEG comparison (177 subjects) |
-| ★ | [`method_comparison_on_synthetic.ipynb`](notebooks/method_comparison_on_synthetic.ipynb) | Side-by-side run of all 7 enhancement methods on one synthetic topology with TP/FN/FP overlay (interactive successor to the deleted `sim_method_comparisons/` CLI) |
+| 10 | [`10_results_layer_atlas_export.ipynb`](notebooks/10_results_layer_atlas_export.ipynb) | v2.1 results layer end-to-end: `analyze()` → `AtlasInfo` → `significant_edges()` / `to_csv()` → `summary_figure()` → PDF export |
+| ★ | [`method_comparison_on_synthetic.ipynb`](notebooks/method_comparison_on_synthetic.ipynb) | Side-by-side run of all 7 enhancement methods on one synthetic topology with TP/FN/FP overlay |
 
 ## Layout
 
