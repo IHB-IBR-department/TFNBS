@@ -16,6 +16,7 @@ Each notebook is self-contained, runs on synthetic data (or bundled demo data fo
 | 06 | [`06_topology_gallery.ipynb`](notebooks/06_topology_gallery.ipynb) | Visual atlas of `conninfpy.topologies` scenarios |
 | 07 | [`07_two_task_example.ipynb`](notebooks/07_two_task_example.ipynb) | Real TMFC dataset; TFNBS vs MATLAB NBS/FDR references |
 | 08 | [`08_eeg_example.ipynb`](notebooks/08_eeg_example.ipynb) | Real paired EEG comparison (177 subjects) |
+| ★ | [`method_comparison_on_synthetic.ipynb`](notebooks/method_comparison_on_synthetic.ipynb) | Side-by-side run of all 7 enhancement methods on one synthetic topology with TP/FN/FP overlay (interactive successor to the deleted `sim_method_comparisons/` CLI) |
 
 ## Layout
 
@@ -25,8 +26,6 @@ Each notebook is self-contained, runs on synthetic data (or bundled demo data fo
 | [`benchmarks/`](benchmarks/) | Performance characterization scripts (per-permutation timing, GPD acceleration, GLM pipeline, sums fast path) |
 | [`abide_validation/`](abide_validation/) | Real-data validation on ABIDE I (871 subjects, Schaefer 100): ComBat harmonization + naive / GLM / severity / method comparison / acceleration / within-site replication |
 | [`openclose_validation/`](openclose_validation/) | Open-Close validation (IHB + China Schaefer-200, 182 ROIs): paired TFNBS, cross-cohort agreement, cohort-as-site ComBat, bidirectional ML transfer from p-value maps |
-| [`reproducibility_exp/`](reproducibility_exp/) | **Legacy** (pre-rename / pre-dataset-migration). References `ml_transfer.openclose_loader.OpenCloseDataset.hcp("rmet")`, an API that no longer exists. Kept for history; ports to §3.11.2 split-half should live under `abide_validation/` or `openclose_validation/`. |
-| [`sim_method_comparisons/`](sim_method_comparisons/) | Side-by-side synthetic comparison of all 9 methods on a given topology |
 | [`simulation_validation/`](simulation_validation/) | Synthetic FPR calibration + power-curve sweeps + hyperparameter ablations (renamed from `miccai_paper_reproducing/` after the 2026-05-22 refactor) |
 | `sim_topology_examples.py` | Topology gallery demo (visualizes the ground-truth masks from the `conninfpy.topologies` library) |
 
