@@ -23,6 +23,7 @@ __version__ = "2.0.0"
 from ._analyze import AnalyzeResult, analyze
 from ._compat import TailResult
 from ._result import InferenceResult, OmnibusInferenceResult
+from .atlas import AtlasInfo
 from .defaults import (
     DEFAULT_EXTENT_EXPONENT,
     DEFAULT_HEIGHT_EXPONENT,
@@ -126,6 +127,7 @@ __all__ = [
     "OmnibusInferenceResult",
     "AnalyzeResult",
     "analyze",
+    "AtlasInfo",
     # defaults
     "DEFAULT_EXTENT_EXPONENT",
     "DEFAULT_HEIGHT_EXPONENT",
