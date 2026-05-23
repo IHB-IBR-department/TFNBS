@@ -50,95 +50,84 @@ def _make_twosample(n_per_group=10, N=5, n_sites=2, seed=0):
 # Auto-preserve, GLM mode
 # =============================================================================
 
-class TestAutoPreserveGLM(unittest.TestCase):
+class TestAutoDispatchGLM(unittest.TestCase):
+    """`harmonize='auto'` dispatches to Strategy D when GLM+sites+confounds
+    are all present, to E when GLM+sites without confounds, to no
+    harmonization when sites is absent."""
 
-    def test_auto_preserve_from_interest(self):
-        Y, age, _, sites = _make_glm(seed=1)
-        out = analyze(
-            Y, interest=age, sites=sites, fisher_z=False,
-            n_permutations=20, use_mp=False, acceleration=None, rng=1,
-        )
-        self.assertTrue(out.inference.preserve_provided)
-        self.assertTrue(
-            any("preserve auto-built from (interest, confounds)" in f
-                for f in out.flags),
-            f"expected auto-preserve flag, got {out.flags}",
-        )
-
-    def test_auto_preserve_from_interest_plus_confounds(self):
+    def test_auto_with_sites_and_confounds_resolves_to_d(self):
         Y, age, motion, sites = _make_glm(seed=2)
         out = analyze(
             Y, interest=age, confounds=motion, sites=sites,
             fisher_z=False, n_permutations=20, use_mp=False,
             acceleration=None, rng=2,
         )
-        self.assertTrue(out.inference.preserve_provided)
+        self.assertTrue(out.inference.harmonized)
+        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
         self.assertTrue(
-            any("auto-built" in f for f in out.flags),
-            f"expected auto-preserve flag, got {out.flags}",
+            any("preserve excludes interest (Strategy D)" in f
+                for f in out.flags),
+            f"expected Strategy D preserve flag, got {out.flags}",
         )
 
-    def test_explicit_preserve_overrides(self):
+    def test_auto_with_sites_no_confounds_resolves_to_e(self):
+        Y, age, _, sites = _make_glm(seed=1)
+        out = analyze(
+            Y, interest=age, sites=sites, fisher_z=False,
+            n_permutations=20, use_mp=False, acceleration=None, rng=1,
+        )
+        # No confounds → no ComBat (Strategy E); site dummies in GLM.
+        self.assertFalse(out.inference.harmonized)
+        self.assertEqual(out.inference.combat_diagnostics["strategy"], "E")
+        self.assertTrue(out.inference.strata_provided)
+
+    def test_explicit_preserve_overridden_under_strategy_d(self):
         Y, age, motion, sites = _make_glm(seed=3)
-        # Caller provides their own preserve (just `age`, not motion)
+        # Under D, an explicit preserve= is replaced by `confounds`
+        # (the recipe sets it deliberately to exclude interest).
         out = analyze(
             Y, interest=age, confounds=motion, sites=sites,
             preserve=age[:, np.newaxis],
             fisher_z=False, n_permutations=20, use_mp=False,
             acceleration=None, rng=3,
         )
-        self.assertTrue(out.inference.preserve_provided)
-        self.assertFalse(
-            any("auto-built" in f for f in out.flags),
-            f"expected no auto-build flag when preserve= passed, got {out.flags}",
+        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
+        self.assertTrue(
+            any("preserve= overridden by Strategy D" in f for f in out.flags),
+            f"expected D override flag, got {out.flags}",
         )
 
-    def test_no_sites_no_autopreserve(self):
+    def test_no_sites_means_no_combat(self):
         Y, age, _, _ = _make_glm(seed=4)
         out = analyze(
             Y, interest=age, fisher_z=False,
             n_permutations=20, use_mp=False, acceleration=None, rng=4,
         )
-        self.assertFalse(out.inference.preserve_provided)
-        self.assertFalse(
-            any("auto-built" in f for f in out.flags),
-            f"expected no auto-preserve flag without sites=, got {out.flags}",
-        )
+        self.assertFalse(out.inference.harmonized)
+        self.assertIsNone(out.inference.combat_diagnostics)
 
 
 # =============================================================================
-# Auto-preserve, two-sample mode
+# Two-sample dispatch: no defensible ComBat recipe; skip with a flag
 # =============================================================================
 
-class TestAutoPreserveTwoSample(unittest.TestCase):
+class TestTwoSampleSitesDemotion(unittest.TestCase):
+    """Two-sample + sites has no defensible ComBat recipe (no interest
+    column to preserve). `analyze()` skips ComBat and emits a flag
+    asking the caller to promote to GLM with binary interest."""
 
-    def test_auto_preserve_from_group_indicator(self):
+    def test_two_sample_with_sites_skips_combat(self):
         g1, g2, sites = _make_twosample(seed=10)
         out = analyze(
             group1=g1, group2=g2, sites=sites, fisher_z=False,
             method="tstat", n_permutations=20, use_mp=False,
             acceleration=None, rng=10,
         )
-        self.assertTrue(out.inference.preserve_provided)
+        self.assertFalse(out.inference.harmonized)
         self.assertTrue(
-            any("group indicator" in f for f in out.flags),
-            f"expected group-indicator auto-preserve flag, got {out.flags}",
-        )
-
-    def test_explicit_preserve_overrides_twosample(self):
-        g1, g2, sites = _make_twosample(seed=11)
-        n = g1.shape[0] + g2.shape[0]
-        rng = np.random.RandomState(11)
-        my_preserve = rng.randn(n, 1)
-        out = analyze(
-            group1=g1, group2=g2, sites=sites, preserve=my_preserve,
-            fisher_z=False, method="tstat",
-            n_permutations=20, use_mp=False, acceleration=None, rng=11,
-        )
-        self.assertTrue(out.inference.preserve_provided)
-        self.assertFalse(
-            any("group indicator" in f for f in out.flags),
-            f"expected no group-indicator flag when preserve= given, got {out.flags}",
+            any("two-sample + sites" in f and "promote to GLM" in f
+                for f in out.flags),
+            f"expected demotion flag, got {out.flags}",
         )
 
 
@@ -166,7 +155,10 @@ class TestAnalyzeOneSample(unittest.TestCase):
         self.assertFalse(out.inference.harmonized)
         self.assertFalse(out.inference.preserve_provided)
 
-    def test_one_sample_with_sites_runs_combat_without_group_indicator(self):
+    def test_one_sample_with_sites_skips_combat(self):
+        # One-sample is a t-test path; ComBat has no defensible recipe
+        # in t-test mode (no interest column to preserve). `analyze()`
+        # skips harmonization and emits a clarifying flag.
         rng = np.random.RandomState(31)
         Y = rng.randn(12, 5, 5) * 0.1
         Y = (Y + Y.transpose(0, 2, 1)) / 2
@@ -180,79 +172,10 @@ class TestAnalyzeOneSample(unittest.TestCase):
             use_mp=False, acceleration=None, rng=31,
         )
 
-        self.assertTrue(out.inference.harmonized)
-        self.assertFalse(out.inference.preserve_provided)
-        self.assertTrue(out.inference.strata_provided)
-        self.assertIsNotNone(out.combat_diagnostics)
-        self.assertFalse(
-            any("group indicator" in f for f in out.flags),
-            f"one-sample mode should not auto-build a group indicator; "
-            f"got {out.flags}",
-        )
-
-
-# =============================================================================
-# Design coupling check (Tier 1.3)
-# =============================================================================
-
-class TestDesignCouplingCheck(unittest.TestCase):
-    """The coupling check fires only when both preserve and the design
-    components are labeled (DataFrames / structured arrays). It is
-    silent on raw ndarrays — documented limitation."""
-
-    def test_dataframe_leak_flagged(self):
-        import pandas as pd
-
-        Y, age, motion, sites = _make_glm(n=24, seed=20)
-        # User preserves age + sex through ComBat, but the GLM design
-        # only models age. Sex's variance survives but isn't partialled.
-        sex = np.random.RandomState(20).randint(0, 2, size=24).astype(float)
-        preserve_df = pd.DataFrame({"age": age, "sex": sex})
-        interest_df = pd.DataFrame({"age": age})  # missing sex
-        out = analyze(
-            Y, interest=interest_df, sites=sites, preserve=preserve_df,
-            fisher_z=False, n_permutations=20, use_mp=False,
-            acceleration=None, rng=20,
-        )
+        self.assertFalse(out.inference.harmonized)
         self.assertTrue(
-            any("'sex'" in f and "not represented" in f for f in out.flags),
-            f"expected coupling-check flag naming 'sex', got {out.flags}",
-        )
-
-    def test_dataframe_full_coverage_no_flag(self):
-        import pandas as pd
-
-        Y, age, motion, sites = _make_glm(n=24, seed=21)
-        preserve_df = pd.DataFrame({"age": age, "motion": motion})
-        interest_df = pd.DataFrame({"age": age})
-        confounds_df = pd.DataFrame({"motion": motion})
-        out = analyze(
-            Y, interest=interest_df, confounds=confounds_df,
-            sites=sites, preserve=preserve_df,
-            fisher_z=False, n_permutations=20, use_mp=False,
-            acceleration=None, rng=21,
-        )
-        self.assertFalse(
-            any("not represented" in f for f in out.flags),
-            f"expected no coupling-check flag when all preserve cols are "
-            f"in the design, got {out.flags}",
-        )
-
-    def test_raw_ndarray_skips_silently(self):
-        """No column identity → check silently skipped (documented)."""
-        Y, age, motion, sites = _make_glm(n=24, seed=22)
-        sex = np.random.RandomState(22).randint(0, 2, size=24).astype(float)
-        preserve_arr = np.column_stack([age, sex])  # raw ndarray, no names
-        out = analyze(
-            Y, interest=age, sites=sites, preserve=preserve_arr,
-            fisher_z=False, n_permutations=20, use_mp=False,
-            acceleration=None, rng=22,
-        )
-        # No coupling-check flag, even though sex isn't in the GLM design
-        self.assertFalse(
-            any("not represented" in f for f in out.flags),
-            f"raw ndarray inputs should silently skip the coupling check; "
-            f"got {out.flags}",
+            any("two-sample + sites" in f for f in out.flags),
+            f"expected demotion flag, got {out.flags}",
         )
 
 

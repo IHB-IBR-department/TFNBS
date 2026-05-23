@@ -139,6 +139,32 @@ _ENHANCE_MAP = {
 }
 PARAMETRIC_METHODS = {StatMethod.BONFERRONI, StatMethod.BH_FDR}
 
+TFNBS_FAMILY = {StatMethod.TFNBS, StatMethod.NI_TFNBS, StatMethod.FBC_TFNBS}
+
+
+def _grid_from_kwargs(
+    method_enum: "StatMethod",
+    enhance_kwargs: Dict[str, Any],
+) -> Tuple[Optional[npt.NDArray[np.float64]], Optional[npt.NDArray[np.float64]]]:
+    """Return ``(e_grid, h_grid)`` arrays iff ``e``/``h`` were arrays.
+
+    Used to label the parameter axis of multi-(E, H) :class:`InferenceResult`
+    p-maps. Returns ``(None, None)`` for scalar (E, H) calls or
+    non-TFNBS-family methods.
+    """
+    if method_enum not in TFNBS_FAMILY:
+        return None, None
+    e = enhance_kwargs.get("e")
+    h = enhance_kwargs.get("h")
+    if e is None or h is None:
+        return None, None
+    if np.isscalar(e) and np.isscalar(h):
+        return None, None
+    return (
+        np.asarray(e, dtype=np.float64),
+        np.asarray(h, dtype=np.float64),
+    )
+
 
 # =============================================================================
 # Helper functions for permutation testing
@@ -1214,10 +1240,19 @@ def compute_p_val(
         T-statistic threshold for NBS (only used when method='nbs').
     nbs_stat : {'extent', 'intensity'}, default='extent'
         Cluster statistic for NBS (only used when method='nbs').
-    e : float or list, default=0.4
-        Extent exponent for TFNBS-based methods.
-    h : float or list, default=3.0
-        Height exponent for TFNBS-based methods.
+    e : float or sequence of float, default=0.4
+        Extent exponent for TFNBS-based methods. Pass an equal-length
+        sequence with ``h`` to evaluate a whole ``(E, H)`` grid in one
+        permutation pass — TFNBS's threshold integration runs once
+        and broadcasts the per-cell exponentiation, so a K-cell grid
+        costs ~the same wall-clock as a single cell. In grid mode the
+        returned :class:`~conninfpy.InferenceResult` carries the
+        parameter axis (``result.is_grid``, ``result.e_grid``,
+        ``result.h_grid``); use ``result.select(param_idx)`` or pass
+        ``param_idx=`` to ``significant_edges`` / ``to_csv`` to project
+        to a single cell.
+    h : float or sequence of float, default=3.0
+        Height exponent for TFNBS-based methods. See ``e`` for grid mode.
     n : int, default=10
         Number of threshold steps for TFNBS-based methods.
     start_thres : float, default=1.65
@@ -1412,6 +1447,9 @@ def compute_p_val(
         )
     else:
         result = _compute_p_values_from_null(emp_t_dict, max_null_dict)
+    # Capture the (E, H) grid for TFNBS-family methods so the result
+    # carries the parameter axis labels when an array was passed.
+    e_grid, h_grid = _grid_from_kwargs(method_enum, enhance_kwargs)
     return InferenceResult(
         result["positive"], result["negative"],
         method=method_str, n_permutations=n_permutations,
@@ -1421,6 +1459,8 @@ def compute_p_val(
         stat_negative=raw_t_dict["negative"],
         stat_type="tstat",
         strata_provided=strata is not None,
+        e_grid=e_grid,
+        h_grid=h_grid,
     )
 
 

@@ -556,15 +556,24 @@ def compute_p_val_glm(
         Number of CPU cores for parallel computing.
     net_labels : ndarray of shape (N,), optional
         Network labels (required for cnbs, ni_tfnbs, fbc_tfnbs).
-    threshold, nbs_stat, e, h, n, start_thres, min_cluster_size, normalization
+    threshold, nbs_stat, n, start_thres, min_cluster_size, normalization
         Method-specific parameters (see ``compute_p_val`` docstring).
+    e, h : float or sequence of float
+        TFNBS extent and height exponents. Pass equal-length sequences to
+        evaluate a whole ``(E, H)`` grid in one permutation pass. In grid
+        mode the returned :class:`InferenceResult` carries the parameter
+        axis (``result.is_grid``, ``result.e_grid``, ``result.h_grid``);
+        use ``result.select(param_idx)`` or pass ``param_idx=`` to
+        ``significant_edges`` / ``to_csv`` to project to a single cell.
 
     Returns
     -------
-    dict
-        For ``stat_type`` in ``{'tstat', 'beta'}``: ``{'positive', 'negative'}``
-        p-value arrays of shape (N, N). For ``stat_type='fstat'``: a single
-        ``{'omnibus'}`` p-value array of shape (N, N).
+    InferenceResult or OmnibusInferenceResult
+        For ``stat_type`` in ``{'tstat', 'beta'}``: an
+        :class:`InferenceResult` with ``positive`` and ``negative`` p-value
+        maps of shape ``(N, N)`` or ``(N, N, K)`` in grid mode. For
+        ``stat_type='fstat'``: an :class:`OmnibusInferenceResult` with a
+        single ``omnibus`` map of shape ``(N, N)``.
 
     Raises
     ------
@@ -680,6 +689,10 @@ def compute_p_val_glm(
         XtX_inv_diag=XtX_inv_diag,
         XtX_inv=XtX_inv,
     )
+    # Keep the raw (pre-enhancement) stat dict so InferenceResult can
+    # surface the t/β/F effect map even when the enhanced score is a
+    # multi-(E, H) tensor.
+    raw_stat_dict = emp_stat_dict
     if enhance_func is not None:
         emp_stat_dict = enhance_func(emp_stat_dict, **enhance_kwargs)
 
@@ -767,16 +780,20 @@ def compute_p_val_glm(
     else:
         result = _compute_p_values_from_null(emp_stat_dict, max_null_dict)
     method_str = method.value if hasattr(method, "value") else str(method)
+    from .pairwise_stats import _grid_from_kwargs
+    e_grid, h_grid = _grid_from_kwargs(method_enum, enhance_kwargs)
     if set(result.keys()) == {"positive", "negative"}:
         return InferenceResult(
             result["positive"], result["negative"],
             method=method_str, n_permutations=n_permutations,
             acceleration=acceleration,
             wall_time_s=time.perf_counter() - _t0,
-            stat_positive=emp_stat_dict["positive"],
-            stat_negative=emp_stat_dict["negative"],
+            stat_positive=raw_stat_dict["positive"],
+            stat_negative=raw_stat_dict["negative"],
             stat_type=stat_type_str,
             strata_provided=strata is not None,
+            e_grid=e_grid,
+            h_grid=h_grid,
         )
     # F-stat path: single 'omnibus' map → OmnibusInferenceResult
     return OmnibusInferenceResult(
@@ -784,7 +801,7 @@ def compute_p_val_glm(
         method=method_str, n_permutations=n_permutations,
         acceleration=acceleration,
         wall_time_s=time.perf_counter() - _t0,
-        stat_omnibus=emp_stat_dict["omnibus"],
+        stat_omnibus=raw_stat_dict["omnibus"],
         stat_type="fstat",
         strata_provided=strata is not None,
     )

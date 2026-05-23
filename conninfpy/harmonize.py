@@ -519,7 +519,14 @@ def combat_harmonize(
     sites : sequence of length n
         Site label per subject.
     preserve : ndarray of shape (n,) or (n, k), optional
-        Covariates whose variance should be preserved (e.g. age, diagnosis).
+        Covariates whose variance should be preserved through ComBat.
+        Pass the GLM nuisance design (age, sex, motion, ...) here and
+        omit the variable that downstream inference will test — that
+        avoids the Nygaard 2016 label leak in which the harmonization
+        fit absorbs label-aligned variance the permutation null cannot
+        recover. See :func:`~conninfpy.analyze`, which sets
+        ``preserve = confounds`` automatically under Strategy D, and
+        [[paper_combat_resolution_strategies]] for the full derivation.
     eb : bool, default=True
         Apply empirical-Bayes shrinkage on site effects (recommended).
     return_diagnostics : bool, default=True

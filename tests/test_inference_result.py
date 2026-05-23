@@ -201,17 +201,17 @@ class TestAnalyzeProvenanceThreading(unittest.TestCase):
     def test_provenance_on_glm_path(self):
         Y, age = _make_glm_data(n=24, N=5, seed=6)
         sites = np.array([0] * 12 + [1] * 12)
+        confounds = np.linspace(-1.0, 1.0, 24).reshape(-1, 1)
         out = analyze(
-            Y, interest=age, sites=sites, fisher_z=False,
-            n_permutations=20, use_mp=False, acceleration=None, rng=6,
+            Y, interest=age, confounds=confounds, sites=sites,
+            fisher_z=False, n_permutations=20, use_mp=False,
+            acceleration=None, rng=6,
         )
+        # GLM + sites + confounds resolves to Strategy D: ComBat runs
+        # with preserve=confounds (set automatically), strata=sites.
         self.assertTrue(out.inference.harmonized)
-        # PR-4 auto-preserve: sites= + interest= without explicit preserve
-        # auto-builds preserve from (interest, confounds), flipping
-        # preserve_provided=True
-        self.assertTrue(out.inference.preserve_provided)
         self.assertIsNotNone(out.inference.combat_diagnostics)
-        # PR-3 auto-strata: passing sites= flips strata_provided=True
+        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
         self.assertTrue(out.inference.strata_provided)
 
     def test_no_sites_means_not_harmonized(self):
@@ -235,6 +235,103 @@ class TestAnalyzeProvenanceThreading(unittest.TestCase):
             _ = out.omnibus
         _ = out.positive
         _ = out.negative
+
+
+class TestMultiEHGrid(unittest.TestCase):
+    """Array-(E, H) flow: a single permutation pass returns a 3D
+    parameter-grid InferenceResult; result-layer helpers project to 2D
+    via .select() or per-call param_idx=."""
+
+    def setUp(self):
+        self.Y, self.age = _make_glm_data(n=24, N=6, seed=3)
+        sex = np.array([0, 1] * 12, dtype=float)
+        self.confounds = sex
+        self.sites = np.array(["A"] * 8 + ["B"] * 8 + ["C"] * 8)
+        self.e_grid = [0.4, 0.5, 0.75]
+        self.h_grid = [3.0, 2.0, 3.0]
+
+    def test_grid_call_returns_3d_pmaps_and_labels_axis(self):
+        out = analyze(
+            self.Y, interest=self.age, confounds=self.confounds,
+            sites=self.sites, harmonize="auto",
+            method="tfnbs",
+            e=self.e_grid, h=self.h_grid, n=4,
+            n_permutations=20, acceleration=None,
+            use_mp=False, fisher_z=False, rng=0,
+        )
+        r = out.inference
+        self.assertTrue(r.is_grid)
+        self.assertEqual(r.positive.shape, (6, 6, 3))
+        self.assertEqual(r.negative.shape, (6, 6, 3))
+        npt.assert_allclose(r.e_grid, self.e_grid)
+        npt.assert_allclose(r.h_grid, self.h_grid)
+        # Raw t-stats stay 2D even when scores are 3D
+        self.assertEqual(r.stat_positive.shape, (6, 6))
+        self.assertEqual(r.stat_negative.shape, (6, 6))
+
+    def test_n_significant_returns_per_cell_list(self):
+        out = analyze(
+            self.Y, interest=self.age, confounds=self.confounds,
+            sites=self.sites, harmonize="auto",
+            method="tfnbs",
+            e=self.e_grid, h=self.h_grid, n=4,
+            n_permutations=20, acceleration=None,
+            use_mp=False, fisher_z=False, rng=0,
+        )
+        r = out.inference
+        per_cell = r.n_significant(0.5)
+        self.assertIsInstance(per_cell["positive"], list)
+        self.assertEqual(len(per_cell["positive"]), 3)
+        # With param_idx, returns a scalar count
+        scalar = r.n_significant(0.5, param_idx=0)
+        self.assertIsInstance(scalar["positive"], int)
+
+    def test_select_projects_to_2d(self):
+        out = analyze(
+            self.Y, interest=self.age, confounds=self.confounds,
+            sites=self.sites, harmonize="auto",
+            method="tfnbs",
+            e=self.e_grid, h=self.h_grid, n=4,
+            n_permutations=20, acceleration=None,
+            use_mp=False, fisher_z=False, rng=0,
+        )
+        r = out.inference
+        sub = r.select(1)
+        self.assertFalse(sub.is_grid)
+        self.assertEqual(sub.positive.shape, (6, 6))
+        npt.assert_allclose(sub.positive, r.positive[:, :, 1])
+        npt.assert_allclose(sub.e_grid, [self.e_grid[1]])
+
+    def test_significant_edges_requires_param_idx_on_grid(self):
+        out = analyze(
+            self.Y, interest=self.age, confounds=self.confounds,
+            sites=self.sites, harmonize="auto",
+            method="tfnbs",
+            e=self.e_grid, h=self.h_grid, n=4,
+            n_permutations=20, acceleration=None,
+            use_mp=False, fisher_z=False, rng=0,
+        )
+        r = out.inference
+        with self.assertRaises(ValueError):
+            r.significant_edges(alpha=0.5)
+        # With param_idx, returns a DataFrame for that cell
+        df = r.significant_edges(alpha=0.5, param_idx=2)
+        self.assertEqual(df.shape[1] > 0, True)
+
+    def test_scalar_call_still_returns_2d(self):
+        out = analyze(
+            self.Y, interest=self.age, confounds=self.confounds,
+            sites=self.sites, harmonize="auto",
+            method="tfnbs",
+            e=0.4, h=3.0, n=4,
+            n_permutations=20, acceleration=None,
+            use_mp=False, fisher_z=False, rng=0,
+        )
+        r = out.inference
+        self.assertFalse(r.is_grid)
+        self.assertEqual(r.positive.shape, (6, 6))
+        self.assertIsNone(r.e_grid)
+        self.assertIsNone(r.h_grid)
 
 
 if __name__ == "__main__":

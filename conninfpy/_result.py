@@ -85,6 +85,8 @@ class InferenceResult(TailResult):
     preserve_provided: bool
     strata_provided: bool
     combat_diagnostics: Optional[Dict[str, Any]]
+    e_grid: Optional[npt.NDArray[np.float64]]
+    h_grid: Optional[npt.NDArray[np.float64]]
 
     def __new__(
         cls,
@@ -103,6 +105,8 @@ class InferenceResult(TailResult):
         preserve_provided: bool = False,
         strata_provided: bool = False,
         combat_diagnostics: Optional[Dict[str, Any]] = None,
+        e_grid: Optional[npt.NDArray[np.float64]] = None,
+        h_grid: Optional[npt.NDArray[np.float64]] = None,
     ) -> "InferenceResult":
         instance = super().__new__(cls)
         TailResult.__init__(
@@ -120,6 +124,8 @@ class InferenceResult(TailResult):
         instance.preserve_provided = preserve_provided
         instance.strata_provided = strata_provided
         instance.combat_diagnostics = combat_diagnostics
+        instance.e_grid = e_grid
+        instance.h_grid = h_grid
         return instance
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401
@@ -151,17 +157,107 @@ class InferenceResult(TailResult):
             return None
         return self.stat_positive - self.stat_negative
 
-    def n_significant(self, alpha: float = 0.05) -> Dict[str, int]:
-        """Count significant edges per tail at threshold ``alpha``."""
-        out = {}
+    @property
+    def is_grid(self) -> bool:
+        """True iff this result holds a multi-(E, H) parameter grid.
+
+        When True, ``self['positive']`` and ``self['negative']`` are
+        ``(N, N, K)`` tensors and ``self.e_grid`` / ``self.h_grid``
+        give the parameter cells. Use :meth:`select` to project to a
+        single 2D cell.
+        """
+        return self["positive"].ndim == 3
+
+    def _project_2d(
+        self,
+        arr: npt.NDArray[np.float64],
+        param_idx: Optional[int],
+    ) -> npt.NDArray[np.float64]:
+        """Project ``arr`` to a 2D ``(N, N)`` slice.
+
+        For 2D inputs, returns the array unchanged (and rejects
+        ``param_idx`` ≠ ``None``). For 3D inputs, slices at
+        ``param_idx`` along the last axis.
+        """
+        if arr.ndim == 2:
+            if param_idx is not None and param_idx != 0:
+                raise ValueError(
+                    f"param_idx={param_idx} given, but this result is "
+                    f"not a parameter grid (2D p-maps)."
+                )
+            return arr
+        if param_idx is None:
+            raise ValueError(
+                f"Result holds a (N, N, K={arr.shape[-1]}) parameter "
+                f"grid; pass param_idx to select a cell (see .e_grid "
+                f"/ .h_grid), or call .select(param_idx) first."
+            )
+        return arr[:, :, param_idx]
+
+    def select(self, param_idx: int) -> "InferenceResult":
+        """Project a multi-(E, H) result to the single cell ``param_idx``.
+
+        Returns a new :class:`InferenceResult` with 2D p-maps and the
+        same metadata; the returned object has ``is_grid is False``
+        and ``e_grid`` / ``h_grid`` reduced to single-element arrays
+        recording which cell was selected.
+        """
+        if not self.is_grid:
+            raise ValueError(
+                "select() requires a multi-(E, H) result; this one is 2D."
+            )
+        e_sel = self.e_grid[param_idx:param_idx + 1] if self.e_grid is not None else None
+        h_sel = self.h_grid[param_idx:param_idx + 1] if self.h_grid is not None else None
+        return InferenceResult(
+            self["positive"][:, :, param_idx].copy(),
+            self["negative"][:, :, param_idx].copy(),
+            method=self.method,
+            n_permutations=self.n_permutations,
+            acceleration=self.acceleration,
+            wall_time_s=self.wall_time_s,
+            null_max_dist=None,
+            stat_positive=self.stat_positive,
+            stat_negative=self.stat_negative,
+            stat_type=self.stat_type,
+            harmonized=self.harmonized,
+            preserve_provided=self.preserve_provided,
+            strata_provided=self.strata_provided,
+            combat_diagnostics=self.combat_diagnostics,
+            e_grid=e_sel,
+            h_grid=h_sel,
+        )
+
+    def n_significant(
+        self,
+        alpha: float = 0.05,
+        *,
+        param_idx: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Count significant edges per tail at threshold ``alpha``.
+
+        For grid results, pass ``param_idx`` to count one cell;
+        omit to get a list of counts per cell along the parameter axis.
+        """
+        out: Dict[str, Any] = {}
         for tail in ("positive", "negative"):
             arr = self[tail]
-            if arr.ndim == 2 and arr.shape[0] == arr.shape[1]:
-                # Symmetric matrix: count upper triangle only
-                iu = np.triu_indices_from(arr, k=1)
-                out[tail] = int(np.sum(arr[iu] <= alpha))
+            if arr.ndim == 2:
+                if arr.shape[0] == arr.shape[1]:
+                    iu = np.triu_indices_from(arr, k=1)
+                    out[tail] = int(np.sum(arr[iu] <= alpha))
+                else:
+                    out[tail] = int(np.sum(arr <= alpha))
             else:
-                out[tail] = int(np.sum(arr <= alpha))
+                # (N, N, K) grid
+                if param_idx is not None:
+                    sub = arr[:, :, param_idx]
+                    iu = np.triu_indices_from(sub, k=1)
+                    out[tail] = int(np.sum(sub[iu] <= alpha))
+                else:
+                    iu = np.triu_indices(arr.shape[0], k=1)
+                    sub = arr[iu[0], iu[1], :]  # (n_edges, K)
+                    out[tail] = [int(np.sum(sub[:, k] <= alpha))
+                                 for k in range(arr.shape[-1])]
         return out
 
     def significant_edges(
@@ -173,6 +269,7 @@ class InferenceResult(TailResult):
         sort: str = "p",
         include_nonsig: bool = False,
         top_k: Optional[int] = None,
+        param_idx: Optional[int] = None,
     ) -> "Any":  # pd.DataFrame, kept loose to avoid hard typing import
         """Sorted table of significant edges with optional atlas annotation.
 
@@ -228,8 +325,8 @@ class InferenceResult(TailResult):
         from ._export import build_tailed_dataframe
 
         return build_tailed_dataframe(
-            self["positive"],
-            self["negative"],
+            self._project_2d(self["positive"], param_idx),
+            self._project_2d(self["negative"], param_idx),
             stat_signed=self.stat_signed,
             atlas=atlas,
             alpha=alpha,
@@ -250,6 +347,7 @@ class InferenceResult(TailResult):
         include_nonsig: bool = False,
         top_k: Optional[int] = None,
         index: bool = False,
+        param_idx: Optional[int] = None,
         **to_csv_kwargs: Any,
     ) -> None:
         """Convenience: ``self.significant_edges(...).to_csv(path, ...)``.
@@ -265,6 +363,7 @@ class InferenceResult(TailResult):
             sort=sort,
             include_nonsig=include_nonsig,
             top_k=top_k,
+            param_idx=param_idx,
         )
         df.to_csv(path, index=index, **to_csv_kwargs)
 
@@ -452,6 +551,8 @@ def make_inference_result(
     preserve_provided: bool = False,
     strata_provided: bool = False,
     combat_diagnostics: Optional[Dict[str, Any]] = None,
+    e_grid: Optional[npt.NDArray[np.float64]] = None,
+    h_grid: Optional[npt.NDArray[np.float64]] = None,
 ) -> InferenceResult:
     """Promote a :class:`TailResult` into a metadata-enriched
     :class:`InferenceResult` without copying the p-value arrays."""
@@ -470,6 +571,8 @@ def make_inference_result(
         preserve_provided=preserve_provided,
         strata_provided=strata_provided,
         combat_diagnostics=combat_diagnostics,
+        e_grid=e_grid,
+        h_grid=h_grid,
     )
 
 
