@@ -1,4 +1,4 @@
-# FPR Calibration - Quick Test Configuration
+# FWER Calibration - Quick Test Configuration
 #
 # This config is ideal for testing before full scale computation.
 # 
@@ -13,11 +13,13 @@
 
 methods:
   - tstat           # Baseline: uncorrected t-statistics
-  - tfnbs           # Threshold-free NBS
-  - ni_tfnbs        # Network-Informed TFNBS
-  - fbc_tfnbs       # FBC-weighted TFNBS
-  - nbs_extent      # Classical NBS (cluster extent)
-  - nbs_intensity   # Classical NBS (cluster intensity)
+  - tfnbs           # Threshold-free NBS (E=0.3, H=3.0)
+  - ni_tfnbs        # Network-Informed TFNBS (E=0.3, H=3.0)
+  - fbc_tfnbs       # FBC-weighted TFNBS (E=0.3, H=3.0)
+  - nbs_extent_2.0      # Classical NBS extent, threshold=2.0
+  - nbs_intensity_2.0   # Classical NBS intensity, threshold=2.0
+  - nbs_extent_3.0      # Classical NBS extent, threshold=3.0
+  - nbs_intensity_3.0   # Classical NBS intensity, threshold=3.0
   - cnbs            # Constrained NBS (block-based)
   - bonferroni      # Parametric Bonferroni correction
   - bh_fdr          # Parametric Benjamini-Hochberg FDR
@@ -33,7 +35,8 @@ n_null: 20
 # Lower = faster but noisier p-values
 n_permutations: 100
 
-# Significance threshold
+# Directional family-wise significance threshold. For a two-sided
+# positive-or-negative family, interpret with alpha/2 per tail.
 alpha: 0.05
 
 # =============================================================================
@@ -56,8 +59,8 @@ noise_level: 0.05  # Noise added to correlations
 # TFNBS PARAMETERS
 # =============================================================================
 
-tfnbs_e: 0.5              # Extent exponent
-tfnbs_h: 2.0              # Height exponent
+tfnbs_e: 0.3              # Extent exponent; matches real-data validation
+tfnbs_h: 3.0              # Height exponent; matches real-data validation
 tfnbs_n: 30               # Number of thresholds (fewer for speed)
 tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 
@@ -65,7 +68,7 @@ tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 # NBS PARAMETERS
 # =============================================================================
 
-nbs_threshold: 2.0
+nbs_threshold: 2.0        # Fallback for legacy nbs_extent/nbs_intensity names
 
 # =============================================================================
 # FBC PARAMETERS

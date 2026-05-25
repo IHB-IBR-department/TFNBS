@@ -6,8 +6,8 @@
 # Usage:
 #   python examples/simulation_validation/power/power_analysis.py --config examples/simulation_validation/configs/sweep_config_power_quick.yaml
 #
-# TFNBS parameter sweep: e=[0.4, 1.0] x h=[1.0, 4.0] = 4 variants
-# NBS threshold sweep: [1.5, 2.0, 2.5] = 3 variants
+# TFNBS parameter sweep includes the paper-default E=0.3, H=3.0.
+# NBS threshold sweep includes the validation thresholds τ=2.0 and τ=3.0.
 
 # =============================================================================
 # EFFECT SIZE ANALYSIS
@@ -59,17 +59,17 @@ methods:
 # =============================================================================
 
 # TFNBS parameters - lists create sweep combinations:
-# e=[0.4, 1] x h=[1, 4] = 4 variants: (0.4,1), (0.4,4), (1,1), (1,4)
+# Includes the paper-default E=0.3, H=3.0.
 tfnbs_options:
-  e: [0.4, 0.8, 1.0]
-  h: [1.0, 2.0, 4.0]
+  e: [0.3, 0.8, 1.0]
+  h: [1.0, 2.0, 3.0, 4.0]
   n_thresholds: 30
   start_thres: 1.65
   fbc_min_cluster_size: 3
 
-# NBS threshold sweep: 3 variants
+# NBS threshold sweep: includes τ=2.0 and τ=3.0 validation points
 nbs_options:
-  threshold: [1.5, 2.0, 2.5]
+  threshold: [1.5, 2.0, 2.5, 3.0]
 
 # =============================================================================
 # SIMULATION PARAMETERS (REDUCED FOR SPEED)
@@ -95,4 +95,4 @@ noise_level: 0.05
 
 seed: 42
 use_mp: false
-output_dir: examples/simulation_validation/results/power_analysis_quick
+output_dir: examples/simulation_validation/results/power/power_analysis_quick

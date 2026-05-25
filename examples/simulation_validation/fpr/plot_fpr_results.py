@@ -1,13 +1,15 @@
 """
-Plot FPR Calibration Results.
+Plot null FWER calibration results.
 
 Reads CSV output from fpr_calibration.py and produces:
-1. Calibration overview — 4-panel plot: FWER bars, edge-wise FPR bars,
-   min p-value distributions, calibration summary table.
+1. Calibration overview — 4-panel plot: FWER Clopper-Pearson interval
+   boxes, two-sided FWER interval boxes, min p-value distributions,
+   calibration summary table.
    One plot per sample size when data contains multiple n_samples.
-2. Per-method detail — per-run FPR distribution (box plots).
+2. Per-method detail — per-run edge-FPR distribution (box plots).
    One plot per sample size.
-3. FWER directions — FWER for pos/neg/either direction.
+3. FWER directions — FWER interval boxes for pos/neg/either direction
+   and two-sided alpha/2.
    One plot per sample size.
 4. FWER vs sample size — line plot (one line per method, with CI bands).
    Only generated when data contains multiple sample sizes.
@@ -67,7 +69,7 @@ def load_results(
     results_dir: Path,
     methods: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """Load FPR results from combined or per-method CSVs.
+    """Load null-calibration results from combined or per-method CSVs.
 
     If *methods* is given, loads only those from per_method/ subdir
     (much faster for large runs). Otherwise loads the full combined CSV.
@@ -115,6 +117,72 @@ def clopper_pearson_ci(k: int, n: int, alpha: float = 0.05) -> Tuple[float, floa
     return ci_low, ci_high
 
 
+def _ci_not_liberal(k: int, n: int, target_alpha: float) -> Tuple[float, float, bool]:
+    """95% CP interval plus validity for an upper-error-rate claim."""
+    ci_low, ci_high = clopper_pearson_ci(k, n, alpha=0.05)
+    return ci_low, ci_high, bool(ci_low <= target_alpha)
+
+
+def _plot_cp_interval_boxes(
+    ax,
+    positions,
+    estimates,
+    ci_lows,
+    ci_highs,
+    colors,
+    *,
+    width: float = 0.55,
+    label: Optional[str] = None,
+) -> None:
+    """Draw box-style binomial intervals from Clopper-Pearson CIs.
+
+    The box spans the exact 95% CI and the black marker shows the empirical
+    FWER estimate. This avoids implying a continuous sample distribution.
+    """
+    stats = [
+        {
+            "label": "",
+            "med": float(est),
+            "q1": float(lo),
+            "q3": float(hi),
+            "whislo": float(lo),
+            "whishi": float(hi),
+            "fliers": [],
+        }
+        for est, lo, hi in zip(estimates, ci_lows, ci_highs)
+    ]
+    artists = ax.bxp(
+        stats,
+        positions=np.asarray(positions, dtype=float),
+        widths=width,
+        showfliers=False,
+        patch_artist=True,
+        manage_ticks=False,
+    )
+
+    for box, color in zip(artists["boxes"], colors):
+        box.set_facecolor(color)
+        box.set_alpha(0.45)
+        box.set_edgecolor("black")
+        box.set_linewidth(1.1)
+    if label and artists["boxes"]:
+        artists["boxes"][0].set_label(label)
+    for key in ("whiskers", "caps", "medians"):
+        for artist in artists[key]:
+            artist.set_color("black")
+            artist.set_linewidth(1.1 if key != "medians" else 1.8)
+
+    ax.scatter(
+        positions,
+        estimates,
+        s=28,
+        c="black",
+        edgecolors="white",
+        linewidths=0.5,
+        zorder=4,
+    )
+
+
 def _summarise_group(mdf: pd.DataFrame, method: str, alpha: float) -> dict:
     """Compute summary stats for one (method[, n_samples]) group."""
     from scipy import stats as sp_stats
@@ -126,21 +194,62 @@ def _summarise_group(mdf: pd.DataFrame, method: str, alpha: float) -> dict:
     fwer_pos = n_fp_pos / n_runs
     n_fp_neg = int(mdf["any_significant_neg"].sum())
     fwer_neg = n_fp_neg / n_runs
-    n_fp = int(mdf["any_significant"].sum())
-    fwer = n_fp / n_runs
+    fwer_pos_ci_low, fwer_pos_ci_high, fwer_pos_valid = _ci_not_liberal(
+        n_fp_pos, n_runs, alpha
+    )
+    fwer_neg_ci_low, fwer_neg_ci_high, fwer_neg_valid = _ci_not_liberal(
+        n_fp_neg, n_runs, alpha
+    )
 
-    fwer_ci_low, fwer_ci_high = clopper_pearson_ci(n_fp_pos, n_runs, alpha=0.05)
-    fwer_calibrated = fwer_ci_low <= alpha <= fwer_ci_high
+    if fwer_neg > fwer_pos:
+        fwer_max_tail = fwer_neg
+        fwer_max_tail_name = "negative"
+        n_fp_max_tail = n_fp_neg
+        fwer_ci_low = fwer_neg_ci_low
+        fwer_ci_high = fwer_neg_ci_high
+    else:
+        fwer_max_tail = fwer_pos
+        fwer_max_tail_name = "positive"
+        n_fp_max_tail = n_fp_pos
+        fwer_ci_low = fwer_pos_ci_low
+        fwer_ci_high = fwer_pos_ci_high
+
+    directional_fwer_valid = bool(fwer_pos_valid and fwer_neg_valid)
+
+    n_fp_either_alpha = int(mdf["any_significant"].sum())
+    fwer_either_at_alpha = n_fp_either_alpha / n_runs
+    fwer_either_ci_low, fwer_either_ci_high = clopper_pearson_ci(
+        n_fp_either_alpha, n_runs, alpha=0.05
+    )
+
+    two_sided_alpha_per_tail = alpha / 2.0
+    two_sided_hits = (
+        (mdf["min_p_pos"] <= two_sided_alpha_per_tail)
+        | (mdf["min_p_neg"] <= two_sided_alpha_per_tail)
+    )
+    n_fp_two_sided = int(two_sided_hits.sum())
+    fwer_two_sided_bonf = n_fp_two_sided / n_runs
+    (
+        fwer_two_sided_ci_low,
+        fwer_two_sided_ci_high,
+        fwer_two_sided_valid,
+    ) = _ci_not_liberal(n_fp_two_sided, n_runs, alpha)
 
     mean_fpr_pos = mdf["fpr_pos"].mean()
     mean_fpr_neg = mdf["fpr_neg"].mean()
     mean_fpr_total = mdf["fpr_total"].mean()
-    se_fpr_pos = mdf["fpr_pos"].std() / np.sqrt(n_runs)
+    if mean_fpr_neg > mean_fpr_pos:
+        edge_fpr_col = "fpr_neg"
+        mean_fpr_max_tail = mean_fpr_neg
+    else:
+        edge_fpr_col = "fpr_pos"
+        mean_fpr_max_tail = mean_fpr_pos
+    se_fpr_max_tail = mdf[edge_fpr_col].std() / np.sqrt(n_runs)
 
     t_crit = sp_stats.t.ppf(0.975, df=n_runs - 1)
-    fpr_ci_low = max(0, mean_fpr_pos - t_crit * se_fpr_pos)
-    fpr_ci_high = min(1, mean_fpr_pos + t_crit * se_fpr_pos)
-    fpr_calibrated = fpr_ci_low <= alpha <= fpr_ci_high
+    fpr_ci_low = max(0, mean_fpr_max_tail - t_crit * se_fpr_max_tail)
+    fpr_ci_high = min(1, mean_fpr_max_tail + t_crit * se_fpr_max_tail)
+    edge_fpr_not_liberal = bool(fpr_ci_low <= alpha)
 
     return {
         "method": method,
@@ -148,17 +257,36 @@ def _summarise_group(mdf: pd.DataFrame, method: str, alpha: float) -> dict:
         "n_edges": n_edges,
         "fwer_pos": fwer_pos,
         "fwer_neg": fwer_neg,
-        "fwer_both": fwer,
+        "fwer_both": fwer_either_at_alpha,
+        "fwer_either_at_alpha": fwer_either_at_alpha,
+        "fwer_either_at_alpha_ci_low": fwer_either_ci_low,
+        "fwer_either_at_alpha_ci_high": fwer_either_ci_high,
+        "fwer_either_expected_upper": min(1.0, 2.0 * alpha),
+        "fwer_either_independent_expected": 1.0 - (1.0 - alpha) ** 2,
+        "fwer_pos_ci_low": fwer_pos_ci_low,
+        "fwer_pos_ci_high": fwer_pos_ci_high,
+        "fwer_neg_ci_low": fwer_neg_ci_low,
+        "fwer_neg_ci_high": fwer_neg_ci_high,
+        "fwer_max_tail": fwer_max_tail,
+        "fwer_max_tail_name": fwer_max_tail_name,
+        "n_runs_with_fp_max_tail": n_fp_max_tail,
         "fwer_ci_low": fwer_ci_low,
         "fwer_ci_high": fwer_ci_high,
-        "fwer_calibrated": fwer_calibrated,
+        "fwer_calibrated": directional_fwer_valid,
+        "directional_fwer_valid": directional_fwer_valid,
+        "two_sided_alpha_per_tail": two_sided_alpha_per_tail,
+        "fwer_two_sided_bonf": fwer_two_sided_bonf,
+        "fwer_two_sided_bonf_ci_low": fwer_two_sided_ci_low,
+        "fwer_two_sided_bonf_ci_high": fwer_two_sided_ci_high,
+        "fwer_two_sided_bonf_valid": fwer_two_sided_valid,
         "mean_fpr_pos": mean_fpr_pos,
         "mean_fpr_neg": mean_fpr_neg,
+        "mean_fpr_max_tail": mean_fpr_max_tail,
         "mean_fpr_total": mean_fpr_total,
-        "fpr_se": se_fpr_pos,
+        "fpr_se": se_fpr_max_tail,
         "fpr_ci_low": fpr_ci_low,
         "fpr_ci_high": fpr_ci_high,
-        "fpr_calibrated": fpr_calibrated,
+        "fpr_calibrated": edge_fpr_not_liberal,
         "expected": alpha,
         "mean_n_fp_pos": mdf["n_significant_pos"].mean(),
         "mean_n_fp_neg": mdf["n_significant_neg"].mean(),
@@ -167,7 +295,7 @@ def _summarise_group(mdf: pd.DataFrame, method: str, alpha: float) -> dict:
 
 
 def compute_fpr_summary_single(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
-    """Compute FPR summary for a single-n_samples slice (grouped by method only)."""
+    """Compute FWER summary for a single-n_samples slice (grouped by method only)."""
     rows = []
     for method, mdf in df.groupby("method"):
         rows.append(_summarise_group(mdf, method, alpha))
@@ -175,11 +303,10 @@ def compute_fpr_summary_single(df: pd.DataFrame, alpha: float = 0.05) -> pd.Data
 
 
 def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
-    """Compute FPR summary, grouped by (method, n_samples) when multi-n."""
+    """Compute FWER summary, grouped by (method, n_samples) if possible."""
     has_n_samples = "n_samples" in df.columns
-    multi_n = has_n_samples and df["n_samples"].nunique() > 1
-
-    if not multi_n:
+    
+    if not has_n_samples:
         return compute_fpr_summary_single(df, alpha)
 
     rows = []
@@ -202,60 +329,68 @@ def plot_overview(
     suffix: str = "",
     title_extra: str = "",
 ) -> None:
-    """4-panel calibration overview: FWER, edge-FPR, min-p dist, summary table."""
+    """4-panel overview: CP interval boxes, min-p distributions, and table."""
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
     methods = summary_df["method"].tolist()
     colors_base = plt.cm.Set2(np.linspace(0, 1, len(methods)))
 
-    # --- Panel 1: FWER bars ---
+    # --- Panel 1: directional FWER Clopper-Pearson interval boxes ---
     ax = axes[0, 0]
     x = np.arange(len(methods))
 
-    fwer_vals = summary_df["fwer_pos"].values
+    fwer_vals = summary_df["fwer_max_tail"].values
     fwer_ci_lows = summary_df["fwer_ci_low"].values
     fwer_ci_highs = summary_df["fwer_ci_high"].values
 
-    bar_colors = ["#4CAF50" if row["fwer_calibrated"] else "#F44336"
+    box_colors = ["#4CAF50" if row["directional_fwer_valid"] else "#F44336"
                   for _, row in summary_df.iterrows()]
 
-    ax.bar(x, fwer_vals, color=bar_colors, alpha=0.7, edgecolor="black", linewidth=1.2)
-    ax.errorbar(
-        x, fwer_vals,
-        yerr=[fwer_vals - fwer_ci_lows, fwer_ci_highs - fwer_vals],
-        fmt="none", color="black", capsize=5, capthick=1.5, linewidth=1.5,
+    _plot_cp_interval_boxes(
+        ax,
+        x,
+        fwer_vals,
+        fwer_ci_lows,
+        fwer_ci_highs,
+        box_colors,
+        width=0.58,
+        label="Empirical FWER",
     )
-    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Expected = {alpha}")
+    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Target <= {alpha}")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=45, ha="right", fontsize=10)
-    ax.set_ylabel("FWER", fontsize=11)
-    ax.set_title("FWER  P(any FP | H0)", fontsize=12)
+    ax.set_ylabel("Directional FWER", fontsize=11)
+    ax.set_title("Worst-Tail FWER  max P(any FP in one tail | H0)", fontsize=12)
     ax.legend(loc="upper right", fontsize=9)
     ax.set_ylim(0, max(0.15, fwer_ci_highs.max() * 1.3))
     ax.grid(axis="y", alpha=0.3)
 
-    # --- Panel 2: Edge-wise FPR bars ---
+    # --- Panel 2: two-sided Bonferroni-over-tails FWER CP interval boxes ---
     ax = axes[0, 1]
-    fpr_vals = summary_df["mean_fpr_pos"].values
-    fpr_ci_lows = summary_df["fpr_ci_low"].values
-    fpr_ci_highs = summary_df["fpr_ci_high"].values
+    two_vals = summary_df["fwer_two_sided_bonf"].values
+    two_ci_lows = summary_df["fwer_two_sided_bonf_ci_low"].values
+    two_ci_highs = summary_df["fwer_two_sided_bonf_ci_high"].values
 
-    bar_colors = ["#4CAF50" if row["fpr_calibrated"] else "#F44336"
+    box_colors = ["#4CAF50" if row["fwer_two_sided_bonf_valid"] else "#F44336"
                   for _, row in summary_df.iterrows()]
 
-    ax.bar(x, fpr_vals, color=bar_colors, alpha=0.7, edgecolor="black", linewidth=1.2)
-    ax.errorbar(
-        x, fpr_vals,
-        yerr=[fpr_vals - fpr_ci_lows, fpr_ci_highs - fpr_vals],
-        fmt="none", color="black", capsize=5, capthick=1.5, linewidth=1.5,
+    _plot_cp_interval_boxes(
+        ax,
+        x,
+        two_vals,
+        two_ci_lows,
+        two_ci_highs,
+        box_colors,
+        width=0.58,
+        label="Empirical FWER",
     )
-    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Expected = {alpha}")
+    ax.axhline(alpha, color="blue", linestyle="--", linewidth=2, label=f"Target <= {alpha}")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=45, ha="right", fontsize=10)
-    ax.set_ylabel("Edge-wise FPR", fontsize=11)
-    ax.set_title("Edge-wise FPR  E[n_FP / n_edges | H0]", fontsize=12)
+    ax.set_ylabel("Two-sided FWER", fontsize=11)
+    ax.set_title(f"Either Tail with alpha/2 per tail ({alpha/2:.3f})", fontsize=12)
     ax.legend(loc="upper right", fontsize=9)
-    ax.set_ylim(0, max(0.15, fpr_ci_highs.max() * 1.3) if fpr_ci_highs.max() > 0 else 0.1)
+    ax.set_ylim(0, max(0.15, two_ci_highs.max() * 1.3) if two_ci_highs.max() > 0 else 0.1)
     ax.grid(axis="y", alpha=0.3)
 
     # --- Panel 3: Min p-value distributions ---
@@ -281,17 +416,16 @@ def plot_overview(
     table_data = []
     for _, row in summary_df.iterrows():
         fwer_status = "OK" if row["fwer_calibrated"] else "FAIL"
-        fpr_status = "OK" if row["fpr_calibrated"] else "FAIL"
         table_data.append([
             row["method"],
-            f"{row['fwer_pos']:.3f}",
+            f"{row['fwer_max_tail']:.3f}",
             fwer_status,
-            f"{row['mean_fpr_pos']:.4f}",
-            fpr_status,
+            f"{row['fwer_two_sided_bonf']:.3f}",
+            "OK" if row["fwer_two_sided_bonf_valid"] else "FAIL",
         ])
     table = ax.table(
         cellText=table_data,
-        colLabels=["Method", "FWER", "Cal.", "Edge FPR", "Cal."],
+        colLabels=["Method", "Max-tail", "Cal.", "2-sided", "Cal."],
         loc="center", cellLoc="center",
         colWidths=[0.25, 0.18, 0.12, 0.18, 0.12],
     )
@@ -300,7 +434,7 @@ def plot_overview(
     table.scale(1.2, 1.8)
     for i, (_, row) in enumerate(summary_df.iterrows()):
         fwer_color = "#C8E6C9" if row["fwer_calibrated"] else "#FFCDD2"
-        fpr_color = "#C8E6C9" if row["fpr_calibrated"] else "#FFCDD2"
+        fpr_color = "#C8E6C9" if row["fwer_two_sided_bonf_valid"] else "#FFCDD2"
         table[(i + 1, 0)].set_facecolor("#FFFFFF")
         table[(i + 1, 1)].set_facecolor(fwer_color)
         table[(i + 1, 2)].set_facecolor(fwer_color)
@@ -308,7 +442,7 @@ def plot_overview(
         table[(i + 1, 4)].set_facecolor(fpr_color)
     ax.set_title(f"Calibration Summary (alpha = {alpha})", fontsize=12, pad=20)
 
-    fig.suptitle(f"FPR Calibration Results{title_extra}",
+    fig.suptitle(f"FWER Calibration Results{title_extra}",
                  fontsize=14, fontweight="bold", y=1.02)
     plt.tight_layout()
 
@@ -354,7 +488,7 @@ def plot_per_method(
         ax.tick_params(axis="x", rotation=45)
         ax.grid(axis="y", alpha=0.3)
 
-    plt.suptitle(f"Per-Method FPR Distributions{title_extra}",
+    plt.suptitle(f"Per-Method Edge-FPR Distributions{title_extra}",
                  fontsize=13, fontweight="bold")
     plt.tight_layout()
 
@@ -375,25 +509,73 @@ def plot_fwer_directions(
     suffix: str = "",
     title_extra: str = "",
 ) -> None:
-    """FWER for positive, negative, and either direction side by side."""
+    """CP interval boxes for positive, negative, either-tail, and two-sided FWER."""
     methods = summary_df["method"].tolist()
     x = np.arange(len(methods))
-    width = 0.25
+    width = 0.20
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(x - width, summary_df["fwer_pos"].values, width,
-           label="g2>g1", color="#42A5F5", alpha=0.8)
-    ax.bar(x, summary_df["fwer_neg"].values, width,
-           label="g1>g2", color="#EF5350", alpha=0.8)
-    ax.bar(x + width, summary_df["fwer_both"].values, width,
-           label="Either", color="#66BB6A", alpha=0.8)
+    fig, ax = plt.subplots(figsize=(12, 5))
+    series = [
+        (
+            "g2>g1",
+            -1.5 * width,
+            "fwer_pos",
+            "fwer_pos_ci_low",
+            "fwer_pos_ci_high",
+            "#42A5F5",
+        ),
+        (
+            "g1>g2",
+            -0.5 * width,
+            "fwer_neg",
+            "fwer_neg_ci_low",
+            "fwer_neg_ci_high",
+            "#EF5350",
+        ),
+        (
+            "Either, alpha/2 per tail",
+            0.5 * width,
+            "fwer_two_sided_bonf",
+            "fwer_two_sided_bonf_ci_low",
+            "fwer_two_sided_bonf_ci_high",
+            "#66BB6A",
+        ),
+        (
+            "Either, unadjusted alpha",
+            1.5 * width,
+            "fwer_either_at_alpha",
+            "fwer_either_at_alpha_ci_low",
+            "fwer_either_at_alpha_ci_high",
+            "#BDBDBD",
+        ),
+    ]
+    max_ci_high = 0.0
+    for label, offset, value_col, low_col, high_col, color in series:
+        values = summary_df[value_col].values
+        ci_lows = summary_df[low_col].values
+        ci_highs = summary_df[high_col].values
+        max_ci_high = max(max_ci_high, float(np.max(ci_highs)))
+        _plot_cp_interval_boxes(
+            ax,
+            x + offset,
+            values,
+            ci_lows,
+            ci_highs,
+            [color] * len(methods),
+            width=width * 0.82,
+            label=label,
+        )
     ax.axhline(alpha, color="black", linestyle="--", linewidth=1.5,
-               label=f"alpha = {alpha}")
+               label=f"target alpha = {alpha}")
+    ax.axhline(min(1.0, 2.0 * alpha), color="gray", linestyle=":", linewidth=1.2,
+               label=f"diagnostic 2*alpha = {min(1.0, 2.0 * alpha):.2f}")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=45, ha="right", fontsize=10)
     ax.set_ylabel("FWER", fontsize=11)
-    ax.set_title(f"FWER by Direction{title_extra}", fontsize=13, fontweight="bold")
+    ax.set_title(f"Directional vs Two-Sided FWER (95% Clopper-Pearson CI){title_extra}",
+                 fontsize=13, fontweight="bold")
     ax.legend(fontsize=9)
+    ax.set_ylim(0, max(0.15, max_ci_high * 1.25))
     ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
 
@@ -414,6 +596,10 @@ METHOD_COLORS = {
     "fbc_tfnbs": "#d62728",
     "nbs_extent": "#9467bd",
     "nbs_intensity": "#8c564b",
+    "nbs_extent_2.0": "#9467bd",
+    "nbs_intensity_2.0": "#8c564b",
+    "nbs_extent_3.0": "#7b5db5",
+    "nbs_intensity_3.0": "#6f4038",
     "cnbs": "#e377c2",
     "bonferroni": "#7f7f7f",
     "bh_fdr": "#bcbd22",
@@ -425,7 +611,7 @@ def plot_fwer_vs_sample_size(
     alpha: float,
     output_dir: Path,
 ) -> None:
-    """FWER and edge-wise FPR vs sample size, one line per method with CI bands."""
+    """Directional and Bonferroni two-sided FWER vs sample size."""
     if "n_samples" not in summary_df.columns:
         print("  Skipping: data has no n_samples dimension")
         return
@@ -435,42 +621,42 @@ def plot_fwer_vs_sample_size(
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    # --- Panel 1: FWER vs n_samples ---
+    # --- Panel 1: worst-tail directional FWER vs n_samples ---
     ax = axes[0]
     for method in methods:
         mdf = summary_df[summary_df["method"] == method].sort_values("n_samples")
         color = METHOD_COLORS.get(method, None)
-        ax.plot(mdf["n_samples"], mdf["fwer_pos"], "o-", label=method,
+        ax.plot(mdf["n_samples"], mdf["fwer_max_tail"], "o-", label=method,
                 color=color, linewidth=2, markersize=6)
         ax.fill_between(
             mdf["n_samples"], mdf["fwer_ci_low"], mdf["fwer_ci_high"],
             alpha=0.15, color=color,
         )
     ax.axhline(alpha, color="black", linestyle="--", linewidth=1.5,
-               label=f"alpha = {alpha}")
+               label=f"target alpha = {alpha}")
     ax.set_xlabel("Sample size (per group)", fontsize=11)
-    ax.set_ylabel("FWER", fontsize=11)
-    ax.set_title("FWER vs Sample Size", fontsize=13, fontweight="bold")
+    ax.set_ylabel("Directional FWER", fontsize=11)
+    ax.set_title("Worst-Tail Directional FWER vs Sample Size", fontsize=13, fontweight="bold")
     ax.set_xticks(sample_sizes)
     ax.legend(fontsize=8, ncol=2)
     ax.grid(alpha=0.3)
 
-    # --- Panel 2: Edge-wise FPR vs n_samples ---
+    # --- Panel 2: two-sided Bonferroni-over-tails FWER vs n_samples ---
     ax = axes[1]
     for method in methods:
         mdf = summary_df[summary_df["method"] == method].sort_values("n_samples")
         color = METHOD_COLORS.get(method, None)
-        ax.plot(mdf["n_samples"], mdf["mean_fpr_pos"], "o-", label=method,
+        ax.plot(mdf["n_samples"], mdf["fwer_two_sided_bonf"], "o-", label=method,
                 color=color, linewidth=2, markersize=6)
         ax.fill_between(
-            mdf["n_samples"], mdf["fpr_ci_low"], mdf["fpr_ci_high"],
+            mdf["n_samples"], mdf["fwer_two_sided_bonf_ci_low"], mdf["fwer_two_sided_bonf_ci_high"],
             alpha=0.15, color=color,
         )
     ax.axhline(alpha, color="black", linestyle="--", linewidth=1.5,
-               label=f"alpha = {alpha}")
+               label=f"target alpha = {alpha}")
     ax.set_xlabel("Sample size (per group)", fontsize=11)
-    ax.set_ylabel("Edge-wise FPR", fontsize=11)
-    ax.set_title("Edge-wise FPR vs Sample Size", fontsize=13, fontweight="bold")
+    ax.set_ylabel("Two-sided FWER", fontsize=11)
+    ax.set_title("Either Tail with alpha/2 per Tail", fontsize=13, fontweight="bold")
     ax.set_xticks(sample_sizes)
     ax.legend(fontsize=8, ncol=2)
     ax.grid(alpha=0.3)
@@ -480,6 +666,117 @@ def plot_fwer_vs_sample_size(
     plt.savefig(out, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  Saved {out.name}")
+
+
+def plot_paper_fwer_calibration(
+    results_dir: Path,
+    output_dir: Path,
+    *,
+    alpha: float = 0.05,
+    filename: str = "fig1_fwer_calibration.png",
+    method_order: Optional[List[str]] = None,
+    method_labels: Optional[dict] = None,
+) -> Optional[Path]:
+    """Create the compact paper Figure 1 FWER panel.
+
+    This is the single reusable paper-facing FWER implementation. The root
+    paper-figure regeneration script calls this function rather than
+    duplicating Clopper-Pearson or worst-tail FWER logic.
+    """
+    df_path = results_dir / "fpr_results.csv"
+    if not df_path.exists():
+        print(f"Skipping FWER plot: {df_path} not found.")
+        return None
+
+    df = pd.read_csv(df_path)
+    summary = compute_fpr_summary(df, alpha=alpha)
+    if summary.empty:
+        print(f"Skipping FWER plot: no rows in {df_path}.")
+        return None
+
+    if method_order:
+        ordered = [m for m in method_order if m in set(summary["method"])]
+        remaining = [m for m in summary["method"].unique() if m not in set(ordered)]
+        order = ordered + remaining
+        summary["method"] = pd.Categorical(summary["method"], categories=order, ordered=True)
+        summary = summary.sort_values(["method", "n_samples"])
+    else:
+        order = list(summary["method"].unique())
+
+    labels = method_labels or {}
+    
+    fig, ax = plt.subplots(figsize=(10, 4))
+    
+    if "n_samples" in summary.columns and summary["n_samples"].nunique() > 1:
+        n_samples = sorted(summary["n_samples"].unique())
+        x = np.arange(len(order))
+        width = 0.8 / len(n_samples)
+        colors = sns.color_palette("viridis", len(n_samples))
+        
+        for i, n in enumerate(n_samples):
+            offset = (i - len(n_samples) / 2 + 0.5) * width
+            mdf = summary[summary["n_samples"] == n].set_index("method").reindex(order)
+            
+            # Mask NaNs
+            valid = ~mdf["fwer_max_tail"].isna()
+            if not valid.any():
+                continue
+            
+            # Use box-style representation for CIs
+            _plot_cp_interval_boxes(
+                ax,
+                x[valid] + offset,
+                mdf.loc[valid, "fwer_max_tail"].values,
+                mdf.loc[valid, "fwer_ci_low"].values,
+                mdf.loc[valid, "fwer_ci_high"].values,
+                [colors[i]] * valid.sum(),
+                width=width * 0.8,
+                label=f"N={n}"
+            )
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels([labels.get(m, m) for m in order], rotation=45, ha="right")
+        # Custom legend to avoid repeating box-elements
+        from matplotlib.patches import Patch
+        legend_elements = [Patch(facecolor=colors[i], label=f"N={n}") for i, n in enumerate(n_samples)]
+        ax.legend(handles=legend_elements, title="Sample Size", fontsize=8, title_fontsize=9)
+    else:
+        # Fallback to single dimension logic if n_samples not present
+        x = np.arange(len(order))
+        mdf = summary.set_index("method").reindex(order)
+        colors = [METHOD_COLORS.get(method, "#42A5F5") for method in order]
+        
+        _plot_cp_interval_boxes(
+            ax,
+            x,
+            mdf["fwer_max_tail"].values,
+            mdf["fwer_ci_low"].values,
+            mdf["fwer_ci_high"].values,
+            colors,
+            width=0.6
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels([labels.get(m, m) for m in order], rotation=45, ha="right")
+
+    ax.axhline(alpha, color="red", linestyle="--", alpha=0.6, label=f"Target alpha={alpha:.2f}")
+    ax.set_ylim(0, max(0.1, float(summary["fwer_ci_high"].max(skipna=True)) * 1.25))
+    ax.set_ylabel("Worst-tail directional FWER")
+    ax.set_title("Directional Family-Wise Error Rate Control (95% CI)")
+    ax.grid(axis="y", alpha=0.3)
+    
+    # Only add alpha to legend if not already there
+    handles, legends = ax.get_legend_handles_labels()
+    if f"Target alpha={alpha:.2f}" not in legends:
+        handles.append(plt.Line2D([0], [0], color="red", linestyle="--", alpha=0.6))
+        legends.append(f"Target alpha={alpha:.2f}")
+        ax.legend(handles, legends, fontsize=8)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out = output_dir / filename
+    fig.savefig(out, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved Fig 1 to {out}")
+    return out
 
 
 # =============================================================================
@@ -507,7 +804,7 @@ def _n_title(n_samples) -> str:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Plot FPR calibration results",
+        description="Plot null FWER calibration results",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

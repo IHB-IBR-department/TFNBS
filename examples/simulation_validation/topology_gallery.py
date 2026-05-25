@@ -102,7 +102,7 @@ def plot_topology_gallery(
 
         g1_z, g2_z = ds.fisher_z()
         t_dict = compute_t_stat(g1_z, g2_z, test_type="two-sample")
-        t_signed = t_dict["g2>g1"] - t_dict["g1>g2"]
+        t_signed = t_dict["positive"] - t_dict["negative"]
 
         effect_gt = ds.effect_mask * ds.effect_size
         n_edges = int(np.sum(ds.effect_mask != 0) // 2)

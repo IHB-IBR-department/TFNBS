@@ -28,8 +28,8 @@ methods:
   - fbc_tfnbs
 
 tfnbs_options:
-  e: [0.5]
-  h: [2.0]
+  e: [0.3]
+  h: [3.0]
   n_thresholds: 30
   start_thres: 1.25
   fbc_min_cluster_size: 3   # overridden by --fbc-min-cluster CLI

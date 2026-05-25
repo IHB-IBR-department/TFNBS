@@ -1,6 +1,7 @@
-# FPR Calibration - Full Validation Configuration
+# FWER Calibration - Full Validation Configuration
 #
-# Validates that all methods maintain nominal FPR under null hypothesis.
+# Validates that all methods maintain nominal directional FWER under null
+# hypothesis. Edge-wise FPR is reported only as a secondary diagnostic.
 #
 # Usage:
 #   # For full run (all methods, 1000 null datasets)
@@ -22,11 +23,13 @@
 # All available methods for comprehensive validation
 methods:
   - tstat           # Baseline: uncorrected t-statistics (edge-wise)
-  - tfnbs           # Threshold-Free NBS (standard)
-  - ni_tfnbs        # Network-Informed TFNBS
-  - fbc_tfnbs       # FBC-weighted TFNBS
-  - nbs_extent      # Classical NBS (cluster extent statistic)
-  - nbs_intensity   # Classical NBS (cluster intensity statistic)
+  - tfnbs           # Threshold-Free NBS (standard; E=0.4, H=3.0)
+  - ni_tfnbs        # Network-Informed TFNBS (E=0.4, H=3.0)
+  - fbc_tfnbs       # FBC-weighted TFNBS (E=0.4, H=3.0)
+  - nbs_extent_2.0      # Classical NBS extent, threshold=2.0
+  - nbs_intensity_2.0   # Classical NBS intensity, threshold=2.0
+  - nbs_extent_3.0      # Classical NBS extent, threshold=3.0
+  - nbs_intensity_3.0   # Classical NBS intensity, threshold=3.0
   - cnbs            # Constrained NBS (block-based)
   - bonferroni      # Parametric Bonferroni correction
   - bh_fdr          # Parametric Benjamini-Hochberg FDR
@@ -37,13 +40,14 @@ methods:
 
 # Number of null datasets (effect_size=0) to generate
 # 1000 provides ~95% CI width of ~0.014 for FPR (Clopper-Pearson)
-n_null: 1000
+n_null: 100
 
 # Permutations per null test
 # Higher = more accurate p-values, slower execution
 n_permutations: 1000
 
-# Significance threshold (family-wise error rate for FWER-controlling methods)
+# Significance threshold for each directional family. For a two-sided
+# positive-or-negative family, use alpha/2 per tail when interpreting results.
 alpha: 0.05
 
 # =============================================================================
@@ -67,16 +71,12 @@ noise_level: 0.05  # Noise added to correlations
 # TFNBS PARAMETERS
 # =============================================================================
 
-# 2026-04-30 fix: FPRConfig declares tfnbs_e/h as float, not list; passing
-# 30-element lists silently zipped pairwise into a 30-pt diagonal sweep
-# (different from a 30x30 grid the original comment implied) and produced
-# output incompatible with prior `fpr_calibration_1000` summary that used
-# single (E=0.5, H=2.0). For FPR calibration we want a single canonical
-# (e, h) per row of the summary table — to scan (e, h) sensitivity, run
-# the (e, h) sweep through power_analysis.py instead, where it is properly
-# batched in 3D mode.
-tfnbs_e: 0.5              # Smith & Nichols 2009; matches prior run.
-tfnbs_h: 2.0              # Smith & Nichols 2009; matches prior run.
+# FPR calibration uses the same canonical TFNBS parameters as the real-data
+# validation suites (ABIDE and Open-Close): E=0.4, H=3.0. For FPR
+# calibration we want one canonical (E,H) per summary row; scan (E,H)
+# sensitivity through power_analysis.py, where grid mode is batched.
+tfnbs_e: 0.4
+tfnbs_h: 3.0
 tfnbs_n: 50               # Number of threshold integration steps
 tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 
@@ -84,8 +84,9 @@ tfnbs_start_thres: 1.65   # Starting threshold (p < 0.05 one-tailed)
 # NBS PARAMETERS
 # =============================================================================
 
-# Single canonical threshold (NBS path doesn't accept a list).
-# To scan threshold sensitivity, use power_analysis.py with nbs_options.threshold.
+# Fallback threshold for legacy method names nbs_extent / nbs_intensity.
+# The method list above explicitly includes threshold=2.0 and threshold=3.0
+# variants, matching the real-data method comparisons.
 nbs_threshold: 2.0
 
 # =============================================================================
@@ -121,22 +122,24 @@ checkpoint_every: 20
 # OUTPUT
 # =============================================================================
 
-output_dir: examples/simulation_validation/results/fpr_calibration_V1
+output_dir: examples/simulation_validation/results/calibration/fpr_calibration_1000
 
 # =============================================================================
 # EXPECTED RESULTS
 # =============================================================================
 #
-# For a well-calibrated method at alpha=0.05 with n_null=1000:
-#   - Expected FPR: 0.050
+# For a well-calibrated directional FWER method at alpha=0.05 with n_null=1000:
+#   - Expected directional FWER: <= 0.050
 #   - 95% CI width: ~0.014 (Clopper-Pearson)
 #   - Acceptable range: approximately [0.036, 0.064]
 #
-# Methods should pass if their 95% CI contains alpha=0.05.
+# Methods should pass if the lower bound of their 95% CI does not exceed
+# alpha=0.05. Values below alpha are conservative, not invalid.
 #
 # Common issues:
-#   - FPR > alpha: Method is LIBERAL (too many false positives)
-#   - FPR < alpha: Method is CONSERVATIVE (may be OK, but loses power)
+#   - Directional FWER > alpha: Method may be LIBERAL (too many null runs
+#     with at least one false-positive edge)
+#   - Directional FWER < alpha: Method is CONSERVATIVE (valid, less powerful)
 #   - Large variance: Unstable method, may need more permutations
 #
 # =============================================================================

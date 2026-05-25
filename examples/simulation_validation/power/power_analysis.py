@@ -422,6 +422,10 @@ def run_single_power_test_batched(
                 FPR = FP / n_null if n_null > 0 else 0.0
                 precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
                 FDR = FP / (TP + FP) if (TP + FP) > 0 else 0.0
+                
+                # Ensure param_label is a string, not None
+                if param_label is None and "e" in _ and "h" in _:
+                    param_label = f"e={_['e']},h={_['h']}"
 
                 results.append(PowerResult(
                     method=method, method_params=param_label,
@@ -438,6 +442,8 @@ def run_single_power_test_batched(
             print(f"  ERROR in batched {method} repeat {repeat_id}: {exc}")
             elapsed = time.time() - start_time
             for param_label, _ in all_method_params:
+                if param_label is None and "e" in _ and "h" in _:
+                    param_label = f"e={_['e']},h={_['h']}"
                 results.append(PowerResult(
                     method=method, method_params=param_label,
                     scenario=scenario, effect_size=effect_size,

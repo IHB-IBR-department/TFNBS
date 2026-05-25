@@ -1,21 +1,32 @@
 """
-False Positive Rate (FPR) Calibration Test for TFNBS Methods.
+Null FWER Calibration Test for TFNBS Methods.
 
-Validates that all statistical methods maintain the nominal false positive
-rate (FPR) under the null hypothesis (no true effect).
+Validates that statistical methods maintain nominal family-wise error
+rate (FWER) under the null hypothesis (no true effect).
 
 Protocol:
   1. Generate N null datasets (effect_size=0)
   2. Run each method with full permutation testing
-  3. Check if any edge is significant at alpha
-  4. Verify FPR = alpha +/- sampling_error
+  3. Check whether any edge is significant in each directional tail
+  4. Verify directional FWER <= alpha within Monte-Carlo uncertainty
+
+ConnInfPy reports separate positive and negative p-value maps. The
+primary calibration target here is therefore directional FWER:
+
+    P(any false-positive edge in one tail | H0) <= alpha
+
+If a user wants one undirected/two-sided family across both tails using
+the existing per-tail maps, they should threshold each tail at alpha / 2.
+This script reports that Bonferroni-over-tails diagnostic separately.
+The unadjusted "either tail at alpha" value is retained only as a
+diagnostic and is expected to approach <= 2*alpha, not alpha.
 
 Supports sweeping over multiple sample sizes to verify calibration
 holds across different sample sizes (like power_analysis.py).
 
 Methods tested:
-  tstat, tfnbs, ni_tfnbs, fbc_tfnbs, nbs_extent, nbs_intensity, cnbs,
-  bonferroni, bh_fdr
+  tstat, tfnbs, ni_tfnbs, fbc_tfnbs, nbs_extent_2.0, nbs_intensity_2.0,
+  nbs_extent_3.0, nbs_intensity_3.0, cnbs, bonferroni, bh_fdr
 
 Usage:
     python fpr_calibration.py --config fpr_config_local.yaml
@@ -25,7 +36,7 @@ Usage:
 Output:
     <output_dir>/
         fpr_results.csv          # All null-run results (combined)
-        fpr_summary.csv          # Per-method (per-n_samples) summary
+        fpr_summary.csv          # Per-method (per-n_samples) FWER summary
         fpr_summary.txt          # Human-readable summary
         checkpoint.csv           # For --resume (removed on success)
         per_method/
@@ -81,7 +92,7 @@ class FPRResult:
     n_samples: int             # Samples per group used in this run
     n_edges: int               # Total edges tested (upper triangle)
     # Positive direction (g2 > g1)
-    any_significant_pos: bool  # Any p < alpha (FWER)
+    any_significant_pos: bool  # Any p <= alpha in positive tail (directional FWER)
     n_significant_pos: int     # Count of significant edges
     fpr_pos: float             # n_significant_pos / n_edges (edge-wise FPR)
     min_p_pos: float
@@ -90,8 +101,9 @@ class FPRResult:
     n_significant_neg: int
     fpr_neg: float             # n_significant_neg / n_edges
     min_p_neg: float
-    # Combined (either direction) - NOTE: this is for two-sided testing
-    any_significant: bool      # Either direction has any significant
+    # Combined diagnostic: either direction at unadjusted alpha.
+    # This is not a two-sided FWER-alpha test; use alpha/2 per tail for that.
+    any_significant: bool      # Either direction has any significant at alpha
     n_significant_total: int   # Total significant edges (both directions)
     fpr_total: float           # Combined edge-wise FPR
     elapsed_time: float
@@ -99,7 +111,7 @@ class FPRResult:
 
 @dataclass
 class FPRConfig:
-    """Configuration for FPR calibration run."""
+    """Configuration for null FWER calibration run."""
 
     # Methods to test
     methods: List[str]
@@ -119,8 +131,8 @@ class FPRConfig:
     noise_level: float = 0.05
 
     # Method-specific parameters
-    tfnbs_e: float = 0.5
-    tfnbs_h: float = 2.0
+    tfnbs_e: float = 0.3
+    tfnbs_h: float = 3.0
     tfnbs_n: int = 50
     tfnbs_start_thres: float = 1.65
     nbs_threshold: float = 2.0
@@ -156,6 +168,10 @@ class FPRConfig:
 
     def get_method_kwargs(self, method: str) -> dict:
         """Get method-specific kwargs."""
+        nbs_kwargs = self._parse_nbs_method(method)
+        if nbs_kwargs is not None:
+            return nbs_kwargs
+
         configs = {
             "tstat": {},
             "tfnbs": {
@@ -177,8 +193,6 @@ class FPRConfig:
                 "start_thres": self.tfnbs_start_thres,
                 "min_cluster_size": self.fbc_min_cluster,
             },
-            "nbs_extent": {"threshold": self.nbs_threshold, "nbs_stat": "extent"},
-            "nbs_intensity": {"threshold": self.nbs_threshold, "nbs_stat": "intensity"},
             "cnbs": {},
             "bonferroni": {},
             "bh_fdr": {},
@@ -187,9 +201,35 @@ class FPRConfig:
 
     def get_compute_method(self, method: str) -> str:
         """Map display method name to compute_p_val method name."""
-        if method.startswith("nbs_"):
+        if self._parse_nbs_method(method) is not None:
             return "nbs"
         return method
+
+    def _parse_nbs_method(self, method: str) -> Optional[dict]:
+        """Parse NBS method aliases with optional threshold suffix.
+
+        Supported names:
+        - nbs_extent, nbs_intensity: use ``self.nbs_threshold``
+        - nbs_extent_2.0, nbs_extent_3.0, nbs_intensity_2.0, ...
+        """
+        prefixes = {
+            "nbs_extent": "extent",
+            "nbs_intensity": "intensity",
+        }
+        for prefix, stat in prefixes.items():
+            if method == prefix:
+                return {"threshold": self.nbs_threshold, "nbs_stat": stat}
+            marker = prefix + "_"
+            if method.startswith(marker):
+                threshold_text = method[len(marker):]
+                try:
+                    threshold = float(threshold_text)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Invalid NBS threshold suffix in method {method!r}."
+                    ) from exc
+                return {"threshold": threshold, "nbs_stat": stat}
+        return None
 
 
 # =============================================================================
@@ -291,14 +331,14 @@ def run_single_null_test(
         p_neg_upper = p_neg[triu_idx]
 
         # Positive direction metrics
-        sig_mask_pos = p_pos_upper < config.alpha
+        sig_mask_pos = p_pos_upper <= config.alpha
         any_sig_pos = bool(np.any(sig_mask_pos))
         n_sig_pos = int(np.sum(sig_mask_pos))
         fpr_pos = n_sig_pos / n_edges
         min_p_pos = float(np.min(p_pos_upper))
 
         # Negative direction metrics
-        sig_mask_neg = p_neg_upper < config.alpha
+        sig_mask_neg = p_neg_upper <= config.alpha
         any_sig_neg = bool(np.any(sig_mask_neg))
         n_sig_neg = int(np.sum(sig_mask_neg))
         fpr_neg = n_sig_neg / n_edges
@@ -408,7 +448,7 @@ def run_fpr_calibration(
     config: FPRConfig,
     resume: bool = False,
 ) -> pd.DataFrame:
-    """Run full FPR calibration test with optional parallelization and checkpointing."""
+    """Run full null-FWER calibration with optional parallelization/checkpointing."""
 
     checkpoint_path = config.output_dir / "checkpoint.csv"
     config.output_dir.mkdir(parents=True, exist_ok=True)
@@ -441,7 +481,7 @@ def run_fpr_calibration(
     n_cores = config.n_jobs if config.n_jobs > 0 else get_available_cores()
     use_parallel = config.n_jobs != 1 and total_runs > 1
 
-    print(f"=== FPR Calibration Test ===")
+    print(f"=== Null FWER Calibration Test ===")
     print(f"Methods: {config.methods}")
     print(f"Sample sizes: {sample_sizes}")
     print(f"Null datasets per (method, n_samples): {config.n_null}")
@@ -449,8 +489,9 @@ def run_fpr_calibration(
     print(f"Alpha: {config.alpha}")
     print(f"Parallel: {'yes' if use_parallel else 'no'} ({n_cores} cores)")
     print(f"Remaining runs: {total_runs}")
-    print(f"Expected FPR: {config.alpha:.3f} +/- "
-          f"{1.96 * np.sqrt(config.alpha * (1-config.alpha) / config.n_null):.3f}")
+    print(f"Expected directional FWER: <= {config.alpha:.3f} (Monte-Carlo half-width ~"
+          f"{1.96 * np.sqrt(config.alpha * (1-config.alpha) / config.n_null):.3f})")
+    print(f"Two-sided diagnostic: threshold each tail at alpha/2 = {config.alpha / 2:.3f}")
     print()
 
     if use_parallel:
@@ -459,7 +500,7 @@ def run_fpr_calibration(
             pbar = tqdm(
                 pool.imap_unordered(_run_null_test_wrapper, tasks),
                 total=total_runs,
-                desc="FPR calibration",
+                desc="FWER calibration",
                 unit="run",
                 miniters=1,
             )
@@ -472,7 +513,7 @@ def run_fpr_calibration(
                 if i % config.checkpoint_every == 0 or i == total_runs:
                     save_checkpoint(results, checkpoint_path)
     else:
-        pbar = tqdm(tasks, desc="FPR calibration", unit="run", miniters=1)
+        pbar = tqdm(tasks, desc="FWER calibration", unit="run", miniters=1)
         for i, task in enumerate(pbar, 1):
             result = _run_null_test_wrapper(task)
             results.append(result)
@@ -515,19 +556,36 @@ def clopper_pearson_ci(k: int, n: int, alpha: float = 0.05) -> Tuple[float, floa
     return ci_low, ci_high
 
 
+def _ci_not_liberal(k: int, n: int, target_alpha: float) -> Tuple[float, float, bool]:
+    """Return a 95% CP interval and whether it excludes liberal inflation.
+
+    The validation question for an FWER-controlling method is one-sided:
+    "is there evidence that the empirical false-positive probability is
+    above alpha?" Conservative methods are valid, although less powerful.
+    We therefore fail only when the lower bound of the 95% interval is
+    above the target alpha.
+    """
+    ci_low, ci_high = clopper_pearson_ci(k, n, alpha=0.05)
+    return ci_low, ci_high, bool(ci_low <= target_alpha)
+
+
 def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
     """
-    Compute FPR summary statistics by method (and n_samples if present).
+    Compute null-calibration statistics by method (and n_samples if present).
 
     Reports two key metrics:
-    1. FWER (Family-Wise Error Rate): P(at least 1 FP | H0)
-       - Proportion of null runs with any significant edge
-       - For FWER-controlling methods, this should equal alpha
+    1. Directional FWER: P(at least 1 FP in a single tail | H0)
+       - ConnInfPy returns positive and negative p-maps with separate
+         max-statistic nulls, so this is the primary calibration target.
+       - The summary reports the worst of the two tails.
 
-    2. Edge-wise FPR: E[proportion of FP edges | H0]
-       - Mean proportion of edges falsely declared significant
-       - For uncorrected tests, this should equal alpha
-       - For FWER-controlling methods, this is << alpha
+    2. Two-sided Bonferroni-over-tails FWER:
+       - P(any FP in either tail at alpha/2 per tail | H0).
+       - This is the correct diagnostic for one undirected/two-sided
+         family when using the existing per-tail p-maps.
+
+    The unadjusted "either tail at alpha" rate is also reported as a
+    diagnostic. It is expected to approach <= 2*alpha, not alpha.
     """
     from scipy import stats
 
@@ -548,34 +606,75 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
         n_runs = len(method_df)
         n_edges = method_df["n_edges"].iloc[0]
 
-        # FWER: Proportion of runs with ANY significant edge
+        # Directional FWER: proportion of runs with ANY significant edge
+        # in each tail. This matches the separate positive/negative
+        # max-statistic nulls returned by compute_p_val().
         n_runs_with_fp_pos = int(method_df["any_significant_pos"].sum())
         fwer_pos = n_runs_with_fp_pos / n_runs
         n_runs_with_fp_neg = int(method_df["any_significant_neg"].sum())
         fwer_neg = n_runs_with_fp_neg / n_runs
-        n_runs_with_fp = int(method_df["any_significant"].sum())
-        fwer = n_runs_with_fp / n_runs
 
-        fwer_ci_low, fwer_ci_high = clopper_pearson_ci(
-            n_runs_with_fp_pos, n_runs, alpha=0.05
+        fwer_pos_ci_low, fwer_pos_ci_high, fwer_pos_valid = _ci_not_liberal(
+            n_runs_with_fp_pos, n_runs, alpha
         )
-        # FWER is calibrated if it is not LIBERAL: the only failure mode for
-        # an FWER-controlling method is FWER > alpha. A FWER below alpha is
-        # conservative, which is fine (slightly less powerful but valid).
-        # Use one-sided check: pass if the lower CI bound does not exceed alpha.
-        fwer_calibrated = fwer_ci_low <= alpha
+        fwer_neg_ci_low, fwer_neg_ci_high, fwer_neg_valid = _ci_not_liberal(
+            n_runs_with_fp_neg, n_runs, alpha
+        )
 
-        # Edge-wise FPR
+        if fwer_neg > fwer_pos:
+            fwer_max_tail = fwer_neg
+            fwer_max_tail_name = "negative"
+            n_runs_with_fp_max_tail = n_runs_with_fp_neg
+            fwer_ci_low = fwer_neg_ci_low
+            fwer_ci_high = fwer_neg_ci_high
+        else:
+            fwer_max_tail = fwer_pos
+            fwer_max_tail_name = "positive"
+            n_runs_with_fp_max_tail = n_runs_with_fp_pos
+            fwer_ci_low = fwer_pos_ci_low
+            fwer_ci_high = fwer_pos_ci_high
+
+        # Validity, not exact equality: conservative FWER is acceptable.
+        directional_fwer_valid = bool(fwer_pos_valid and fwer_neg_valid)
+
+        # Diagnostic: if users declare significance in either tail at alpha
+        # without a tail correction, the family is the union of two directional
+        # families. It should be judged against <= 2*alpha, not alpha.
+        n_runs_with_fp_either_alpha = int(method_df["any_significant"].sum())
+        fwer_either_at_alpha = n_runs_with_fp_either_alpha / n_runs
+
+        # Correct two-sided diagnostic with existing per-tail p-maps:
+        # threshold each directional map at alpha/2.
+        two_sided_alpha_per_tail = alpha / 2.0
+        two_sided_hits = (
+            (method_df["min_p_pos"] <= two_sided_alpha_per_tail)
+            | (method_df["min_p_neg"] <= two_sided_alpha_per_tail)
+        )
+        n_runs_with_fp_two_sided = int(two_sided_hits.sum())
+        fwer_two_sided_bonf = n_runs_with_fp_two_sided / n_runs
+        (
+            fwer_two_sided_ci_low,
+            fwer_two_sided_ci_high,
+            fwer_two_sided_valid,
+        ) = _ci_not_liberal(n_runs_with_fp_two_sided, n_runs, alpha)
+
+        # Edge-wise FPR is a descriptive diagnostic. FWER-controlling methods
+        # should generally be far below alpha here.
         mean_fpr_pos = method_df["fpr_pos"].mean()
         mean_fpr_neg = method_df["fpr_neg"].mean()
         mean_fpr_total = method_df["fpr_total"].mean()
-        se_fpr_pos = method_df["fpr_pos"].std() / np.sqrt(n_runs)
+        if mean_fpr_neg > mean_fpr_pos:
+            edge_fpr_col = "fpr_neg"
+            mean_fpr_max_tail = mean_fpr_neg
+        else:
+            edge_fpr_col = "fpr_pos"
+            mean_fpr_max_tail = mean_fpr_pos
+        se_fpr_max_tail = method_df[edge_fpr_col].std() / np.sqrt(n_runs)
 
         t_crit = stats.t.ppf(0.975, df=n_runs - 1)
-        fpr_ci_low = max(0, mean_fpr_pos - t_crit * se_fpr_pos)
-        fpr_ci_high = min(1, mean_fpr_pos + t_crit * se_fpr_pos)
-        # Same one-sided rationale for edge-wise FPR.
-        fpr_calibrated = fpr_ci_low <= alpha
+        fpr_ci_low = max(0, mean_fpr_max_tail - t_crit * se_fpr_max_tail)
+        fpr_ci_high = min(1, mean_fpr_max_tail + t_crit * se_fpr_max_tail)
+        edge_fpr_not_liberal = bool(fpr_ci_low <= alpha)
 
         row = {
             "method": method,
@@ -584,18 +683,35 @@ def compute_fpr_summary(df: pd.DataFrame, alpha: float = 0.05) -> pd.DataFrame:
             # FWER
             "fwer_pos": fwer_pos,
             "fwer_neg": fwer_neg,
-            "fwer_both": fwer,
+            "fwer_both": fwer_either_at_alpha,
+            "fwer_either_at_alpha": fwer_either_at_alpha,
+            "fwer_either_expected_upper": min(1.0, 2.0 * alpha),
+            "fwer_either_independent_expected": 1.0 - (1.0 - alpha) ** 2,
+            "fwer_pos_ci_low": fwer_pos_ci_low,
+            "fwer_pos_ci_high": fwer_pos_ci_high,
+            "fwer_neg_ci_low": fwer_neg_ci_low,
+            "fwer_neg_ci_high": fwer_neg_ci_high,
+            "fwer_max_tail": fwer_max_tail,
+            "fwer_max_tail_name": fwer_max_tail_name,
+            "n_runs_with_fp_max_tail": n_runs_with_fp_max_tail,
             "fwer_ci_low": fwer_ci_low,
             "fwer_ci_high": fwer_ci_high,
-            "fwer_calibrated": fwer_calibrated,
+            "fwer_calibrated": directional_fwer_valid,
+            "directional_fwer_valid": directional_fwer_valid,
+            "two_sided_alpha_per_tail": two_sided_alpha_per_tail,
+            "fwer_two_sided_bonf": fwer_two_sided_bonf,
+            "fwer_two_sided_bonf_ci_low": fwer_two_sided_ci_low,
+            "fwer_two_sided_bonf_ci_high": fwer_two_sided_ci_high,
+            "fwer_two_sided_bonf_valid": fwer_two_sided_valid,
             # Edge-wise FPR
             "mean_fpr_pos": mean_fpr_pos,
             "mean_fpr_neg": mean_fpr_neg,
+            "mean_fpr_max_tail": mean_fpr_max_tail,
             "mean_fpr_total": mean_fpr_total,
-            "fpr_se": se_fpr_pos,
+            "fpr_se": se_fpr_max_tail,
             "fpr_ci_low": fpr_ci_low,
             "fpr_ci_high": fpr_ci_high,
-            "fpr_calibrated": fpr_calibrated,
+            "fpr_calibrated": edge_fpr_not_liberal,
             "expected": alpha,
             # Additional
             "mean_n_fp_pos": method_df["n_significant_pos"].mean(),
@@ -629,7 +745,7 @@ def save_per_method(df: pd.DataFrame, output_dir: Path) -> None:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="FPR calibration test for TFNBS methods",
+        description="Null FWER calibration test for TFNBS methods",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -700,7 +816,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Default configuration
         config = FPRConfig(
             methods=["tstat", "tfnbs", "ni_tfnbs", "fbc_tfnbs",
-                     "nbs_extent", "nbs_intensity", "cnbs",
+                     "nbs_extent_2.0", "nbs_intensity_2.0",
+                     "nbs_extent_3.0", "nbs_intensity_3.0", "cnbs",
                      "bonferroni", "bh_fdr"],
         )
 
@@ -758,25 +875,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     multi_n = len(sample_sizes) > 1
 
     print("\n" + "=" * 80)
-    print("FPR CALIBRATION SUMMARY")
+    print("FWER CALIBRATION SUMMARY")
     print("=" * 80)
     print(f"Alpha = {config.alpha}")
+    print(f"Two-sided per-tail threshold = {config.alpha / 2:.4f}")
     print(f"N edges = {summary_df['n_edges'].iloc[0]}")
     print(f"Sample sizes = {sample_sizes}")
     print()
 
     if multi_n:
-        header = (f"{'Method':<15} {'n_samples':>9} {'FWER':>8} "
-                  f"{'95% CI':>20} {'Edge FPR':>10} {'Status':>12}")
+        header = (f"{'Method':<15} {'n_samples':>9} {'Max-tail':>9} "
+                  f"{'95% CI':>20} {'2-sided':>9} {'Either@a':>9} {'Status':>12}")
     else:
-        header = (f"{'Method':<15} {'FWER':>8} "
-                  f"{'95% CI':>20} {'Edge FPR':>10} {'Status':>12}")
+        header = (f"{'Method':<15} {'Max-tail':>9} "
+                  f"{'95% CI':>20} {'2-sided':>9} {'Either@a':>9} {'Status':>12}")
     print(header)
     print("-" * 80)
 
     all_fwer_calibrated = True
     for _, row in summary_df.iterrows():
-        fwer_ok = row["fwer_calibrated"]
+        fwer_ok = row["directional_fwer_valid"] and row["fwer_two_sided_bonf_valid"]
         if not fwer_ok:
             all_fwer_calibrated = False
 
@@ -784,49 +902,59 @@ def main(argv: Optional[List[str]] = None) -> int:
         ci_str = f"[{row['fwer_ci_low']:.3f}, {row['fwer_ci_high']:.3f}]"
         if multi_n:
             print(f"  {row['method']:<13} {int(row['n_samples']):>9} "
-                  f"{row['fwer_pos']:>8.4f} {ci_str:>20} "
-                  f"{row['mean_fpr_pos']:>10.5f} {status:>12}")
+                  f"{row['fwer_max_tail']:>9.4f} {ci_str:>20} "
+                  f"{row['fwer_two_sided_bonf']:>9.4f} "
+                  f"{row['fwer_either_at_alpha']:>9.4f} {status:>12}")
         else:
-            print(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>20} "
-                  f"{row['mean_fpr_pos']:>10.5f} {status:>12}")
+            print(f"  {row['method']:<13} {row['fwer_max_tail']:>9.4f} {ci_str:>20} "
+                  f"{row['fwer_two_sided_bonf']:>9.4f} "
+                  f"{row['fwer_either_at_alpha']:>9.4f} {status:>12}")
 
     # Save text summary
     with open(config.output_dir / "fpr_summary.txt", "w") as f:
-        f.write("FPR Calibration Summary\n")
+        f.write("FWER Calibration Summary\n")
         f.write("=" * 80 + "\n\n")
         f.write("Parameters:\n")
         f.write(f"  n_null_runs = {config.n_null}\n")
         f.write(f"  n_permutations = {config.n_permutations}\n")
         f.write(f"  alpha = {config.alpha}\n")
+        f.write(f"  two_sided_alpha_per_tail = {config.alpha / 2:.6f}\n")
         f.write(f"  n_nodes = {config.n_nodes}\n")
         f.write(f"  n_edges = {summary_df['n_edges'].iloc[0]}\n")
         f.write(f"  sample_sizes = {sample_sizes}\n\n")
 
         f.write("Metrics Explained:\n")
-        f.write("  FWER: Family-Wise Error Rate = P(any FP | H0)\n")
-        f.write("        For FWER-controlling methods, this should = alpha\n")
-        f.write("  Edge FPR: Mean proportion of FP edges = E[n_FP / n_edges | H0]\n")
-        f.write("        For uncorrected tests, this should = alpha\n")
-        f.write("        For FWER methods, this is << alpha\n\n")
+        f.write("  Directional FWER: P(any FP in one tail | H0). This is the\n")
+        f.write("        primary ConnInfPy target because positive and negative tails\n")
+        f.write("        use separate max-statistic nulls.\n")
+        f.write("  Max-tail FWER: max(FWER positive, FWER negative); should be <= alpha.\n")
+        f.write("  2-sided Bonferroni FWER: P(any FP in either tail at alpha/2 per tail);\n")
+        f.write("        should be <= alpha for undirected/two-sided claims.\n")
+        f.write("  Either@alpha: P(any FP in either tail at unadjusted alpha); diagnostic\n")
+        f.write("        only, expected upper bound is <= 2*alpha, not alpha.\n")
+        f.write("  Edge FPR: Mean proportion of FP edges; descriptive and usually << alpha\n")
+        f.write("        for FWER-controlling methods.\n\n")
 
         if multi_n:
-            hdr = (f"{'Method':<15} {'n_samples':>9} {'FWER':>8} "
-                   f"{'95% CI':>22} {'Edge FPR':>12} {'Cal.':>10}\n")
+            hdr = (f"{'Method':<15} {'n_samples':>9} {'Max-tail':>9} "
+                   f"{'95% CI':>22} {'2-sided':>9} {'Either@a':>9} {'Cal.':>10}\n")
         else:
-            hdr = (f"{'Method':<15} {'FWER':>8} "
-                   f"{'95% CI':>22} {'Edge FPR':>12} {'Cal.':>10}\n")
+            hdr = (f"{'Method':<15} {'Max-tail':>9} "
+                   f"{'95% CI':>22} {'2-sided':>9} {'Either@a':>9} {'Cal.':>10}\n")
         f.write(hdr)
         f.write("-" * 80 + "\n")
         for _, row in summary_df.iterrows():
-            status = "OK" if row["fwer_calibrated"] else "FAIL"
+            status = "OK" if (row["directional_fwer_valid"] and row["fwer_two_sided_bonf_valid"]) else "FAIL"
             ci_str = f"[{row['fwer_ci_low']:.4f}, {row['fwer_ci_high']:.4f}]"
             if multi_n:
                 f.write(f"  {row['method']:<13} {int(row['n_samples']):>9} "
-                        f"{row['fwer_pos']:>8.4f} {ci_str:>22} "
-                        f"{row['mean_fpr_pos']:>12.6f} {status:>10}\n")
+                        f"{row['fwer_max_tail']:>9.4f} {ci_str:>22} "
+                        f"{row['fwer_two_sided_bonf']:>9.4f} "
+                        f"{row['fwer_either_at_alpha']:>9.4f} {status:>10}\n")
             else:
-                f.write(f"  {row['method']:<13} {row['fwer_pos']:>8.4f} {ci_str:>22} "
-                        f"{row['mean_fpr_pos']:>12.6f} {status:>10}\n")
+                f.write(f"  {row['method']:<13} {row['fwer_max_tail']:>9.4f} {ci_str:>22} "
+                        f"{row['fwer_two_sided_bonf']:>9.4f} "
+                        f"{row['fwer_either_at_alpha']:>9.4f} {status:>10}\n")
         f.write(f"\nOverall FWER: {'PASS' if all_fwer_calibrated else 'FAIL'}\n")
 
     print()
