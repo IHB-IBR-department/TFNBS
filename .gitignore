@@ -232,4 +232,7 @@ datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/
 
 # Sphinx local build
 docs/_build/
-examples/openclose_validation/OpenClose_Validation_Plan.md
+
+# Local validation plans (local results only, not committed)
+Abide_Validation_Plan.md
+OpenClose_Validation_Plan.md
