@@ -1,0 +1,676 @@
+edge_id,roi_i,roi_i_name,roi_i_network,roi_j,roi_j_name,roi_j_network,network_pair,t_signed,p_positive,p_negative,p_min,tail
+855,9,7Networks_LH_SomMot_1,Somatomotor,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.746223507506322,1.0,0.002,0.002,negative
+857,9,7Networks_LH_SomMot_1,Somatomotor,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-1.6911179058164625,1.0,0.002,0.002,negative
+858,9,7Networks_LH_SomMot_1,Somatomotor,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-3.7074918466691296,1.0,0.002,0.002,negative
+859,9,7Networks_LH_SomMot_1,Somatomotor,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-3.3347851232244827,1.0,0.002,0.002,negative
+903,9,7Networks_LH_SomMot_1,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-2.542640873348083,1.0,0.002,0.002,negative
+904,9,7Networks_LH_SomMot_1,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.7948762379061267,1.0,0.002,0.002,negative
+905,9,7Networks_LH_SomMot_1,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-0.2841868174837021,1.0,0.002,0.002,negative
+906,9,7Networks_LH_SomMot_1,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-1.4338827913514705,1.0,0.002,0.002,negative
+907,9,7Networks_LH_SomMot_1,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.313632786602963,1.0,0.002,0.002,negative
+908,9,7Networks_LH_SomMot_1,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-3.8396467718624154,1.0,0.002,0.002,negative
+909,9,7Networks_LH_SomMot_1,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-3.673629767467099,1.0,0.002,0.002,negative
+910,9,7Networks_LH_SomMot_1,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-3.3738342966061303,1.0,0.002,0.002,negative
+945,10,7Networks_LH_SomMot_2,Somatomotor,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-2.2094586456946885,1.0,0.002,0.002,negative
+946,10,7Networks_LH_SomMot_2,Somatomotor,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.0418202227579343,1.0,0.002,0.002,negative
+947,10,7Networks_LH_SomMot_2,Somatomotor,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.9008636877154714,1.0,0.002,0.002,negative
+948,10,7Networks_LH_SomMot_2,Somatomotor,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-2.1880301869766003,1.0,0.002,0.002,negative
+992,10,7Networks_LH_SomMot_2,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-3.2819283371257746,1.0,0.002,0.002,negative
+993,10,7Networks_LH_SomMot_2,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-5.028186760999911,1.0,0.002,0.002,negative
+994,10,7Networks_LH_SomMot_2,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-1.2156148661271553,1.0,0.002,0.002,negative
+995,10,7Networks_LH_SomMot_2,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-2.7040007101342742,1.0,0.002,0.002,negative
+996,10,7Networks_LH_SomMot_2,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.9588987747054127,1.0,0.002,0.002,negative
+997,10,7Networks_LH_SomMot_2,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-3.0815267829657627,1.0,0.002,0.002,negative
+998,10,7Networks_LH_SomMot_2,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-2.8168703271985156,1.0,0.002,0.002,negative
+999,10,7Networks_LH_SomMot_2,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-2.3462995307099943,1.0,0.002,0.002,negative
+1034,11,7Networks_LH_SomMot_3,Somatomotor,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.6584519323995455,1.0,0.002,0.002,negative
+1035,11,7Networks_LH_SomMot_3,Somatomotor,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-1.4001531665434201,1.0,0.002,0.002,negative
+1036,11,7Networks_LH_SomMot_3,Somatomotor,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-1.6261328926611833,1.0,0.002,0.002,negative
+1080,11,7Networks_LH_SomMot_3,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-1.391639271355765,1.0,0.002,0.002,negative
+1081,11,7Networks_LH_SomMot_3,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.8286557101678613,1.0,0.002,0.002,negative
+1082,11,7Networks_LH_SomMot_3,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-1.3860658411164617,1.0,0.002,0.002,negative
+1083,11,7Networks_LH_SomMot_3,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.089354458278555,1.0,0.002,0.002,negative
+1084,11,7Networks_LH_SomMot_3,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-3.5562982567455372,1.0,0.002,0.002,negative
+1085,11,7Networks_LH_SomMot_3,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-2.1369943495667036,1.0,0.002,0.002,negative
+1086,11,7Networks_LH_SomMot_3,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-1.3101827834817155,1.0,0.002,0.002,negative
+1087,11,7Networks_LH_SomMot_3,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-0.718922837253797,1.0,0.002,0.002,negative
+1122,12,7Networks_LH_SomMot_4,Somatomotor,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-4.684210061781671,1.0,0.002,0.002,negative
+1123,12,7Networks_LH_SomMot_4,Somatomotor,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-4.711865921770187,1.0,0.002,0.002,negative
+1167,12,7Networks_LH_SomMot_4,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-2.7079188811558517,1.0,0.002,0.002,negative
+1168,12,7Networks_LH_SomMot_4,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.235329658435486,1.0,0.002,0.002,negative
+1169,12,7Networks_LH_SomMot_4,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-2.989324306940878,1.0,0.002,0.002,negative
+1170,12,7Networks_LH_SomMot_4,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-1.6647287599061107,1.0,0.002,0.002,negative
+1171,12,7Networks_LH_SomMot_4,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.088867532697119,1.0,0.002,0.002,negative
+1172,12,7Networks_LH_SomMot_4,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-4.509772800162241,1.0,0.002,0.002,negative
+1173,12,7Networks_LH_SomMot_4,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-4.69399546940786,1.0,0.002,0.002,negative
+1174,12,7Networks_LH_SomMot_4,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-4.862835740889661,1.0,0.002,0.002,negative
+1209,13,7Networks_LH_SomMot_5,Somatomotor,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-6.360379792818376,1.0,0.002,0.002,negative
+1253,13,7Networks_LH_SomMot_5,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-3.4579859746946884,1.0,0.002,0.002,negative
+1254,13,7Networks_LH_SomMot_5,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.433102081513435,1.0,0.002,0.002,negative
+1255,13,7Networks_LH_SomMot_5,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-1.0210942354220323,1.0,0.002,0.002,negative
+1256,13,7Networks_LH_SomMot_5,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.289572754626595,1.0,0.002,0.002,negative
+1257,13,7Networks_LH_SomMot_5,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-3.839989849551392,1.0,0.002,0.002,negative
+1258,13,7Networks_LH_SomMot_5,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-4.217316735404881,1.0,0.002,0.002,negative
+1259,13,7Networks_LH_SomMot_5,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-4.83176688326366,1.0,0.002,0.002,negative
+1260,13,7Networks_LH_SomMot_5,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-5.970441795974619,1.0,0.002,0.002,negative
+1338,14,7Networks_LH_SomMot_6,Somatomotor,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Somatomotor,-3.0811052948292232,1.0,0.002,0.002,negative
+1339,14,7Networks_LH_SomMot_6,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-2.2621649805068906,1.0,0.002,0.002,negative
+1340,14,7Networks_LH_SomMot_6,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-1.0442949040611265,1.0,0.002,0.002,negative
+1341,14,7Networks_LH_SomMot_6,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.6700468711325267,1.0,0.002,0.002,negative
+1342,14,7Networks_LH_SomMot_6,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-4.5268660000449925,1.0,0.002,0.002,negative
+1343,14,7Networks_LH_SomMot_6,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-5.007070281807909,1.0,0.002,0.002,negative
+1344,14,7Networks_LH_SomMot_6,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-4.099142655963316,1.0,0.002,0.002,negative
+1345,14,7Networks_LH_SomMot_6,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-4.35422689960554,1.0,0.002,0.002,negative
+4089,58,7Networks_RH_SomMot_1,Somatomotor,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Somatomotor,-3.4278466854826237,1.0,0.002,0.002,negative
+4090,58,7Networks_RH_SomMot_1,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-0.1878372210491314,1.0,0.002,0.002,negative
+4091,58,7Networks_RH_SomMot_1,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-2.6841627006832227,1.0,0.002,0.002,negative
+4092,58,7Networks_RH_SomMot_1,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.8560894791385674,1.0,0.002,0.002,negative
+4093,58,7Networks_RH_SomMot_1,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-3.5643093404820836,1.0,0.002,0.002,negative
+4094,58,7Networks_RH_SomMot_1,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-2.973255342272007,1.0,0.002,0.002,negative
+4095,58,7Networks_RH_SomMot_1,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-2.3570904162816357,1.0,0.002,0.002,negative
+4130,59,7Networks_RH_SomMot_2,Somatomotor,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Somatomotor,-2.5082858075168386,1.0,0.002,0.002,negative
+4131,59,7Networks_RH_SomMot_2,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-3.214065962504724,1.0,0.002,0.002,negative
+4132,59,7Networks_RH_SomMot_2,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-2.6301533023588046,1.0,0.002,0.002,negative
+4133,59,7Networks_RH_SomMot_2,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-2.6289544669641436,1.0,0.002,0.002,negative
+4134,59,7Networks_RH_SomMot_2,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-2.4171098382923297,1.0,0.002,0.002,negative
+4135,59,7Networks_RH_SomMot_2,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-1.3030128930064842,1.0,0.002,0.002,negative
+4170,60,7Networks_RH_SomMot_3,Somatomotor,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Somatomotor,-2.8530645871766374,1.0,0.002,0.002,negative
+4171,60,7Networks_RH_SomMot_3,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-3.059083760239982,1.0,0.002,0.002,negative
+4172,60,7Networks_RH_SomMot_3,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-2.3498135230404493,1.0,0.002,0.002,negative
+4173,60,7Networks_RH_SomMot_3,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-1.3566199640955179,1.0,0.002,0.002,negative
+4174,60,7Networks_RH_SomMot_3,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-0.4688172249687774,1.0,0.002,0.002,negative
+4209,61,7Networks_RH_SomMot_4,Somatomotor,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Somatomotor,-1.591757703789212,1.0,0.002,0.002,negative
+4210,61,7Networks_RH_SomMot_4,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-3.2720322072228454,1.0,0.002,0.002,negative
+4211,61,7Networks_RH_SomMot_4,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-4.161466201994353,1.0,0.002,0.002,negative
+4212,61,7Networks_RH_SomMot_4,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-3.9830247282464626,1.0,0.002,0.002,negative
+4247,62,7Networks_RH_SomMot_5,Somatomotor,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Somatomotor,-2.7960549822040663,1.0,0.002,0.002,negative
+4248,62,7Networks_RH_SomMot_5,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-3.0473175705534383,1.0,0.002,0.002,negative
+4249,62,7Networks_RH_SomMot_5,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-4.386635478416908,1.0,0.002,0.002,negative
+4284,63,7Networks_RH_SomMot_6,Somatomotor,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Somatomotor,-3.167021061656596,1.0,0.002,0.002,negative
+4285,63,7Networks_RH_SomMot_6,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-4.684083523371764,1.0,0.002,0.002,negative
+4320,64,7Networks_RH_SomMot_7,Somatomotor,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Somatomotor,-3.2348824965495795,1.0,0.002,0.002,negative
+2997,37,7Networks_LH_Default_Temp_1,Default Mode,38,7Networks_LH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.3092986047864357,1.0,0.0030192717255460746,0.0030192717255460746,negative
+2999,37,7Networks_LH_Default_Temp_1,Default Mode,40,7Networks_LH_Default_Par_2,Default Mode,Default Mode—Default Mode,-2.1404256872733063,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3000,37,7Networks_LH_Default_Temp_1,Default Mode,41,7Networks_LH_Default_PFC_1,Default Mode,Default Mode—Default Mode,-2.8577062974717125,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3001,37,7Networks_LH_Default_Temp_1,Default Mode,42,7Networks_LH_Default_PFC_2,Default Mode,Default Mode—Default Mode,-1.8971749335174333,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3002,37,7Networks_LH_Default_Temp_1,Default Mode,43,7Networks_LH_Default_PFC_3,Default Mode,Default Mode—Default Mode,-2.083897961817389,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3003,37,7Networks_LH_Default_Temp_1,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-4.016346206366899,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3004,37,7Networks_LH_Default_Temp_1,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-3.914666146866626,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3005,37,7Networks_LH_Default_Temp_1,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-1.3490143944393385,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3006,37,7Networks_LH_Default_Temp_1,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-1.7490283204061847,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3007,37,7Networks_LH_Default_Temp_1,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.63149190675191,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3008,37,7Networks_LH_Default_Temp_1,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.6539327554882293,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3049,37,7Networks_LH_Default_Temp_1,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-1.87714240154695,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3051,37,7Networks_LH_Default_Temp_1,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-0.9798273342209383,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3052,37,7Networks_LH_Default_Temp_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-2.5318105905882273,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3053,37,7Networks_LH_Default_Temp_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-0.14784770801250058,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3054,37,7Networks_LH_Default_Temp_1,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-3.2552349539572654,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3055,37,7Networks_LH_Default_Temp_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-3.7368422325670956,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3056,37,7Networks_LH_Default_Temp_1,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.9073666571504456,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3057,37,7Networks_LH_Default_Temp_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.4750768368844727,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3058,37,7Networks_LH_Default_Temp_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.5913127298747248,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3060,38,7Networks_LH_Default_Temp_2,Default Mode,40,7Networks_LH_Default_Par_2,Default Mode,Default Mode—Default Mode,-1.5228880683478385,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3061,38,7Networks_LH_Default_Temp_2,Default Mode,41,7Networks_LH_Default_PFC_1,Default Mode,Default Mode—Default Mode,-1.9912236779880812,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3062,38,7Networks_LH_Default_Temp_2,Default Mode,42,7Networks_LH_Default_PFC_2,Default Mode,Default Mode—Default Mode,-1.8927694255444545,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3064,38,7Networks_LH_Default_Temp_2,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-2.406625132053302,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3065,38,7Networks_LH_Default_Temp_2,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-1.1097603184631522,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3066,38,7Networks_LH_Default_Temp_2,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-1.396415049475953,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3067,38,7Networks_LH_Default_Temp_2,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-1.1618913705495708,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3068,38,7Networks_LH_Default_Temp_2,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-2.0600575699396537,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3069,38,7Networks_LH_Default_Temp_2,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.6053280525178396,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3110,38,7Networks_LH_Default_Temp_2,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-1.647696410435787,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3111,38,7Networks_LH_Default_Temp_2,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-1.3971947438119185,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3112,38,7Networks_LH_Default_Temp_2,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-2.0815538770533646,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3113,38,7Networks_LH_Default_Temp_2,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-2.4532721705933667,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3114,38,7Networks_LH_Default_Temp_2,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-0.2846890514034502,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3115,38,7Networks_LH_Default_Temp_2,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-0.2651270337925718,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3116,38,7Networks_LH_Default_Temp_2,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-1.3779137276251452,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3118,38,7Networks_LH_Default_Temp_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.6812810289429656,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3119,38,7Networks_LH_Default_Temp_2,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.43898638872293383,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3121,39,7Networks_LH_Default_Par_1,Default Mode,41,7Networks_LH_Default_PFC_1,Default Mode,Default Mode—Default Mode,-0.39619937186971366,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3122,39,7Networks_LH_Default_Par_1,Default Mode,42,7Networks_LH_Default_PFC_2,Default Mode,Default Mode—Default Mode,-1.037978773205751,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3124,39,7Networks_LH_Default_Par_1,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-1.47197647466183,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3128,39,7Networks_LH_Default_Par_1,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.5507326882428587,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3170,39,7Networks_LH_Default_Par_1,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-1.7198501439364133,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3171,39,7Networks_LH_Default_Par_1,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-1.3296134170687277,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3172,39,7Networks_LH_Default_Par_1,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-3.1723169611497553,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3173,39,7Networks_LH_Default_Par_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.6194883239067772,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3174,39,7Networks_LH_Default_Par_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-1.3995174521009697,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3178,39,7Networks_LH_Default_Par_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.6903404917059438,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3180,40,7Networks_LH_Default_Par_2,Default Mode,41,7Networks_LH_Default_PFC_1,Default Mode,Default Mode—Default Mode,-1.368011233060565,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3181,40,7Networks_LH_Default_Par_2,Default Mode,42,7Networks_LH_Default_PFC_2,Default Mode,Default Mode—Default Mode,-2.4815174194585365,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3182,40,7Networks_LH_Default_Par_2,Default Mode,43,7Networks_LH_Default_PFC_3,Default Mode,Default Mode—Default Mode,-1.313015658178938,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3183,40,7Networks_LH_Default_Par_2,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-1.7931664353404944,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3184,40,7Networks_LH_Default_Par_2,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-1.6205643828528622,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3185,40,7Networks_LH_Default_Par_2,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-0.9639632767160703,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3187,40,7Networks_LH_Default_Par_2,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.46728161200549245,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3228,40,7Networks_LH_Default_Par_2,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-0.28336456916688657,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3229,40,7Networks_LH_Default_Par_2,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-5.254998719226081,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3230,40,7Networks_LH_Default_Par_2,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.584016941862467,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3231,40,7Networks_LH_Default_Par_2,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-3.1373700650100886,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3232,40,7Networks_LH_Default_Par_2,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.7909686852672113,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3233,40,7Networks_LH_Default_Par_2,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-2.436900248478925,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3234,40,7Networks_LH_Default_Par_2,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-2.949307654414571,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3235,40,7Networks_LH_Default_Par_2,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-4.169785177189181,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3236,40,7Networks_LH_Default_Par_2,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.5223917600647451,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3237,40,7Networks_LH_Default_Par_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.0160775990914124,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3238,40,7Networks_LH_Default_Par_2,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-2.496812419886815,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3240,41,7Networks_LH_Default_PFC_1,Default Mode,43,7Networks_LH_Default_PFC_3,Default Mode,Default Mode—Default Mode,-0.3387566505934684,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3241,41,7Networks_LH_Default_PFC_1,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-0.8822431840765776,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3242,41,7Networks_LH_Default_PFC_1,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-1.5567149505343332,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3243,41,7Networks_LH_Default_PFC_1,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-0.9548109664070549,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3245,41,7Networks_LH_Default_PFC_1,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.6419706000233728,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3246,41,7Networks_LH_Default_PFC_1,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.8206655253551322,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3286,41,7Networks_LH_Default_PFC_1,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-3.579421194210912,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3287,41,7Networks_LH_Default_PFC_1,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-2.7434469443559744,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3288,41,7Networks_LH_Default_PFC_1,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.4253437315011523,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3289,41,7Networks_LH_Default_PFC_1,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-3.4254516093164478,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3290,41,7Networks_LH_Default_PFC_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-3.5137208023864686,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3291,41,7Networks_LH_Default_PFC_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-5.44000373294574,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3292,41,7Networks_LH_Default_PFC_1,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-2.8759598354335214,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3293,41,7Networks_LH_Default_PFC_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-6.658867431966938,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3294,41,7Networks_LH_Default_PFC_1,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.07991872194464132,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3295,41,7Networks_LH_Default_PFC_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-2.291707817292905,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3296,41,7Networks_LH_Default_PFC_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-2.4731282658845655,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3299,42,7Networks_LH_Default_PFC_2,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-0.9358396037294869,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3300,42,7Networks_LH_Default_PFC_2,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-2.6160275367035317,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3343,42,7Networks_LH_Default_PFC_2,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-0.9693376930148953,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3344,42,7Networks_LH_Default_PFC_2,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-1.8783270272927082,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3345,42,7Networks_LH_Default_PFC_2,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-0.025157833556255633,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3346,42,7Networks_LH_Default_PFC_2,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-1.5179150756388802,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3347,42,7Networks_LH_Default_PFC_2,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.2838662978086244,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3348,42,7Networks_LH_Default_PFC_2,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-2.888003248978746,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3350,42,7Networks_LH_Default_PFC_2,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-2.9376395107942805,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3351,42,7Networks_LH_Default_PFC_2,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.10836135782578415,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3354,43,7Networks_LH_Default_PFC_3,Default Mode,44,7Networks_LH_Default_PFC_4,Default Mode,Default Mode—Default Mode,-1.0423461168826167,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3355,43,7Networks_LH_Default_PFC_3,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-2.1572947095524038,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3356,43,7Networks_LH_Default_PFC_3,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-0.11906101350944541,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3357,43,7Networks_LH_Default_PFC_3,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-3.0281834952280646,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3358,43,7Networks_LH_Default_PFC_3,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-2.429489497175651,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3359,43,7Networks_LH_Default_PFC_3,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-3.891990466052903,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3400,43,7Networks_LH_Default_PFC_3,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-2.690117747210925,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3401,43,7Networks_LH_Default_PFC_3,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.3380670524358615,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3402,43,7Networks_LH_Default_PFC_3,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-0.17178216545864058,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3403,43,7Networks_LH_Default_PFC_3,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.918906883251877,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3405,43,7Networks_LH_Default_PFC_3,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-6.273318251056987,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3406,43,7Networks_LH_Default_PFC_3,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-4.514728190879202,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3407,43,7Networks_LH_Default_PFC_3,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-2.36623505732533,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3408,43,7Networks_LH_Default_PFC_3,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-2.125066601939362,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3409,43,7Networks_LH_Default_PFC_3,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-5.741742069692386,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3410,44,7Networks_LH_Default_PFC_4,Default Mode,45,7Networks_LH_Default_PFC_5,Default Mode,Default Mode—Default Mode,-1.409775273855042,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3411,44,7Networks_LH_Default_PFC_4,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-0.9910550640202815,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3412,44,7Networks_LH_Default_PFC_4,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-0.46236854093009094,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3414,44,7Networks_LH_Default_PFC_4,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.9298342152744133,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3454,44,7Networks_LH_Default_PFC_4,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-2.4196708895411883,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3455,44,7Networks_LH_Default_PFC_4,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-2.230052120879757,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3456,44,7Networks_LH_Default_PFC_4,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-3.5982039623244635,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3457,44,7Networks_LH_Default_PFC_4,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-3.321354069537974,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3458,44,7Networks_LH_Default_PFC_4,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.8008755380325026,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3459,44,7Networks_LH_Default_PFC_4,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-1.1593869737243359,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3460,44,7Networks_LH_Default_PFC_4,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-1.4475691827928494,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3461,44,7Networks_LH_Default_PFC_4,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-3.662456460222629,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3462,44,7Networks_LH_Default_PFC_4,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-1.7887282692225472,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3464,44,7Networks_LH_Default_PFC_4,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.7229375180143867,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3465,45,7Networks_LH_Default_PFC_5,Default Mode,46,7Networks_LH_Default_PFC_6,Default Mode,Default Mode—Default Mode,-0.2666323178828614,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3466,45,7Networks_LH_Default_PFC_5,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-0.3126878645380809,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3467,45,7Networks_LH_Default_PFC_5,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.5986265473133365,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3468,45,7Networks_LH_Default_PFC_5,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.8150303594621735,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3509,45,7Networks_LH_Default_PFC_5,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-3.5878599793891794,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3510,45,7Networks_LH_Default_PFC_5,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.335021866164357,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3511,45,7Networks_LH_Default_PFC_5,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-0.6950017380524406,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3512,45,7Networks_LH_Default_PFC_5,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.4462934396587663,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3513,45,7Networks_LH_Default_PFC_5,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-0.4308451115566025,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3514,45,7Networks_LH_Default_PFC_5,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-2.778753132308619,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3515,45,7Networks_LH_Default_PFC_5,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-4.599809568954737,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3517,45,7Networks_LH_Default_PFC_5,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.7766712308580994,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3518,45,7Networks_LH_Default_PFC_5,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-2.4993970256501936,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3519,46,7Networks_LH_Default_PFC_6,Default Mode,47,7Networks_LH_Default_PFC_7,Default Mode,Default Mode—Default Mode,-0.08335015338268517,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3561,46,7Networks_LH_Default_PFC_6,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-0.1987694737065006,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3562,46,7Networks_LH_Default_PFC_6,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-3.665417621591323,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3563,46,7Networks_LH_Default_PFC_6,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.2662256322315697,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3564,46,7Networks_LH_Default_PFC_6,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-1.7637814735687751,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3565,46,7Networks_LH_Default_PFC_6,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.1202105516583523,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3566,46,7Networks_LH_Default_PFC_6,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-1.8658306449833337,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3567,46,7Networks_LH_Default_PFC_6,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-1.0894698139813337,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3568,46,7Networks_LH_Default_PFC_6,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-2.2741321406389567,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3569,46,7Networks_LH_Default_PFC_6,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-1.864007062990829,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3572,47,7Networks_LH_Default_PFC_7,Default Mode,48,7Networks_LH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.238002517675055,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3573,47,7Networks_LH_Default_PFC_7,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.0430147327495543,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3614,47,7Networks_LH_Default_PFC_7,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-2.8959166293741827,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3615,47,7Networks_LH_Default_PFC_7,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.444549978265025,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3616,47,7Networks_LH_Default_PFC_7,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-1.7027896239973284,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3619,47,7Networks_LH_Default_PFC_7,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-2.640984907436003,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3620,47,7Networks_LH_Default_PFC_7,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-1.6084851678179128,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3621,47,7Networks_LH_Default_PFC_7,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-2.022775959605264,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3622,47,7Networks_LH_Default_PFC_7,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.531525572672394,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3623,47,7Networks_LH_Default_PFC_7,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-2.0692780038692944,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3624,48,7Networks_LH_Default_pCunPCC_1,Default Mode,49,7Networks_LH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.9264201642430958,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3664,48,7Networks_LH_Default_pCunPCC_1,Default Mode,89,7Networks_RH_Default_Par_1,Default Mode,Default Mode—Default Mode,-0.26070750861132314,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3665,48,7Networks_LH_Default_pCunPCC_1,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-1.6560637258751687,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3666,48,7Networks_LH_Default_pCunPCC_1,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-2.851879046985797,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3667,48,7Networks_LH_Default_pCunPCC_1,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-2.217415225535027,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3668,48,7Networks_LH_Default_pCunPCC_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.6457620871870386,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3669,48,7Networks_LH_Default_pCunPCC_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-0.11834874099631634,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3670,48,7Networks_LH_Default_pCunPCC_1,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-3.978775842236138,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3671,48,7Networks_LH_Default_pCunPCC_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-2.7426639268904127,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3672,48,7Networks_LH_Default_pCunPCC_1,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-2.156310672197652,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3673,48,7Networks_LH_Default_pCunPCC_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-3.2783962816432424,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3674,48,7Networks_LH_Default_pCunPCC_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-4.093659827166814,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3715,49,7Networks_LH_Default_pCunPCC_2,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-2.5486164795582202,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3716,49,7Networks_LH_Default_pCunPCC_2,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-1.7683640804423084,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3717,49,7Networks_LH_Default_pCunPCC_2,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-0.6330054116415842,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3718,49,7Networks_LH_Default_pCunPCC_2,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-2.2023437576355134,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3719,49,7Networks_LH_Default_pCunPCC_2,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-0.07893542021466651,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3720,49,7Networks_LH_Default_pCunPCC_2,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-5.276216918367068,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3721,49,7Networks_LH_Default_pCunPCC_2,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-3.510686736635476,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3722,49,7Networks_LH_Default_pCunPCC_2,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-1.4524825200552378,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3723,49,7Networks_LH_Default_pCunPCC_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.167496769969155,1.0,0.0030192717255460746,0.0030192717255460746,negative
+3724,49,7Networks_LH_Default_pCunPCC_2,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-6.806582508970434,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4895,89,7Networks_RH_Default_Par_1,Default Mode,90,7Networks_RH_Default_Temp_1,Default Mode,Default Mode—Default Mode,-0.021674469958575252,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4897,89,7Networks_RH_Default_Par_1,Default Mode,92,7Networks_RH_Default_Temp_3,Default Mode,Default Mode—Default Mode,-0.057746049996971374,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4898,89,7Networks_RH_Default_Par_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-0.12509790214634883,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4899,89,7Networks_RH_Default_Par_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-1.1985354138598632,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4903,89,7Networks_RH_Default_Par_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.1899168099629081,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4905,90,7Networks_RH_Default_Temp_1,Default Mode,91,7Networks_RH_Default_Temp_2,Default Mode,Default Mode—Default Mode,-0.27997527598708016,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4907,90,7Networks_RH_Default_Temp_1,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.2752860837077227,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4909,90,7Networks_RH_Default_Temp_1,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-1.317210740712149,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4910,90,7Networks_RH_Default_Temp_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-0.9488793351648899,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4911,90,7Networks_RH_Default_Temp_1,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.7875911309722832,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4912,90,7Networks_RH_Default_Temp_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.5142085804564834,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4915,91,7Networks_RH_Default_Temp_2,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.5543702342951453,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4917,91,7Networks_RH_Default_Temp_2,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-1.0043240470453076,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4918,91,7Networks_RH_Default_Temp_2,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-0.7380449790793063,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4919,91,7Networks_RH_Default_Temp_2,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.0704200475079821,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4920,91,7Networks_RH_Default_Temp_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.6719109300442296,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4922,92,7Networks_RH_Default_Temp_3,Default Mode,93,7Networks_RH_Default_PFCv_1,Default Mode,Default Mode—Default Mode,-1.7275621768342946,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4926,92,7Networks_RH_Default_Temp_3,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-0.04528530123396727,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4927,92,7Networks_RH_Default_Temp_3,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.9221118984163832,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4929,93,7Networks_RH_Default_PFCv_1,Default Mode,94,7Networks_RH_Default_PFCv_2,Default Mode,Default Mode—Default Mode,-1.980119718411183,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4930,93,7Networks_RH_Default_PFCv_1,Default Mode,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,Default Mode—Default Mode,-1.2043867966101163,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4931,93,7Networks_RH_Default_PFCv_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-1.3706917949583326,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4933,93,7Networks_RH_Default_PFCv_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.3372086982028464,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4934,93,7Networks_RH_Default_PFCv_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.6672127772088321,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4938,94,7Networks_RH_Default_PFCv_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-0.058297676119881105,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4940,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,Default Mode—Default Mode,-2.5751817280004365,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4941,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,Default Mode—Default Mode,-1.2334229989612007,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4942,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-2.6339134594833533,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4943,95,7Networks_RH_Default_PFCdPFCm_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-4.715766368316432,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4945,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.6622547733915698,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4946,96,7Networks_RH_Default_PFCdPFCm_2,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.41739524234374586,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4947,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,98,7Networks_RH_Default_pCunPCC_1,Default Mode,Default Mode—Default Mode,-1.706434191761488,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4948,97,7Networks_RH_Default_PFCdPFCm_3,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-0.1523044213735347,1.0,0.0030192717255460746,0.0030192717255460746,negative
+4949,98,7Networks_RH_Default_pCunPCC_1,Default Mode,99,7Networks_RH_Default_pCunPCC_2,Default Mode,Default Mode—Default Mode,-1.414484688374184,1.0,0.0030192717255460746,0.0030192717255460746,negative
+2024,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.379989021589289,1.0,0.007552831968547981,0.007552831968547981,negative
+2025,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,Ventral Attention—Ventral Attention,-2.500282561534339,1.0,0.007552831968547981,0.007552831968547981,negative
+2028,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-0.10455626144818432,1.0,0.007552831968547981,0.007552831968547981,negative
+2073,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-3.3450291613359564,1.0,0.007552831968547981,0.007552831968547981,negative
+2074,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.372899235146879,1.0,0.007552831968547981,0.007552831968547981,negative
+2075,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.8868133078643932,1.0,0.007552831968547981,0.007552831968547981,negative
+2076,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.16313093696307598,1.0,0.007552831968547981,0.007552831968547981,negative
+2077,23,7Networks_LH_SalVentAttn_ParOper_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.0193041649580443,1.0,0.007552831968547981,0.007552831968547981,negative
+2100,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.6394349150119398,1.0,0.007552831968547981,0.007552831968547981,negative
+2102,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,27,7Networks_LH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.8206822446166888,1.0,0.007552831968547981,0.007552831968547981,negative
+2103,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.1564297425883892,1.0,0.007552831968547981,0.007552831968547981,negative
+2148,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-3.963633041986172,1.0,0.007552831968547981,0.007552831968547981,negative
+2149,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-2.0959164079478247,1.0,0.007552831968547981,0.007552831968547981,negative
+2150,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.774576656639955,1.0,0.007552831968547981,0.007552831968547981,negative
+2151,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.5099075824176134,1.0,0.007552831968547981,0.007552831968547981,negative
+2152,24,7Networks_LH_SalVentAttn_FrOperIns_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-2.322380304464547,1.0,0.007552831968547981,0.007552831968547981,negative
+2176,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,27,7Networks_LH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.547018157918178,1.0,0.007552831968547981,0.007552831968547981,negative
+2177,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-0.3600509301523069,1.0,0.007552831968547981,0.007552831968547981,negative
+2222,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-3.0465004711378274,1.0,0.007552831968547981,0.007552831968547981,negative
+2223,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.9448882153604068,1.0,0.007552831968547981,0.007552831968547981,negative
+2224,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.7133615157588635,1.0,0.007552831968547981,0.007552831968547981,negative
+2225,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.5077929549412201,1.0,0.007552831968547981,0.007552831968547981,negative
+2226,25,7Networks_LH_SalVentAttn_FrOperIns_2,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-2.917810536884096,1.0,0.007552831968547981,0.007552831968547981,negative
+2295,26,7Networks_LH_SalVentAttn_PFCl_1,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.3624322060964291,1.0,0.007552831968547981,0.007552831968547981,negative
+2296,26,7Networks_LH_SalVentAttn_PFCl_1,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-0.01281975674118021,1.0,0.007552831968547981,0.007552831968547981,negative
+2369,27,7Networks_LH_SalVentAttn_Med_1,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.5966920495940005,1.0,0.007552831968547981,0.007552831968547981,negative
+2370,27,7Networks_LH_SalVentAttn_Med_1,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.20622492832500694,1.0,0.007552831968547981,0.007552831968547981,negative
+2371,27,7Networks_LH_SalVentAttn_Med_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-0.4589620294420824,1.0,0.007552831968547981,0.007552831968547981,negative
+2438,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-3.919375417204975,1.0,0.007552831968547981,0.007552831968547981,negative
+2439,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-0.8182240061550999,1.0,0.007552831968547981,0.007552831968547981,negative
+2441,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.26899993526104976,1.0,0.007552831968547981,0.007552831968547981,negative
+2442,28,7Networks_LH_SalVentAttn_Med_2,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.3457639773263728,1.0,0.007552831968547981,0.007552831968547981,negative
+2508,29,7Networks_LH_SalVentAttn_Med_3,Ventral Attention,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.081853473396277,1.0,0.007552831968547981,0.007552831968547981,negative
+4599,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,Ventral Attention—Ventral Attention,-4.985787840981619,1.0,0.007552831968547981,0.007552831968547981,negative
+4600,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.9936138266378616,1.0,0.007552831968547981,0.007552831968547981,negative
+4601,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-2.605415492675309,1.0,0.007552831968547981,0.007552831968547981,negative
+4602,73,7Networks_RH_SalVentAttn_TempOccPar_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-3.015772590043289,1.0,0.007552831968547981,0.007552831968547981,negative
+4625,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.218195833021218,1.0,0.007552831968547981,0.007552831968547981,negative
+4626,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-1.2743134247433914,1.0,0.007552831968547981,0.007552831968547981,negative
+4627,74,7Networks_RH_SalVentAttn_TempOccPar_2,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.3386415397842355,1.0,0.007552831968547981,0.007552831968547981,negative
+4650,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,Ventral Attention—Ventral Attention,-0.4399647646050304,1.0,0.007552831968547981,0.007552831968547981,negative
+4651,75,7Networks_RH_SalVentAttn_FrOperIns_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-2.402594911194918,1.0,0.007552831968547981,0.007552831968547981,negative
+4674,76,7Networks_RH_SalVentAttn_Med_1,Ventral Attention,77,7Networks_RH_SalVentAttn_Med_2,Ventral Attention,Ventral Attention—Ventral Attention,-1.0079139538931907,1.0,0.007552831968547981,0.007552831968547981,negative
+9,0,7Networks_LH_Vis_1,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-0.6938564478746732,1.0,0.017011061419445063,0.017011061419445063,negative
+106,1,7Networks_LH_Vis_2,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-0.4256195704233069,1.0,0.017011061419445063,0.017011061419445063,negative
+111,1,7Networks_LH_Vis_2,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-0.5244211431007993,1.0,0.017011061419445063,0.017011061419445063,negative
+155,1,7Networks_LH_Vis_2,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-0.8623027054337266,1.0,0.017011061419445063,0.017011061419445063,negative
+160,1,7Networks_LH_Vis_2,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-0.8485187680127996,1.0,0.017011061419445063,0.017011061419445063,negative
+161,1,7Networks_LH_Vis_2,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-0.07357105291451975,1.0,0.017011061419445063,0.017011061419445063,negative
+162,1,7Networks_LH_Vis_2,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-0.7897926573949658,1.0,0.017011061419445063,0.017011061419445063,negative
+203,2,7Networks_LH_Vis_3,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-3.4450247254783672,1.0,0.017011061419445063,0.017011061419445063,negative
+204,2,7Networks_LH_Vis_3,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-3.083537403951059,1.0,0.017011061419445063,0.017011061419445063,negative
+205,2,7Networks_LH_Vis_3,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.1656058630683472,1.0,0.017011061419445063,0.017011061419445063,negative
+206,2,7Networks_LH_Vis_3,Visual,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.6202379511026529,1.0,0.017011061419445063,0.017011061419445063,negative
+207,2,7Networks_LH_Vis_3,Visual,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Visual,-2.1535340330409265,1.0,0.017011061419445063,0.017011061419445063,negative
+208,2,7Networks_LH_Vis_3,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.7161071089048645,1.0,0.017011061419445063,0.017011061419445063,negative
+252,2,7Networks_LH_Vis_3,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-3.3090559573844347,1.0,0.017011061419445063,0.017011061419445063,negative
+253,2,7Networks_LH_Vis_3,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-2.260666471355703,1.0,0.017011061419445063,0.017011061419445063,negative
+254,2,7Networks_LH_Vis_3,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.4820998598715678,1.0,0.017011061419445063,0.017011061419445063,negative
+255,2,7Networks_LH_Vis_3,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.5630573284787106,1.0,0.017011061419445063,0.017011061419445063,negative
+256,2,7Networks_LH_Vis_3,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.4102040582001724,1.0,0.017011061419445063,0.017011061419445063,negative
+257,2,7Networks_LH_Vis_3,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-2.1427132936509072,1.0,0.017011061419445063,0.017011061419445063,negative
+258,2,7Networks_LH_Vis_3,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-2.1341157264709407,1.0,0.017011061419445063,0.017011061419445063,negative
+259,2,7Networks_LH_Vis_3,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-1.8569610764992959,1.0,0.017011061419445063,0.017011061419445063,negative
+299,3,7Networks_LH_Vis_4,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-1.3319848388120896,1.0,0.017011061419445063,0.017011061419445063,negative
+300,3,7Networks_LH_Vis_4,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-0.5349700790596691,1.0,0.017011061419445063,0.017011061419445063,negative
+301,3,7Networks_LH_Vis_4,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-0.9218328961968009,1.0,0.017011061419445063,0.017011061419445063,negative
+304,3,7Networks_LH_Vis_4,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.1191251472733803,1.0,0.017011061419445063,0.017011061419445063,negative
+348,3,7Networks_LH_Vis_4,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-1.051530332167307,1.0,0.017011061419445063,0.017011061419445063,negative
+350,3,7Networks_LH_Vis_4,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-0.32906701299186125,1.0,0.017011061419445063,0.017011061419445063,negative
+353,3,7Networks_LH_Vis_4,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-0.403077513574158,1.0,0.017011061419445063,0.017011061419445063,negative
+354,3,7Networks_LH_Vis_4,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-0.4518051619771272,1.0,0.017011061419445063,0.017011061419445063,negative
+355,3,7Networks_LH_Vis_4,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-1.4170500554383012,1.0,0.017011061419445063,0.017011061419445063,negative
+488,5,7Networks_LH_Vis_6,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-1.8533908831714168,1.0,0.017011061419445063,0.017011061419445063,negative
+489,5,7Networks_LH_Vis_6,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.9538080870399614,1.0,0.017011061419445063,0.017011061419445063,negative
+490,5,7Networks_LH_Vis_6,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-0.9898031995994112,1.0,0.017011061419445063,0.017011061419445063,negative
+492,5,7Networks_LH_Vis_6,Visual,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Visual,-1.6457263807519331,1.0,0.017011061419445063,0.017011061419445063,negative
+493,5,7Networks_LH_Vis_6,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-0.3331451993659729,1.0,0.017011061419445063,0.017011061419445063,negative
+537,5,7Networks_LH_Vis_6,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.2826571689042554,1.0,0.017011061419445063,0.017011061419445063,negative
+538,5,7Networks_LH_Vis_6,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.6911072081815013,1.0,0.017011061419445063,0.017011061419445063,negative
+539,5,7Networks_LH_Vis_6,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-0.5495049963702889,1.0,0.017011061419445063,0.017011061419445063,negative
+542,5,7Networks_LH_Vis_6,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.3667671399094954,1.0,0.017011061419445063,0.017011061419445063,negative
+543,5,7Networks_LH_Vis_6,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-1.329203044643766,1.0,0.017011061419445063,0.017011061419445063,negative
+544,5,7Networks_LH_Vis_6,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-1.3553462679904342,1.0,0.017011061419445063,0.017011061419445063,negative
+581,6,7Networks_LH_Vis_7,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.5612289129895185,1.0,0.017011061419445063,0.017011061419445063,negative
+582,6,7Networks_LH_Vis_7,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-2.0993903816717365,1.0,0.017011061419445063,0.017011061419445063,negative
+583,6,7Networks_LH_Vis_7,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.476507955158255,1.0,0.017011061419445063,0.017011061419445063,negative
+584,6,7Networks_LH_Vis_7,Visual,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Visual,-2.436540239056683,1.0,0.017011061419445063,0.017011061419445063,negative
+585,6,7Networks_LH_Vis_7,Visual,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Visual,-2.7134685947904233,1.0,0.017011061419445063,0.017011061419445063,negative
+586,6,7Networks_LH_Vis_7,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.444429484246752,1.0,0.017011061419445063,0.017011061419445063,negative
+630,6,7Networks_LH_Vis_7,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.8718880828065685,1.0,0.017011061419445063,0.017011061419445063,negative
+631,6,7Networks_LH_Vis_7,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-2.126280389229209,1.0,0.017011061419445063,0.017011061419445063,negative
+632,6,7Networks_LH_Vis_7,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.2836031614505243,1.0,0.017011061419445063,0.017011061419445063,negative
+633,6,7Networks_LH_Vis_7,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-2.009809578402818,1.0,0.017011061419445063,0.017011061419445063,negative
+634,6,7Networks_LH_Vis_7,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-1.5948676679811977,1.0,0.017011061419445063,0.017011061419445063,negative
+635,6,7Networks_LH_Vis_7,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-3.1099437593969577,1.0,0.017011061419445063,0.017011061419445063,negative
+636,6,7Networks_LH_Vis_7,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-3.3595566529506566,1.0,0.017011061419445063,0.017011061419445063,negative
+637,6,7Networks_LH_Vis_7,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-1.9500424658201014,1.0,0.017011061419445063,0.017011061419445063,negative
+673,7,7Networks_LH_Vis_8,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.3367729774604076,1.0,0.017011061419445063,0.017011061419445063,negative
+674,7,7Networks_LH_Vis_8,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.2250246819073292,1.0,0.017011061419445063,0.017011061419445063,negative
+675,7,7Networks_LH_Vis_8,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.4036376748264072,1.0,0.017011061419445063,0.017011061419445063,negative
+676,7,7Networks_LH_Vis_8,Visual,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.26617653229941857,1.0,0.017011061419445063,0.017011061419445063,negative
+677,7,7Networks_LH_Vis_8,Visual,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Visual,-2.0847604160889817,1.0,0.017011061419445063,0.017011061419445063,negative
+678,7,7Networks_LH_Vis_8,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.3079062864015607,1.0,0.017011061419445063,0.017011061419445063,negative
+722,7,7Networks_LH_Vis_8,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.7809742650370963,1.0,0.017011061419445063,0.017011061419445063,negative
+723,7,7Networks_LH_Vis_8,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.3997537111999807,1.0,0.017011061419445063,0.017011061419445063,negative
+724,7,7Networks_LH_Vis_8,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.0843390020256949,1.0,0.017011061419445063,0.017011061419445063,negative
+725,7,7Networks_LH_Vis_8,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.40365590651039085,1.0,0.017011061419445063,0.017011061419445063,negative
+726,7,7Networks_LH_Vis_8,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.17584819152529677,1.0,0.017011061419445063,0.017011061419445063,negative
+727,7,7Networks_LH_Vis_8,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.9537113686993135,1.0,0.017011061419445063,0.017011061419445063,negative
+728,7,7Networks_LH_Vis_8,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-1.7060656301199681,1.0,0.017011061419445063,0.017011061419445063,negative
+729,7,7Networks_LH_Vis_8,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-2.1819352244481744,1.0,0.017011061419445063,0.017011061419445063,negative
+764,8,7Networks_LH_Vis_9,Visual,9,7Networks_LH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.4856759773339463,1.0,0.017011061419445063,0.017011061419445063,negative
+765,8,7Networks_LH_Vis_9,Visual,10,7Networks_LH_SomMot_2,Somatomotor,Somatomotor—Visual,-2.5741393063477553,1.0,0.017011061419445063,0.017011061419445063,negative
+766,8,7Networks_LH_Vis_9,Visual,11,7Networks_LH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.406937015565217,1.0,0.017011061419445063,0.017011061419445063,negative
+767,8,7Networks_LH_Vis_9,Visual,12,7Networks_LH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.6789336912568373,1.0,0.017011061419445063,0.017011061419445063,negative
+768,8,7Networks_LH_Vis_9,Visual,13,7Networks_LH_SomMot_5,Somatomotor,Somatomotor—Visual,-2.829573182766884,1.0,0.017011061419445063,0.017011061419445063,negative
+769,8,7Networks_LH_Vis_9,Visual,14,7Networks_LH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.8474313618994633,1.0,0.017011061419445063,0.017011061419445063,negative
+813,8,7Networks_LH_Vis_9,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-3.3154204361200383,1.0,0.017011061419445063,0.017011061419445063,negative
+814,8,7Networks_LH_Vis_9,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-2.46047896296932,1.0,0.017011061419445063,0.017011061419445063,negative
+815,8,7Networks_LH_Vis_9,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.1247123273409234,1.0,0.017011061419445063,0.017011061419445063,negative
+816,8,7Networks_LH_Vis_9,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.988750715226495,1.0,0.017011061419445063,0.017011061419445063,negative
+817,8,7Networks_LH_Vis_9,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-1.1937624623872103,1.0,0.017011061419445063,0.017011061419445063,negative
+818,8,7Networks_LH_Vis_9,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-3.1245418371028646,1.0,0.017011061419445063,0.017011061419445063,negative
+819,8,7Networks_LH_Vis_9,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-2.7228480222461386,1.0,0.017011061419445063,0.017011061419445063,negative
+820,8,7Networks_LH_Vis_9,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-2.385250908253842,1.0,0.017011061419445063,0.017011061419445063,negative
+895,9,7Networks_LH_SomMot_1,Somatomotor,50,7Networks_RH_Vis_1,Visual,Somatomotor—Visual,-1.753726818856342,1.0,0.017011061419445063,0.017011061419445063,negative
+896,9,7Networks_LH_SomMot_1,Somatomotor,51,7Networks_RH_Vis_2,Visual,Somatomotor—Visual,-1.5932500913687881,1.0,0.017011061419445063,0.017011061419445063,negative
+897,9,7Networks_LH_SomMot_1,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-2.1463188551505286,1.0,0.017011061419445063,0.017011061419445063,negative
+900,9,7Networks_LH_SomMot_1,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-3.859388532886226,1.0,0.017011061419445063,0.017011061419445063,negative
+901,9,7Networks_LH_SomMot_1,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-2.1380872703124307,1.0,0.017011061419445063,0.017011061419445063,negative
+902,9,7Networks_LH_SomMot_1,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-1.9405181518173433,1.0,0.017011061419445063,0.017011061419445063,negative
+984,10,7Networks_LH_SomMot_2,Somatomotor,50,7Networks_RH_Vis_1,Visual,Somatomotor—Visual,-1.5136439248271185,1.0,0.017011061419445063,0.017011061419445063,negative
+985,10,7Networks_LH_SomMot_2,Somatomotor,51,7Networks_RH_Vis_2,Visual,Somatomotor—Visual,-1.0153995784286238,1.0,0.017011061419445063,0.017011061419445063,negative
+986,10,7Networks_LH_SomMot_2,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-1.0762525744537663,1.0,0.017011061419445063,0.017011061419445063,negative
+989,10,7Networks_LH_SomMot_2,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-2.9724853984195554,1.0,0.017011061419445063,0.017011061419445063,negative
+990,10,7Networks_LH_SomMot_2,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-1.6872540654236214,1.0,0.017011061419445063,0.017011061419445063,negative
+991,10,7Networks_LH_SomMot_2,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-1.1711101774572534,1.0,0.017011061419445063,0.017011061419445063,negative
+1072,11,7Networks_LH_SomMot_3,Somatomotor,50,7Networks_RH_Vis_1,Visual,Somatomotor—Visual,-1.0134303218495349,1.0,0.017011061419445063,0.017011061419445063,negative
+1073,11,7Networks_LH_SomMot_3,Somatomotor,51,7Networks_RH_Vis_2,Visual,Somatomotor—Visual,-0.6570256054934555,1.0,0.017011061419445063,0.017011061419445063,negative
+1074,11,7Networks_LH_SomMot_3,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-1.5975160522298815,1.0,0.017011061419445063,0.017011061419445063,negative
+1077,11,7Networks_LH_SomMot_3,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-2.560262122543886,1.0,0.017011061419445063,0.017011061419445063,negative
+1078,11,7Networks_LH_SomMot_3,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-1.7733153665835226,1.0,0.017011061419445063,0.017011061419445063,negative
+1079,11,7Networks_LH_SomMot_3,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-1.5971597685711405,1.0,0.017011061419445063,0.017011061419445063,negative
+1159,12,7Networks_LH_SomMot_4,Somatomotor,50,7Networks_RH_Vis_1,Visual,Somatomotor—Visual,-0.3977871359441039,1.0,0.017011061419445063,0.017011061419445063,negative
+1161,12,7Networks_LH_SomMot_4,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-1.6774978190178402,1.0,0.017011061419445063,0.017011061419445063,negative
+1164,12,7Networks_LH_SomMot_4,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-0.8685339243199467,1.0,0.017011061419445063,0.017011061419445063,negative
+1165,12,7Networks_LH_SomMot_4,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-0.3527283827837401,1.0,0.017011061419445063,0.017011061419445063,negative
+1166,12,7Networks_LH_SomMot_4,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-0.5281609600866843,1.0,0.017011061419445063,0.017011061419445063,negative
+1246,13,7Networks_LH_SomMot_5,Somatomotor,51,7Networks_RH_Vis_2,Visual,Somatomotor—Visual,-0.9817871016161843,1.0,0.017011061419445063,0.017011061419445063,negative
+1247,13,7Networks_LH_SomMot_5,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-0.9226680012063908,1.0,0.017011061419445063,0.017011061419445063,negative
+1250,13,7Networks_LH_SomMot_5,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-2.511404979865813,1.0,0.017011061419445063,0.017011061419445063,negative
+1251,13,7Networks_LH_SomMot_5,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-1.7889924878419567,1.0,0.017011061419445063,0.017011061419445063,negative
+1252,13,7Networks_LH_SomMot_5,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-1.5597272779077587,1.0,0.017011061419445063,0.017011061419445063,negative
+1331,14,7Networks_LH_SomMot_6,Somatomotor,51,7Networks_RH_Vis_2,Visual,Somatomotor—Visual,-1.7917618148358958,1.0,0.017011061419445063,0.017011061419445063,negative
+1332,14,7Networks_LH_SomMot_6,Somatomotor,52,7Networks_RH_Vis_3,Visual,Somatomotor—Visual,-1.3339414527278521,1.0,0.017011061419445063,0.017011061419445063,negative
+1333,14,7Networks_LH_SomMot_6,Somatomotor,53,7Networks_RH_Vis_4,Visual,Somatomotor—Visual,-0.12516868402053674,1.0,0.017011061419445063,0.017011061419445063,negative
+1335,14,7Networks_LH_SomMot_6,Somatomotor,55,7Networks_RH_Vis_6,Visual,Somatomotor—Visual,-2.500515831058452,1.0,0.017011061419445063,0.017011061419445063,negative
+1336,14,7Networks_LH_SomMot_6,Somatomotor,56,7Networks_RH_Vis_7,Visual,Somatomotor—Visual,-1.5180494263376518,1.0,0.017011061419445063,0.017011061419445063,negative
+1337,14,7Networks_LH_SomMot_6,Somatomotor,57,7Networks_RH_Vis_8,Visual,Somatomotor—Visual,-1.6856937346081857,1.0,0.017011061419445063,0.017011061419445063,negative
+3732,50,7Networks_RH_Vis_1,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-1.6693283251942914,1.0,0.017011061419445063,0.017011061419445063,negative
+3733,50,7Networks_RH_Vis_1,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-0.6843382502512664,1.0,0.017011061419445063,0.017011061419445063,negative
+3734,50,7Networks_RH_Vis_1,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-0.26225345045317516,1.0,0.017011061419445063,0.017011061419445063,negative
+3736,50,7Networks_RH_Vis_1,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.1320004962767346,1.0,0.017011061419445063,0.017011061419445063,negative
+3780,51,7Networks_RH_Vis_2,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-1.4554143059453286,1.0,0.017011061419445063,0.017011061419445063,negative
+3781,51,7Networks_RH_Vis_2,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-0.8123394478032456,1.0,0.017011061419445063,0.017011061419445063,negative
+3785,51,7Networks_RH_Vis_2,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.519415667240589,1.0,0.017011061419445063,0.017011061419445063,negative
+3786,51,7Networks_RH_Vis_2,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-1.502767433078919,1.0,0.017011061419445063,0.017011061419445063,negative
+3787,51,7Networks_RH_Vis_2,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-2.393886724398979,1.0,0.017011061419445063,0.017011061419445063,negative
+3827,52,7Networks_RH_Vis_3,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.3671225350746994,1.0,0.017011061419445063,0.017011061419445063,negative
+3828,52,7Networks_RH_Vis_3,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.2002132353531554,1.0,0.017011061419445063,0.017011061419445063,negative
+3829,52,7Networks_RH_Vis_3,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.6318236446811618,1.0,0.017011061419445063,0.017011061419445063,negative
+3830,52,7Networks_RH_Vis_3,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-1.1775571845698898,1.0,0.017011061419445063,0.017011061419445063,negative
+3831,52,7Networks_RH_Vis_3,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.7275469507987886,1.0,0.017011061419445063,0.017011061419445063,negative
+3832,52,7Networks_RH_Vis_3,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-1.2760859386084265,1.0,0.017011061419445063,0.017011061419445063,negative
+3833,52,7Networks_RH_Vis_3,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-0.27109657503140694,1.0,0.017011061419445063,0.017011061419445063,negative
+3834,52,7Networks_RH_Vis_3,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-1.442155657071705,1.0,0.017011061419445063,0.017011061419445063,negative
+3880,53,7Networks_RH_Vis_4,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-0.8143167271157806,1.0,0.017011061419445063,0.017011061419445063,negative
+3918,54,7Networks_RH_Vis_5,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-0.5121468518500714,1.0,0.017011061419445063,0.017011061419445063,negative
+3925,54,7Networks_RH_Vis_5,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-0.36065534060576826,1.0,0.017011061419445063,0.017011061419445063,negative
+3962,55,7Networks_RH_Vis_6,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-3.6126478863574167,1.0,0.017011061419445063,0.017011061419445063,negative
+3963,55,7Networks_RH_Vis_6,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-3.7624841087827603,1.0,0.017011061419445063,0.017011061419445063,negative
+3964,55,7Networks_RH_Vis_6,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-2.0943920043160977,1.0,0.017011061419445063,0.017011061419445063,negative
+3965,55,7Networks_RH_Vis_6,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.8948269911020313,1.0,0.017011061419445063,0.017011061419445063,negative
+3966,55,7Networks_RH_Vis_6,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.9463504071439556,1.0,0.017011061419445063,0.017011061419445063,negative
+3967,55,7Networks_RH_Vis_6,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-3.548837269261555,1.0,0.017011061419445063,0.017011061419445063,negative
+3968,55,7Networks_RH_Vis_6,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-3.057624153781659,1.0,0.017011061419445063,0.017011061419445063,negative
+3969,55,7Networks_RH_Vis_6,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-3.237754752375168,1.0,0.017011061419445063,0.017011061419445063,negative
+4005,56,7Networks_RH_Vis_7,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-3.0279905327983987,1.0,0.017011061419445063,0.017011061419445063,negative
+4006,56,7Networks_RH_Vis_7,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-0.8607404953159306,1.0,0.017011061419445063,0.017011061419445063,negative
+4007,56,7Networks_RH_Vis_7,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.4607763914730627,1.0,0.017011061419445063,0.017011061419445063,negative
+4008,56,7Networks_RH_Vis_7,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.48427966854682325,1.0,0.017011061419445063,0.017011061419445063,negative
+4009,56,7Networks_RH_Vis_7,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.13568287968533574,1.0,0.017011061419445063,0.017011061419445063,negative
+4010,56,7Networks_RH_Vis_7,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-2.2794194160550045,1.0,0.017011061419445063,0.017011061419445063,negative
+4011,56,7Networks_RH_Vis_7,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-1.7585805867561848,1.0,0.017011061419445063,0.017011061419445063,negative
+4012,56,7Networks_RH_Vis_7,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-2.165453079898546,1.0,0.017011061419445063,0.017011061419445063,negative
+4047,57,7Networks_RH_Vis_8,Visual,58,7Networks_RH_SomMot_1,Somatomotor,Somatomotor—Visual,-2.279130473001966,1.0,0.017011061419445063,0.017011061419445063,negative
+4048,57,7Networks_RH_Vis_8,Visual,59,7Networks_RH_SomMot_2,Somatomotor,Somatomotor—Visual,-1.042560481960995,1.0,0.017011061419445063,0.017011061419445063,negative
+4049,57,7Networks_RH_Vis_8,Visual,60,7Networks_RH_SomMot_3,Somatomotor,Somatomotor—Visual,-1.3964916293933505,1.0,0.017011061419445063,0.017011061419445063,negative
+4050,57,7Networks_RH_Vis_8,Visual,61,7Networks_RH_SomMot_4,Somatomotor,Somatomotor—Visual,-0.6768882590170736,1.0,0.017011061419445063,0.017011061419445063,negative
+4051,57,7Networks_RH_Vis_8,Visual,62,7Networks_RH_SomMot_5,Somatomotor,Somatomotor—Visual,-0.7557703863172566,1.0,0.017011061419445063,0.017011061419445063,negative
+4052,57,7Networks_RH_Vis_8,Visual,63,7Networks_RH_SomMot_6,Somatomotor,Somatomotor—Visual,-2.62381427026394,1.0,0.017011061419445063,0.017011061419445063,negative
+4053,57,7Networks_RH_Vis_8,Visual,64,7Networks_RH_SomMot_7,Somatomotor,Somatomotor—Visual,-2.6348226239730868,1.0,0.017011061419445063,0.017011061419445063,negative
+4054,57,7Networks_RH_Vis_8,Visual,65,7Networks_RH_SomMot_8,Somatomotor,Somatomotor—Visual,-2.4500911109862398,1.0,0.017011061419445063,0.017011061419445063,negative
+879,9,7Networks_LH_SomMot_1,Somatomotor,34,7Networks_LH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.3243024108329085,0.027251739521440208,1.0,0.027251739521440208,positive
+880,9,7Networks_LH_SomMot_1,Somatomotor,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.8284193256673646,0.027251739521440208,1.0,0.027251739521440208,positive
+881,9,7Networks_LH_SomMot_1,Somatomotor,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.910114613763086,0.027251739521440208,1.0,0.027251739521440208,positive
+925,9,7Networks_LH_SomMot_1,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.727230070422287,0.027251739521440208,1.0,0.027251739521440208,positive
+926,9,7Networks_LH_SomMot_1,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.7795994089269723,0.027251739521440208,1.0,0.027251739521440208,positive
+929,9,7Networks_LH_SomMot_1,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.346683582359468,0.027251739521440208,1.0,0.027251739521440208,positive
+930,9,7Networks_LH_SomMot_1,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.7199589054629357,0.027251739521440208,1.0,0.027251739521440208,positive
+931,9,7Networks_LH_SomMot_1,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.431291050538732,0.027251739521440208,1.0,0.027251739521440208,positive
+932,9,7Networks_LH_SomMot_1,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.705496323088854,0.027251739521440208,1.0,0.027251739521440208,positive
+933,9,7Networks_LH_SomMot_1,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.9791616715131863,0.027251739521440208,1.0,0.027251739521440208,positive
+1014,10,7Networks_LH_SomMot_2,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.5527410674043445,0.027251739521440208,1.0,0.027251739521440208,positive
+1015,10,7Networks_LH_SomMot_2,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.292006098013606,0.027251739521440208,1.0,0.027251739521440208,positive
+1016,10,7Networks_LH_SomMot_2,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.6729438907683736,0.027251739521440208,1.0,0.027251739521440208,positive
+1018,10,7Networks_LH_SomMot_2,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.5979405000761155,0.027251739521440208,1.0,0.027251739521440208,positive
+1019,10,7Networks_LH_SomMot_2,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.359932842485005,0.027251739521440208,1.0,0.027251739521440208,positive
+1020,10,7Networks_LH_SomMot_2,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.6960986401025172,0.027251739521440208,1.0,0.027251739521440208,positive
+1021,10,7Networks_LH_SomMot_2,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.4095794377334743,0.027251739521440208,1.0,0.027251739521440208,positive
+1057,11,7Networks_LH_SomMot_3,Somatomotor,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.9201906115145322,0.027251739521440208,1.0,0.027251739521440208,positive
+1058,11,7Networks_LH_SomMot_3,Somatomotor,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.9942667918843706,0.027251739521440208,1.0,0.027251739521440208,positive
+1103,11,7Networks_LH_SomMot_3,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.9383986885154905,0.027251739521440208,1.0,0.027251739521440208,positive
+1104,11,7Networks_LH_SomMot_3,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.5246245863498503,0.027251739521440208,1.0,0.027251739521440208,positive
+1106,11,7Networks_LH_SomMot_3,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.920585419338071,0.027251739521440208,1.0,0.027251739521440208,positive
+1107,11,7Networks_LH_SomMot_3,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8383925065247118,0.027251739521440208,1.0,0.027251739521440208,positive
+1108,11,7Networks_LH_SomMot_3,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.4717099977326782,0.027251739521440208,1.0,0.027251739521440208,positive
+1109,11,7Networks_LH_SomMot_3,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8086621572684043,0.027251739521440208,1.0,0.027251739521440208,positive
+1144,12,7Networks_LH_SomMot_4,Somatomotor,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.916756674058337,0.027251739521440208,1.0,0.027251739521440208,positive
+1145,12,7Networks_LH_SomMot_4,Somatomotor,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.2937578115013033,0.027251739521440208,1.0,0.027251739521440208,positive
+1189,12,7Networks_LH_SomMot_4,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.045086441712336,0.027251739521440208,1.0,0.027251739521440208,positive
+1190,12,7Networks_LH_SomMot_4,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.6506999976573424,0.027251739521440208,1.0,0.027251739521440208,positive
+1191,12,7Networks_LH_SomMot_4,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.7415448591015419,0.027251739521440208,1.0,0.027251739521440208,positive
+1192,12,7Networks_LH_SomMot_4,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.6356234015094755,0.027251739521440208,1.0,0.027251739521440208,positive
+1193,12,7Networks_LH_SomMot_4,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.894691569245157,0.027251739521440208,1.0,0.027251739521440208,positive
+1194,12,7Networks_LH_SomMot_4,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.2469428565690515,0.027251739521440208,1.0,0.027251739521440208,positive
+1195,12,7Networks_LH_SomMot_4,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.908085170962989,0.027251739521440208,1.0,0.027251739521440208,positive
+1196,12,7Networks_LH_SomMot_4,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.7613538819706673,0.027251739521440208,1.0,0.027251739521440208,positive
+1197,12,7Networks_LH_SomMot_4,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.8428184874982838,0.027251739521440208,1.0,0.027251739521440208,positive
+1230,13,7Networks_LH_SomMot_5,Somatomotor,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8773073192908176,0.027251739521440208,1.0,0.027251739521440208,positive
+1231,13,7Networks_LH_SomMot_5,Somatomotor,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.258878491841414,0.027251739521440208,1.0,0.027251739521440208,positive
+1275,13,7Networks_LH_SomMot_5,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.492656634474713,0.027251739521440208,1.0,0.027251739521440208,positive
+1276,13,7Networks_LH_SomMot_5,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.440291584344722,0.027251739521440208,1.0,0.027251739521440208,positive
+1277,13,7Networks_LH_SomMot_5,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.033103543217987,0.027251739521440208,1.0,0.027251739521440208,positive
+1279,13,7Networks_LH_SomMot_5,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.4993935996552816,0.027251739521440208,1.0,0.027251739521440208,positive
+1280,13,7Networks_LH_SomMot_5,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.8267562497609264,0.027251739521440208,1.0,0.027251739521440208,positive
+1281,13,7Networks_LH_SomMot_5,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.79758217218536,0.027251739521440208,1.0,0.027251739521440208,positive
+1282,13,7Networks_LH_SomMot_5,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.220858707530811,0.027251739521440208,1.0,0.027251739521440208,positive
+1283,13,7Networks_LH_SomMot_5,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.6507184747989825,0.027251739521440208,1.0,0.027251739521440208,positive
+1315,14,7Networks_LH_SomMot_6,Somatomotor,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.1808010016868282,0.027251739521440208,1.0,0.027251739521440208,positive
+1316,14,7Networks_LH_SomMot_6,Somatomotor,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.714158919282402,0.027251739521440208,1.0,0.027251739521440208,positive
+1360,14,7Networks_LH_SomMot_6,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.496817356200563,0.027251739521440208,1.0,0.027251739521440208,positive
+1361,14,7Networks_LH_SomMot_6,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.455514836842946,0.027251739521440208,1.0,0.027251739521440208,positive
+1362,14,7Networks_LH_SomMot_6,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.04916641555084468,0.027251739521440208,1.0,0.027251739521440208,positive
+1363,14,7Networks_LH_SomMot_6,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8070495490151307,0.027251739521440208,1.0,0.027251739521440208,positive
+1364,14,7Networks_LH_SomMot_6,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.881923955937672,0.027251739521440208,1.0,0.027251739521440208,positive
+1365,14,7Networks_LH_SomMot_6,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.3003660789538032,0.027251739521440208,1.0,0.027251739521440208,positive
+1366,14,7Networks_LH_SomMot_6,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.1505771229277952,0.027251739521440208,1.0,0.027251739521440208,positive
+1367,14,7Networks_LH_SomMot_6,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.4344871203890146,0.027251739521440208,1.0,0.027251739521440208,positive
+1368,14,7Networks_LH_SomMot_6,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.8029532336455891,0.027251739521440208,1.0,0.027251739521440208,positive
+2763,33,7Networks_LH_Cont_Par_1,Frontoparietal Control,58,7Networks_RH_SomMot_1,Somatomotor,Frontoparietal Control—Somatomotor,0.06353249314803519,0.027251739521440208,1.0,0.027251739521440208,positive
+2765,33,7Networks_LH_Cont_Par_1,Frontoparietal Control,60,7Networks_RH_SomMot_3,Somatomotor,Frontoparietal Control—Somatomotor,0.8964947509816386,0.027251739521440208,1.0,0.027251739521440208,positive
+2766,33,7Networks_LH_Cont_Par_1,Frontoparietal Control,61,7Networks_RH_SomMot_4,Somatomotor,Frontoparietal Control—Somatomotor,1.346408802094655,0.027251739521440208,1.0,0.027251739521440208,positive
+2769,33,7Networks_LH_Cont_Par_1,Frontoparietal Control,64,7Networks_RH_SomMot_7,Somatomotor,Frontoparietal Control—Somatomotor,0.6124708987821943,0.027251739521440208,1.0,0.027251739521440208,positive
+2828,34,7Networks_LH_Cont_PFCl_1,Frontoparietal Control,58,7Networks_RH_SomMot_1,Somatomotor,Frontoparietal Control—Somatomotor,0.753007315876131,0.027251739521440208,1.0,0.027251739521440208,positive
+2829,34,7Networks_LH_Cont_PFCl_1,Frontoparietal Control,59,7Networks_RH_SomMot_2,Somatomotor,Frontoparietal Control—Somatomotor,1.3923640286746009,0.027251739521440208,1.0,0.027251739521440208,positive
+2831,34,7Networks_LH_Cont_PFCl_1,Frontoparietal Control,61,7Networks_RH_SomMot_4,Somatomotor,Frontoparietal Control—Somatomotor,0.8999425775948975,0.027251739521440208,1.0,0.027251739521440208,positive
+2835,34,7Networks_LH_Cont_PFCl_1,Frontoparietal Control,65,7Networks_RH_SomMot_8,Somatomotor,Frontoparietal Control—Somatomotor,0.6230788973426219,0.027251739521440208,1.0,0.027251739521440208,positive
+2892,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,58,7Networks_RH_SomMot_1,Somatomotor,Frontoparietal Control—Somatomotor,0.8077638509318565,0.027251739521440208,1.0,0.027251739521440208,positive
+2894,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,60,7Networks_RH_SomMot_3,Somatomotor,Frontoparietal Control—Somatomotor,0.962803332335641,0.027251739521440208,1.0,0.027251739521440208,positive
+2895,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,61,7Networks_RH_SomMot_4,Somatomotor,Frontoparietal Control—Somatomotor,0.9036688789127236,0.027251739521440208,1.0,0.027251739521440208,positive
+2896,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,62,7Networks_RH_SomMot_5,Somatomotor,Frontoparietal Control—Somatomotor,1.1385516924607035,0.027251739521440208,1.0,0.027251739521440208,positive
+2897,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,63,7Networks_RH_SomMot_6,Somatomotor,Frontoparietal Control—Somatomotor,0.7114920771657196,0.027251739521440208,1.0,0.027251739521440208,positive
+2898,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,64,7Networks_RH_SomMot_7,Somatomotor,Frontoparietal Control—Somatomotor,0.5142662856850619,0.027251739521440208,1.0,0.027251739521440208,positive
+2899,35,7Networks_LH_Cont_pCun_1,Frontoparietal Control,65,7Networks_RH_SomMot_8,Somatomotor,Frontoparietal Control—Somatomotor,1.438787165861776,0.027251739521440208,1.0,0.027251739521440208,positive
+2955,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,58,7Networks_RH_SomMot_1,Somatomotor,Frontoparietal Control—Somatomotor,2.864088427434099,0.027251739521440208,1.0,0.027251739521440208,positive
+2956,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,59,7Networks_RH_SomMot_2,Somatomotor,Frontoparietal Control—Somatomotor,0.21224161178726642,0.027251739521440208,1.0,0.027251739521440208,positive
+2957,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,60,7Networks_RH_SomMot_3,Somatomotor,Frontoparietal Control—Somatomotor,1.8960382132291447,0.027251739521440208,1.0,0.027251739521440208,positive
+2958,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,61,7Networks_RH_SomMot_4,Somatomotor,Frontoparietal Control—Somatomotor,2.446326462817509,0.027251739521440208,1.0,0.027251739521440208,positive
+2959,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,62,7Networks_RH_SomMot_5,Somatomotor,Frontoparietal Control—Somatomotor,3.1795333583726513,0.027251739521440208,1.0,0.027251739521440208,positive
+2960,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,63,7Networks_RH_SomMot_6,Somatomotor,Frontoparietal Control—Somatomotor,2.611296742029207,0.027251739521440208,1.0,0.027251739521440208,positive
+2961,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,64,7Networks_RH_SomMot_7,Somatomotor,Frontoparietal Control—Somatomotor,2.5022510427394855,0.027251739521440208,1.0,0.027251739521440208,positive
+2962,36,7Networks_LH_Cont_Cing_1,Frontoparietal Control,65,7Networks_RH_SomMot_8,Somatomotor,Frontoparietal Control—Somatomotor,2.707341915975729,0.027251739521440208,1.0,0.027251739521440208,positive
+4110,58,7Networks_RH_SomMot_1,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.5412754785315368,0.027251739521440208,1.0,0.027251739521440208,positive
+4111,58,7Networks_RH_SomMot_1,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.4355495582322988,0.027251739521440208,1.0,0.027251739521440208,positive
+4114,58,7Networks_RH_SomMot_1,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.8762768420413227,0.027251739521440208,1.0,0.027251739521440208,positive
+4115,58,7Networks_RH_SomMot_1,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8718794776564217,0.027251739521440208,1.0,0.027251739521440208,positive
+4116,58,7Networks_RH_SomMot_1,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.337139073135296,0.027251739521440208,1.0,0.027251739521440208,positive
+4117,58,7Networks_RH_SomMot_1,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.2975662932878778,0.027251739521440208,1.0,0.027251739521440208,positive
+4150,59,7Networks_RH_SomMot_2,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.4303537072762838,0.027251739521440208,1.0,0.027251739521440208,positive
+4151,59,7Networks_RH_SomMot_2,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.9890926622753202,0.027251739521440208,1.0,0.027251739521440208,positive
+4152,59,7Networks_RH_SomMot_2,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.328618111361012,0.027251739521440208,1.0,0.027251739521440208,positive
+4153,59,7Networks_RH_SomMot_2,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.5054340462720474,0.027251739521440208,1.0,0.027251739521440208,positive
+4154,59,7Networks_RH_SomMot_2,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.212537253790856,0.027251739521440208,1.0,0.027251739521440208,positive
+4155,59,7Networks_RH_SomMot_2,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.7492409431970932,0.027251739521440208,1.0,0.027251739521440208,positive
+4157,59,7Networks_RH_SomMot_2,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.8416723085713581,0.027251739521440208,1.0,0.027251739521440208,positive
+4190,60,7Networks_RH_SomMot_3,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.7077132089790796,0.027251739521440208,1.0,0.027251739521440208,positive
+4191,60,7Networks_RH_SomMot_3,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.4435613498444806,0.027251739521440208,1.0,0.027251739521440208,positive
+4193,60,7Networks_RH_SomMot_3,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.24869168689688725,0.027251739521440208,1.0,0.027251739521440208,positive
+4194,60,7Networks_RH_SomMot_3,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.45986084920428083,0.027251739521440208,1.0,0.027251739521440208,positive
+4195,60,7Networks_RH_SomMot_3,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.1304251920216761,0.027251739521440208,1.0,0.027251739521440208,positive
+4196,60,7Networks_RH_SomMot_3,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.10880584026933755,0.027251739521440208,1.0,0.027251739521440208,positive
+4227,61,7Networks_RH_SomMot_4,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.74691935406284,0.027251739521440208,1.0,0.027251739521440208,positive
+4228,61,7Networks_RH_SomMot_4,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.343565558499243,0.027251739521440208,1.0,0.027251739521440208,positive
+4229,61,7Networks_RH_SomMot_4,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.823502915998037,0.027251739521440208,1.0,0.027251739521440208,positive
+4230,61,7Networks_RH_SomMot_4,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.8698831683222628,0.027251739521440208,1.0,0.027251739521440208,positive
+4231,61,7Networks_RH_SomMot_4,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.4301577095421365,0.027251739521440208,1.0,0.027251739521440208,positive
+4232,61,7Networks_RH_SomMot_4,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.6716410504871746,0.027251739521440208,1.0,0.027251739521440208,positive
+4233,61,7Networks_RH_SomMot_4,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.1446602596793936,0.027251739521440208,1.0,0.027251739521440208,positive
+4234,61,7Networks_RH_SomMot_4,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.8026572838846215,0.027251739521440208,1.0,0.027251739521440208,positive
+4235,61,7Networks_RH_SomMot_4,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.9206003333767193,0.027251739521440208,1.0,0.027251739521440208,positive
+4264,62,7Networks_RH_SomMot_5,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.12439907878573153,0.027251739521440208,1.0,0.027251739521440208,positive
+4265,62,7Networks_RH_SomMot_5,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.653392545870643,0.027251739521440208,1.0,0.027251739521440208,positive
+4266,62,7Networks_RH_SomMot_5,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.3105889443840923,0.027251739521440208,1.0,0.027251739521440208,positive
+4267,62,7Networks_RH_SomMot_5,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.4205725300065228,0.027251739521440208,1.0,0.027251739521440208,positive
+4268,62,7Networks_RH_SomMot_5,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.1664285428721817,0.027251739521440208,1.0,0.027251739521440208,positive
+4269,62,7Networks_RH_SomMot_5,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.2808653896050377,0.027251739521440208,1.0,0.027251739521440208,positive
+4270,62,7Networks_RH_SomMot_5,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.7316235197663326,0.027251739521440208,1.0,0.027251739521440208,positive
+4271,62,7Networks_RH_SomMot_5,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.167920272630265,0.027251739521440208,1.0,0.027251739521440208,positive
+4272,62,7Networks_RH_SomMot_5,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.4027094062271372,0.027251739521440208,1.0,0.027251739521440208,positive
+4300,63,7Networks_RH_SomMot_6,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.10776699305522663,0.027251739521440208,1.0,0.027251739521440208,positive
+4301,63,7Networks_RH_SomMot_6,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.1022719018982965,0.027251739521440208,1.0,0.027251739521440208,positive
+4303,63,7Networks_RH_SomMot_6,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.771002772464309,0.027251739521440208,1.0,0.027251739521440208,positive
+4304,63,7Networks_RH_SomMot_6,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.1995770694701036,0.027251739521440208,1.0,0.027251739521440208,positive
+4305,63,7Networks_RH_SomMot_6,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.9665348752042175,0.027251739521440208,1.0,0.027251739521440208,positive
+4306,63,7Networks_RH_SomMot_6,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.607751542815368,0.027251739521440208,1.0,0.027251739521440208,positive
+4307,63,7Networks_RH_SomMot_6,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.5851960331909214,0.027251739521440208,1.0,0.027251739521440208,positive
+4308,63,7Networks_RH_SomMot_6,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.25719787203062716,0.027251739521440208,1.0,0.027251739521440208,positive
+4335,64,7Networks_RH_SomMot_7,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.151597949795512,0.027251739521440208,1.0,0.027251739521440208,positive
+4336,64,7Networks_RH_SomMot_7,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.4847003028516108,0.027251739521440208,1.0,0.027251739521440208,positive
+4337,64,7Networks_RH_SomMot_7,Somatomotor,82,7Networks_RH_Cont_PFCl_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.6116464943556321,0.027251739521440208,1.0,0.027251739521440208,positive
+4338,64,7Networks_RH_SomMot_7,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.7573421763835333,0.027251739521440208,1.0,0.027251739521440208,positive
+4339,64,7Networks_RH_SomMot_7,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.6963920763114877,0.027251739521440208,1.0,0.027251739521440208,positive
+4340,64,7Networks_RH_SomMot_7,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.6623075057429462,0.027251739521440208,1.0,0.027251739521440208,positive
+4341,64,7Networks_RH_SomMot_7,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.0031044374735596,0.027251739521440208,1.0,0.027251739521440208,positive
+4342,64,7Networks_RH_SomMot_7,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.7427775965298316,0.027251739521440208,1.0,0.027251739521440208,positive
+4343,64,7Networks_RH_SomMot_7,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.6718044294702593,0.027251739521440208,1.0,0.027251739521440208,positive
+4369,65,7Networks_RH_SomMot_8,Somatomotor,80,7Networks_RH_Cont_Par_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.799877901519924,0.027251739521440208,1.0,0.027251739521440208,positive
+4370,65,7Networks_RH_SomMot_8,Somatomotor,81,7Networks_RH_Cont_Par_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.7579700933884351,0.027251739521440208,1.0,0.027251739521440208,positive
+4372,65,7Networks_RH_SomMot_8,Somatomotor,83,7Networks_RH_Cont_PFCl_2,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.5206709760824937,0.027251739521440208,1.0,0.027251739521440208,positive
+4373,65,7Networks_RH_SomMot_8,Somatomotor,84,7Networks_RH_Cont_PFCl_3,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.418718382467671,0.027251739521440208,1.0,0.027251739521440208,positive
+4374,65,7Networks_RH_SomMot_8,Somatomotor,85,7Networks_RH_Cont_PFCl_4,Frontoparietal Control,Frontoparietal Control—Somatomotor,0.6933507090355928,0.027251739521440208,1.0,0.027251739521440208,positive
+4375,65,7Networks_RH_SomMot_8,Somatomotor,86,7Networks_RH_Cont_Cing_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.9715845237133085,0.027251739521440208,1.0,0.027251739521440208,positive
+4376,65,7Networks_RH_SomMot_8,Somatomotor,87,7Networks_RH_Cont_PFCmp_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,2.875485497013523,0.027251739521440208,1.0,0.027251739521440208,positive
+4377,65,7Networks_RH_SomMot_8,Somatomotor,88,7Networks_RH_Cont_pCun_1,Frontoparietal Control,Frontoparietal Control—Somatomotor,1.3162812606424967,0.027251739521440208,1.0,0.027251739521440208,positive
+1479,16,7Networks_LH_DorsAttn_Post_2,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-2.3699994555807002,1.0,0.040761871923274025,0.040761871923274025,negative
+1560,17,7Networks_LH_DorsAttn_Post_3,Dorsal Attention,31,7Networks_LH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-0.4063019591423717,1.0,0.040761871923274025,0.040761871923274025,negative
+1561,17,7Networks_LH_DorsAttn_Post_3,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-2.4362180007367122,1.0,0.040761871923274025,0.040761871923274025,negative
+1642,18,7Networks_LH_DorsAttn_Post_4,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-1.7413939695336889,1.0,0.040761871923274025,0.040761871923274025,negative
+1720,19,7Networks_LH_DorsAttn_Post_5,Dorsal Attention,30,7Networks_LH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-1.302530184678483,1.0,0.040761871923274025,0.040761871923274025,negative
+1721,19,7Networks_LH_DorsAttn_Post_5,Dorsal Attention,31,7Networks_LH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-2.4143602399649353,1.0,0.040761871923274025,0.040761871923274025,negative
+1722,19,7Networks_LH_DorsAttn_Post_5,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-1.9863675234295768,1.0,0.040761871923274025,0.040761871923274025,negative
+1768,19,7Networks_LH_DorsAttn_Post_5,Dorsal Attention,78,7Networks_RH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-3.5786829087226306,1.0,0.040761871923274025,0.040761871923274025,negative
+1769,19,7Networks_LH_DorsAttn_Post_5,Dorsal Attention,79,7Networks_RH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-4.322205846685259,1.0,0.040761871923274025,0.040761871923274025,negative
+1799,20,7Networks_LH_DorsAttn_Post_6,Dorsal Attention,30,7Networks_LH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-0.0842382411666928,1.0,0.040761871923274025,0.040761871923274025,negative
+1801,20,7Networks_LH_DorsAttn_Post_6,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-3.156379037022995,1.0,0.040761871923274025,0.040761871923274025,negative
+1847,20,7Networks_LH_DorsAttn_Post_6,Dorsal Attention,78,7Networks_RH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-0.4670195220946253,1.0,0.040761871923274025,0.040761871923274025,negative
+1878,21,7Networks_LH_DorsAttn_PrCv_1,Dorsal Attention,31,7Networks_LH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-0.8460989989715505,1.0,0.040761871923274025,0.040761871923274025,negative
+1879,21,7Networks_LH_DorsAttn_PrCv_1,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-2.606101256181106,1.0,0.040761871923274025,0.040761871923274025,negative
+1956,22,7Networks_LH_DorsAttn_FEF_1,Dorsal Attention,32,7Networks_LH_Limbic_TempPole_2,Limbic,Dorsal Attention—Limbic,-2.049547165999756,1.0,0.040761871923274025,0.040761871923274025,negative
+2003,22,7Networks_LH_DorsAttn_FEF_1,Dorsal Attention,79,7Networks_RH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-0.5576823065771038,1.0,0.040761871923274025,0.040761871923274025,negative
+2574,30,7Networks_LH_Limbic_OFC_1,Limbic,70,7Networks_RH_DorsAttn_Post_5,Dorsal Attention,Dorsal Attention—Limbic,-1.00086261033891,1.0,0.040761871923274025,0.040761871923274025,negative
+2706,32,7Networks_LH_Limbic_TempPole_2,Limbic,67,7Networks_RH_DorsAttn_Post_2,Dorsal Attention,Dorsal Attention—Limbic,-0.09832437400891329,1.0,0.040761871923274025,0.040761871923274025,negative
+2707,32,7Networks_LH_Limbic_TempPole_2,Limbic,68,7Networks_RH_DorsAttn_Post_3,Dorsal Attention,Dorsal Attention—Limbic,-1.4339733338129854,1.0,0.040761871923274025,0.040761871923274025,negative
+2708,32,7Networks_LH_Limbic_TempPole_2,Limbic,69,7Networks_RH_DorsAttn_Post_4,Dorsal Attention,Dorsal Attention—Limbic,-0.9364687327654653,1.0,0.040761871923274025,0.040761871923274025,negative
+2709,32,7Networks_LH_Limbic_TempPole_2,Limbic,70,7Networks_RH_DorsAttn_Post_5,Dorsal Attention,Dorsal Attention—Limbic,-1.9525951615660058,1.0,0.040761871923274025,0.040761871923274025,negative
+2710,32,7Networks_LH_Limbic_TempPole_2,Limbic,71,7Networks_RH_DorsAttn_PrCv_1,Dorsal Attention,Dorsal Attention—Limbic,-0.8597984154013417,1.0,0.040761871923274025,0.040761871923274025,negative
+2711,32,7Networks_LH_Limbic_TempPole_2,Limbic,72,7Networks_RH_DorsAttn_FEF_1,Dorsal Attention,Dorsal Attention—Limbic,-1.359642838303317,1.0,0.040761871923274025,0.040761871923274025,negative
+4463,68,7Networks_RH_DorsAttn_Post_3,Dorsal Attention,78,7Networks_RH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-0.028345456710613698,1.0,0.040761871923274025,0.040761871923274025,negative
+4493,69,7Networks_RH_DorsAttn_Post_4,Dorsal Attention,78,7Networks_RH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-0.10943090154831639,1.0,0.040761871923274025,0.040761871923274025,negative
+4494,69,7Networks_RH_DorsAttn_Post_4,Dorsal Attention,79,7Networks_RH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-0.18277093143812131,1.0,0.040761871923274025,0.040761871923274025,negative
+4522,70,7Networks_RH_DorsAttn_Post_5,Dorsal Attention,78,7Networks_RH_Limbic_OFC_1,Limbic,Dorsal Attention—Limbic,-1.6033918452401352,1.0,0.040761871923274025,0.040761871923274025,negative
+4523,70,7Networks_RH_DorsAttn_Post_5,Dorsal Attention,79,7Networks_RH_Limbic_TempPole_1,Limbic,Dorsal Attention—Limbic,-2.094374971874164,1.0,0.040761871923274025,0.040761871923274025,negative

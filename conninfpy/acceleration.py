@@ -157,6 +157,8 @@ def fit_gpd_tail(
     Fits a GPD to the upper tail of the null distribution and uses
     the fitted distribution to compute p-values for the observed
     statistics. Falls back to empirical p-values when GPD fit is poor.
+    This is a tail approximation, not an exact finite-permutation
+    procedure.
 
     Algorithm (Winkler et al., 2016, Section 2.2.3):
 
@@ -179,13 +181,15 @@ def fit_gpd_tail(
     Returns
     -------
     p_values : ndarray of same shape as observed
-        P-values. Uses GPD where fit is good, empirical otherwise.
+        P-values. Uses GPD where fit is good, empirical otherwise. The
+        empirical fallback uses tie-inclusive max-statistic counting and
+        the Phipson-Smyth +1 correction.
     """
     J = len(null_dist)
     null_sorted = np.sort(null_dist)
 
     # Empirical p-values as fallback (with +1 correction — Phipson & Smyth 2010)
-    count = np.sum(observed[..., np.newaxis] < null_dist, axis=-1)
+    count = np.sum(observed[..., np.newaxis] <= null_dist, axis=-1)
     p_empirical = (count + 1.0) / (J + 1.0)
 
     # Try increasing thresholds for GPD fit
@@ -242,7 +246,8 @@ def fit_gamma_tail(
 
     Fits a gamma distribution to the null distribution using method
     of moments (first three moments) and computes p-values from the
-    fitted distribution. Simpler and more robust than GPD.
+    fitted distribution. Simpler and more robust than GPD, but still an
+    approximation to the finite-permutation tail.
 
     Parameters
     ----------
@@ -254,7 +259,9 @@ def fit_gamma_tail(
     Returns
     -------
     p_values : ndarray of same shape as observed
-        P-values from fitted gamma distribution.
+        P-values from fitted gamma distribution, or tie-inclusive
+        empirical p-values with the Phipson-Smyth +1 correction when
+        gamma fitting is not possible.
     """
     from scipy import stats
 
@@ -266,7 +273,7 @@ def fit_gamma_tail(
 
     if var <= 0 or abs(skew_val) < 1e-10:
         # Can't fit gamma, fall back to empirical (with +1 correction)
-        count = np.sum(observed[..., np.newaxis] < null_dist, axis=-1)
+        count = np.sum(observed[..., np.newaxis] <= null_dist, axis=-1)
         return (count + 1.0) / (J + 1.0)
 
     # Gamma parameters from moments
@@ -290,8 +297,10 @@ def compute_p_values_accelerated(
     """
     Compute p-values using accelerated tail approximation.
 
-    Drop-in replacement for _compute_p_values_from_null that uses
-    GPD or gamma fitting instead of pure empirical counting.
+    Drop-in replacement for ``_compute_p_values_from_null`` that uses
+    GPD or gamma fitting instead of pure empirical counting. Tail
+    estimates are approximate; fallback empirical p-values use the same
+    tie-inclusive max-statistic counting as the standard path.
 
     Parameters
     ----------

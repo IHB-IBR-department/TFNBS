@@ -12,10 +12,12 @@ This directory contains the production-ready validation suite for `conninfpy` us
 
 | Script | Purpose | Output |
 |---|---|---|
-| `run_paired_tfnbs.py` | Canonical paired sign-flip inference on both cohorts and retest runs. | `results/{ihb,china}_paired_tfnbs.npz` |
-| `harmonize_pooled_cohorts.py` | Cross-cohort ComBat (Cohort = Batch, State = Preserved) for the pooled analysis. | `results/openclose_harmonized.npz` |
-| `run_eh_sensitivity.py` | Grid sweep of TFNBS (E, H) parameters on the paired China cohort. | `results/plots/plot4_tfnbs_grid_sensitivity.png` |
+| `run_paired_tfnbs.py` | Canonical paired sign-flip inference on both cohorts. | `results/{ihb,china}_paired_tfnbs.npz` |
+| `harmonize_pooled_cohorts.py` | Cross-cohort ComBat (Cohort = Batch, State = Preserved). | `results/openclose_harmonized.npz` |
+| `run_pooled_methods.py` | Run all selectors on the joint harmonized pooled dataset. | `results/ml/pmap_pooled_{method}.npz` |
+| `run_retest_methods.py` | Run all selectors on the 'closed-closed' empirical null contrast. | `results/ml/pmap_china_retest_{method}.npz` |
 | `ml/run_ml_feature_selection.py` | Cross-site biomarker transfer evaluation (IHB <-> China). | `results/ml/ml_feature_selection.csv` |
+| `run_eh_sensitivity.py` | Grid sweep of TFNBS (E, H) parameters on the paired China cohort. | `results/plots/plot4_tfnbs_grid_sensitivity.png` |
 
 ## 3. Publication Figures
 
@@ -28,8 +30,9 @@ This directory contains the production-ready validation suite for `conninfpy` us
 | **3** | `plot3_method_sensitivity_dual.png`| `plot3_method_sensitivity.py` | **Stability & Convergence**: Dual Jaccard/Spearman analysis proving TFNBS robustness. |
 | **4** | `plot4_tfnbs_grid_sensitivity.png` | `run_eh_sensitivity.py` | **Parameter Multiverse**: Proves TFNBS core is insensitive to specific (E, H) choices. |
 | **5** | `plot5_retest_specificity.png` | `plot5_retest_specificity.py` | **Retest Specificity**: Contrasts biological discovery against a matched matched-design baseline. |
-| **6** | `plot6_network_informed_hierarchy.png` | `plot6_network_informed_hierarchy.py` | **Hierarchy of Constraint**: Demonstrates pruning of topological leakage via soft/hard priors. |
+| **6** | `plot6_network_informed_hierarchy.png` | `plot6_network_informed_hierarchy.py` | **Hierarchy of Constraint**: Pruning topological leakage via network-informed priors (Open vs. Close). |
 | **7** | `plot7_ml_transfer_auc.png` | `plot7_ml_transfer_auc.py` | **Predictive Utility**: Confirms that discovery edges define a predictively transferable core. |
+| **8** | `plot8_retest_hierarchy.png` | `plot6_retest_hierarchy.py` | **Null Specificity Hierarchy**: Shows near-zero findings on empirical null across methods. |
 
 ## 4. Quick Start
 
@@ -41,18 +44,17 @@ conda activate conninfpy
 # 1. Run inference and sweeps
 python run_paired_tfnbs.py
 python harmonize_pooled_cohorts.py
+python run_pooled_methods.py
+python run_retest_methods.py
 python run_eh_sensitivity.py
 python ml/run_ml_feature_selection.py
 
-# 2. Run audits
-python audit_openclose_agreement.py
-python audit_ml_feature_selection.py
-
-# 3. Generate all plots
+# 2. Generate all plots
 python plot1_combat_impact.py
 python plot2_block_mass_convergence.py
 python plot3_method_sensitivity.py
 python plot5_retest_specificity.py
 python plot6_network_informed_hierarchy.py
+python plot6_retest_hierarchy.py
 python plot7_ml_transfer_auc.py
 ```

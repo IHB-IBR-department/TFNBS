@@ -206,20 +206,21 @@ def analyze(
         Test type for the t-test pipeline (also accepts ``'paired'`` and
         ``'one-sample'``).
     sites : sequence, optional
-        Per-subject site labels. If provided, ComBat harmonisation runs
-        before inference AND the permutation engine is auto-stratified on
-        ``sites`` (within-block exchangeability — equivalent to PALM's
-        ``-eb`` option). Either ``Y`` or both ``group1``/``group2`` must
-        share the site vector indexing — for the two-sample pipeline,
-        pass concatenated ``[group1, group2]`` as ``Y`` if you want
-        ComBat first. The auto-stratification prevents the shadow-of-H₀
-        leak that occurs when ComBat is fit on observed labels but
-        downstream permutation reshuffles across sites freely.
+        Per-subject site labels. If provided, the permutation engine is
+        auto-stratified on ``sites`` (within-block exchangeability —
+        equivalent to PALM's ``-eb`` option). ComBat itself runs only
+        when ``harmonize`` resolves to Strategy D. In GLM mode with
+        sites but no confounds, ``'auto'`` resolves to Strategy E
+        (site dummies in the GLM, no ComBat). In two-sample mode with
+        sites, ComBat is skipped and a flag asks the caller to promote
+        the analysis to GLM with a binary ``interest``.
     preserve : ndarray, optional
         Covariates whose effect should be preserved through ComBat.
         Under Strategy D this is set automatically to ``confounds``;
-        passing ``preserve`` explicitly overrides it and emits a flag.
-        Strategy E does not run ComBat, so ``preserve`` is ignored.
+        passing ``preserve`` explicitly is overridden and emits a flag
+        because the tested variable must remain outside the ComBat
+        design. Strategy E does not run ComBat, so ``preserve`` is
+        ignored.
     harmonize : str or ``None``, default ``'auto'``
         Selects the ComBat / site-handling strategy. See
         [[paper_combat_resolution_strategies]] for derivations and
@@ -253,12 +254,14 @@ def analyze(
     method : str, default ``'tfnbs'``
         Enhancement method.
     acceleration : str, default ``'gpd'``
-        ``'gpd'`` / ``'gamma'`` / ``None``. Defaults to GPD because at
-        ``n_permutations=200`` GPD reproduces empirical 5{,}000-perm
-        FWER p-values to within ``|Δ(-log10 p)| ≤ 0.001`` on >99% of
-        edges (Winkler 2016).
+        ``'gpd'`` / ``'gamma'`` / ``None``. GPD and gamma are
+        tail-approximation accelerators with empirical fallback; use
+        ``None`` and a larger permutation budget when an exact empirical
+        finite-permutation reference is required.
     n_permutations : int, default ``200``
-        Permutations. Default tuned to GPD-accelerated FWER.
+        Permutations. The default is tuned for exploratory
+        GPD-accelerated inference; final empirical runs typically use a
+        larger value with ``acceleration=None``.
     e, h : float or sequence of float, default ``0.4``, ``3.0``
         TFNBS exponents. Pass equal-length sequences to evaluate a
         whole ``(E, H)`` grid in one call — the threshold loop runs

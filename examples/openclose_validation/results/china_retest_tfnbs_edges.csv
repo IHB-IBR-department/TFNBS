@@ -1,0 +1,781 @@
+edge_id,roi_i,roi_i_name,roi_i_network,roi_j,roi_j_name,roi_j_network,network_pair,t_signed,p_positive,p_negative,p_min,tail
+11913,86,roi_086,Default Mode,89,roi_089,Default Mode,Default Mode—Default Mode,-6.3958967989598,1.0,0.0001999600079984003,0.0001999600079984003,negative
+12004,86,roi_086,Default Mode,180,roi_180,Default Mode,Default Mode—Default Mode,-6.458111574214567,1.0,0.0001999600079984003,0.0001999600079984003,negative
+12005,86,roi_086,Default Mode,181,roi_181,Default Mode,Default Mode—Default Mode,-4.9066825820823645,1.0,0.0001999600079984003,0.0001999600079984003,negative
+12282,89,roi_089,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-7.313393238302632,1.0,0.0001999600079984003,0.0001999600079984003,negative
+16348,165,roi_165,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-4.7297121347459825,1.0,0.0001999600079984003,0.0001999600079984003,negative
+16468,179,roi_179,Default Mode,180,roi_180,Default Mode,Default Mode—Default Mode,-7.36097410434375,1.0,0.0001999600079984003,0.0001999600079984003,negative
+16469,179,roi_179,Default Mode,181,roi_181,Default Mode,Default Mode—Default Mode,-5.772317998295639,1.0,0.0001999600079984003,0.0001999600079984003,negative
+9917,67,roi_067,Default Mode,69,roi_069,Default Mode,Default Mode—Default Mode,3.8266492010381454,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16431,172,roi_172,Default Mode,178,roi_178,Default Mode,Default Mode—Default Mode,4.2245684420258875,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11911,86,roi_086,Default Mode,87,roi_087,Default Mode,Default Mode—Default Mode,-4.046603147849902,1.0,0.0015996800639872025,0.0015996800639872025,negative
+11989,86,roi_086,Default Mode,165,roi_165,Default Mode,Default Mode—Default Mode,-4.105556449266858,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12097,87,roi_087,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-4.313449604947877,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12190,88,roi_088,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-4.262716385417008,1.0,0.0015996800639872025,0.0015996800639872025,negative
+9803,66,roi_066,Default Mode,69,roi_069,Default Mode,Default Mode—Default Mode,3.4071643234332027,0.005598880223955209,1.0,0.005598880223955209,positive
+10241,69,roi_069,Default Mode,168,roi_168,Default Mode,Default Mode—Default Mode,3.4442371679664197,0.005598880223955209,1.0,0.005598880223955209,positive
+11023,77,roi_077,Default Mode,90,roi_090,Default Mode,Default Mode—Default Mode,3.5878907908465973,0.005598880223955209,1.0,0.005598880223955209,positive
+11603,82,roi_082,Default Mode,165,roi_165,Default Mode,Default Mode—Default Mode,3.677591551366979,0.005598880223955209,1.0,0.005598880223955209,positive
+11618,82,roi_082,Default Mode,180,roi_180,Default Mode,Default Mode—Default Mode,3.550085944419387,0.005598880223955209,1.0,0.005598880223955209,positive
+12090,87,roi_087,Default Mode,172,roi_172,Default Mode,Default Mode—Default Mode,3.6453039911828293,0.005598880223955209,1.0,0.005598880223955209,positive
+9936,67,roi_067,Default Mode,88,roi_088,Default Mode,Default Mode—Default Mode,-3.8573028831711165,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10035,68,roi_068,Default Mode,74,roi_074,Default Mode,Default Mode—Default Mode,-3.390257048434276,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10383,71,roi_071,Default Mode,89,roi_089,Default Mode,Default Mode—Default Mode,-3.4204079219416874,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11912,86,roi_086,Default Mode,88,roi_088,Default Mode,Default Mode—Default Mode,-3.609115687532507,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11990,86,roi_086,Default Mode,166,roi_166,Default Mode,Default Mode—Default Mode,-3.758596733541194,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11991,86,roi_086,Default Mode,167,roi_167,Default Mode,Default Mode—Default Mode,-3.841841565691711,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11999,86,roi_086,Default Mode,175,roi_175,Default Mode,Default Mode—Default Mode,-3.6344300004992487,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12003,86,roi_086,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-3.920281434411738,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12283,89,roi_089,Default Mode,180,roi_180,Default Mode,Default Mode—Default Mode,-3.389284621295121,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12375,90,roi_090,Default Mode,181,roi_181,Default Mode,Default Mode—Default Mode,-3.3878157118485377,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16349,165,roi_165,Default Mode,180,roi_180,Default Mode,Default Mode—Default Mode,-3.4261238180068405,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16363,166,roi_166,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-3.919252456930378,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16377,167,roi_167,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-3.4788243083763395,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16453,175,roi_175,Default Mode,179,roi_179,Default Mode,Default Mode—Default Mode,-3.6990765366751934,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10648,73,roi_073,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,4.5706894081615905,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10861,75,roi_075,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,4.529953989669377,0.0001999600079984003,1.0,0.0001999600079984003,positive
+15519,137,roi_137,Dorsal Attention,176,roi_176,Default Mode,Default Mode—Dorsal Attention,4.683528462240506,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10086,68,roi_068,Default Mode,125,roi_125,Dorsal Attention,Default Mode—Dorsal Attention,4.025084513842086,0.0003999200159968006,1.0,0.0003999200159968006,positive
+10089,68,roi_068,Default Mode,128,roi_128,Dorsal Attention,Default Mode—Dorsal Attention,4.279382320759683,0.0003999200159968006,1.0,0.0003999200159968006,positive
+10966,76,roi_076,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,3.8224764986640354,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11466,81,roi_081,Default Mode,127,roi_127,Dorsal Attention,Default Mode—Dorsal Attention,4.424320344481892,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11476,81,roi_081,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,4.203800748776365,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12148,88,roi_088,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,4.2291668308566255,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15078,128,roi_128,Dorsal Attention,167,roi_167,Default Mode,Default Mode—Dorsal Attention,3.9050031288296285,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15510,137,roi_137,Dorsal Attention,167,roi_167,Default Mode,Default Mode—Dorsal Attention,4.113276163064292,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15518,137,roi_137,Dorsal Attention,175,roi_175,Default Mode,Default Mode—Dorsal Attention,4.224325583703885,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15523,137,roi_137,Dorsal Attention,180,roi_180,Default Mode,Default Mode—Dorsal Attention,3.9142888669230436,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9861,66,roi_066,Default Mode,127,roi_127,Dorsal Attention,Default Mode—Dorsal Attention,3.4292724596547783,0.005598880223955209,1.0,0.005598880223955209,positive
+9863,66,roi_066,Default Mode,129,roi_129,Dorsal Attention,Default Mode—Dorsal Attention,3.573670471946922,0.005598880223955209,1.0,0.005598880223955209,positive
+9975,67,roi_067,Default Mode,127,roi_127,Dorsal Attention,Default Mode—Dorsal Attention,3.474409268650755,0.005598880223955209,1.0,0.005598880223955209,positive
+9985,67,roi_067,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,3.407052723472554,0.005598880223955209,1.0,0.005598880223955209,positive
+11265,79,roi_079,Default Mode,127,roi_127,Dorsal Attention,Default Mode—Dorsal Attention,3.4028478783760594,0.005598880223955209,1.0,0.005598880223955209,positive
+12055,87,roi_087,Default Mode,137,roi_137,Dorsal Attention,Default Mode—Dorsal Attention,3.8040021597933777,0.005598880223955209,1.0,0.005598880223955209,positive
+15081,128,roi_128,Dorsal Attention,170,roi_170,Default Mode,Default Mode—Dorsal Attention,3.498963562845944,0.005598880223955209,1.0,0.005598880223955209,positive
+15086,128,roi_128,Dorsal Attention,175,roi_175,Default Mode,Default Mode—Dorsal Attention,3.460273428464039,0.005598880223955209,1.0,0.005598880223955209,positive
+15087,128,roi_128,Dorsal Attention,176,roi_176,Default Mode,Default Mode—Dorsal Attention,3.6309623228061656,0.005598880223955209,1.0,0.005598880223955209,positive
+15467,136,roi_136,Dorsal Attention,168,roi_168,Default Mode,Default Mode—Dorsal Attention,3.4761446328583787,0.005598880223955209,1.0,0.005598880223955209,positive
+6308,38,roi_038,Dorsal Attention,172,roi_172,Default Mode,Default Mode—Dorsal Attention,-3.765749108908905,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12233,89,roi_089,Default Mode,130,roi_130,Dorsal Attention,Default Mode—Dorsal Attention,-3.7765858555051133,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15195,130,roi_130,Dorsal Attention,181,roi_181,Default Mode,Default Mode—Dorsal Attention,-3.4478019211852793,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9551,63,roi_063,Frontoparietal Control,165,roi_165,Default Mode,Default Mode—Frontoparietal Control,-4.818447325627218,1.0,0.0001999600079984003,0.0001999600079984003,negative
+10660,73,roi_073,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,5.326451514805511,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10661,73,roi_073,Default Mode,150,roi_150,Frontoparietal Control,Default Mode—Frontoparietal Control,4.375330580762561,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10666,73,roi_073,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,5.363742403633832,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11975,86,roi_086,Default Mode,151,roi_151,Frontoparietal Control,Default Mode—Frontoparietal Control,-4.8030636596819924,1.0,0.0001999600079984003,0.0001999600079984003,negative
+11985,86,roi_086,Default Mode,161,roi_161,Frontoparietal Control,Default Mode—Frontoparietal Control,-5.243890603117539,1.0,0.0001999600079984003,0.0001999600079984003,negative
+12067,87,roi_087,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,4.844127214521736,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12073,87,roi_087,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,4.6560585313186325,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12160,88,roi_088,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,4.264471864761938,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12161,88,roi_088,Default Mode,150,roi_150,Frontoparietal Control,Default Mode—Frontoparietal Control,4.281982730898222,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12166,88,roi_088,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,4.7154897157408255,0.0001999600079984003,1.0,0.0001999600079984003,positive
+15968,149,roi_149,Frontoparietal Control,175,roi_175,Default Mode,Default Mode—Frontoparietal Control,4.476730837379293,0.0001999600079984003,1.0,0.0001999600079984003,positive
+15991,150,roi_150,Frontoparietal Control,167,roi_167,Default Mode,Default Mode—Frontoparietal Control,5.115924200177543,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16004,150,roi_150,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,4.535966391848729,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16033,151,roi_151,Frontoparietal Control,179,roi_179,Default Mode,Default Mode—Frontoparietal Control,-4.525610382392331,1.0,0.0001999600079984003,0.0001999600079984003,negative
+16131,155,roi_155,Frontoparietal Control,167,roi_167,Default Mode,Default Mode—Frontoparietal Control,5.042265786613913,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16140,155,roi_155,Frontoparietal Control,176,roi_176,Default Mode,Default Mode—Frontoparietal Control,5.006466092659107,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16144,155,roi_155,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,4.6148821129072,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16258,160,roi_160,Frontoparietal Control,179,roi_179,Default Mode,Default Mode—Frontoparietal Control,-4.762261952096444,1.0,0.0001999600079984003,0.0001999600079984003,negative
+16278,161,roi_161,Frontoparietal Control,179,roi_179,Default Mode,Default Mode—Frontoparietal Control,-4.796123423214139,1.0,0.0001999600079984003,0.0001999600079984003,negative
+8967,58,roi_058,Frontoparietal Control,181,roi_181,Default Mode,Default Mode—Frontoparietal Control,5.277272436770066,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9205,60,roi_060,Frontoparietal Control,176,roi_176,Default Mode,Default Mode—Frontoparietal Control,3.9218674659088517,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9210,60,roi_060,Frontoparietal Control,181,roi_181,Default Mode,Default Mode—Frontoparietal Control,4.063852408789868,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11185,78,roi_078,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,4.187788809542851,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11287,79,roi_079,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,3.996780350224469,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11589,82,roi_082,Default Mode,151,roi_151,Frontoparietal Control,Default Mode—Frontoparietal Control,4.14448801604273,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11593,82,roi_082,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,4.151895750481564,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15969,149,roi_149,Frontoparietal Control,176,roi_176,Default Mode,Default Mode—Frontoparietal Control,4.223335992274803,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16000,150,roi_150,Frontoparietal Control,176,roi_176,Default Mode,Default Mode—Frontoparietal Control,3.918405244064621,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16026,151,roi_151,Frontoparietal Control,172,roi_172,Default Mode,Default Mode—Frontoparietal Control,3.845101870358615,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16088,153,roi_153,Frontoparietal Control,177,roi_177,Default Mode,Default Mode—Frontoparietal Control,4.2038082013078455,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16089,153,roi_153,Frontoparietal Control,178,roi_178,Default Mode,Default Mode—Frontoparietal Control,3.87848047152102,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16142,155,roi_155,Frontoparietal Control,178,roi_178,Default Mode,Default Mode—Frontoparietal Control,4.0329007892112045,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9569,64,roi_064,Frontoparietal Control,66,roi_066,Default Mode,Default Mode—Frontoparietal Control,-4.5758651077658685,1.0,0.0007998400319936012,0.0007998400319936012,negative
+9593,64,roi_064,Frontoparietal Control,90,roi_090,Default Mode,Default Mode—Frontoparietal Control,-4.531778774831635,1.0,0.0007998400319936012,0.0007998400319936012,negative
+16318,164,roi_164,Frontoparietal Control,165,roi_165,Default Mode,Default Mode—Frontoparietal Control,5.286010457120619,0.0007998400319936012,1.0,0.0007998400319936012,positive
+9456,63,roi_063,Frontoparietal Control,70,roi_070,Default Mode,Default Mode—Frontoparietal Control,-4.315191457274887,1.0,0.0015996800639872025,0.0015996800639872025,negative
+9476,63,roi_063,Frontoparietal Control,90,roi_090,Default Mode,Default Mode—Frontoparietal Control,-4.0071460362886135,1.0,0.0015996800639872025,0.0015996800639872025,negative
+9565,63,roi_063,Frontoparietal Control,179,roi_179,Default Mode,Default Mode—Frontoparietal Control,-4.498066592081987,1.0,0.0015996800639872025,0.0015996800639872025,negative
+9570,64,roi_064,Frontoparietal Control,67,roi_067,Default Mode,Default Mode—Frontoparietal Control,-4.068508084397455,1.0,0.0015996800639872025,0.0015996800639872025,negative
+11885,85,roi_085,Default Mode,156,roi_156,Frontoparietal Control,Default Mode—Frontoparietal Control,5.001120149475799,0.0015996800639872025,1.0,0.0015996800639872025,positive
+12354,90,roi_090,Default Mode,160,roi_160,Frontoparietal Control,Default Mode—Frontoparietal Control,-4.347884192782593,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12355,90,roi_090,Default Mode,161,roi_161,Frontoparietal Control,Default Mode—Frontoparietal Control,-4.471435920446751,1.0,0.0015996800639872025,0.0015996800639872025,negative
+16244,160,roi_160,Frontoparietal Control,165,roi_165,Default Mode,Default Mode—Frontoparietal Control,-4.012065176894462,1.0,0.0015996800639872025,0.0015996800639872025,negative
+8752,57,roi_057,Frontoparietal Control,89,roi_089,Default Mode,Default Mode—Frontoparietal Control,4.38033562073417,0.002599480103979204,1.0,0.002599480103979204,positive
+8844,57,roi_057,Frontoparietal Control,181,roi_181,Default Mode,Default Mode—Frontoparietal Control,3.5185030215337054,0.005598880223955209,1.0,0.005598880223955209,positive
+9102,60,roi_060,Frontoparietal Control,73,roi_073,Default Mode,Default Mode—Frontoparietal Control,3.5252364279999737,0.005598880223955209,1.0,0.005598880223955209,positive
+9107,60,roi_060,Frontoparietal Control,78,roi_078,Default Mode,Default Mode—Frontoparietal Control,3.7975277080781913,0.005598880223955209,1.0,0.005598880223955209,positive
+9116,60,roi_060,Frontoparietal Control,87,roi_087,Default Mode,Default Mode—Frontoparietal Control,3.666649121177575,0.005598880223955209,1.0,0.005598880223955209,positive
+9118,60,roi_060,Frontoparietal Control,89,roi_089,Default Mode,Default Mode—Frontoparietal Control,3.3997362235935613,0.005598880223955209,1.0,0.005598880223955209,positive
+9196,60,roi_060,Frontoparietal Control,167,roi_167,Default Mode,Default Mode—Frontoparietal Control,3.440056634022502,0.005598880223955209,1.0,0.005598880223955209,positive
+9209,60,roi_060,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,3.7497142004832833,0.005598880223955209,1.0,0.005598880223955209,positive
+11488,81,roi_081,Default Mode,149,roi_149,Frontoparietal Control,Default Mode—Frontoparietal Control,3.4258892089848407,0.005598880223955209,1.0,0.005598880223955209,positive
+11494,81,roi_081,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,3.7705777542921055,0.005598880223955209,1.0,0.005598880223955209,positive
+11598,82,roi_082,Default Mode,160,roi_160,Frontoparietal Control,Default Mode—Frontoparietal Control,3.807711168685182,0.005598880223955209,1.0,0.005598880223955209,positive
+11691,83,roi_083,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,3.7709276816561896,0.005598880223955209,1.0,0.005598880223955209,positive
+11788,84,roi_084,Default Mode,155,roi_155,Frontoparietal Control,Default Mode—Frontoparietal Control,3.4660761898140002,0.005598880223955209,1.0,0.005598880223955209,positive
+12068,87,roi_087,Default Mode,150,roi_150,Frontoparietal Control,Default Mode—Frontoparietal Control,3.7107402404623913,0.005598880223955209,1.0,0.005598880223955209,positive
+15960,149,roi_149,Frontoparietal Control,167,roi_167,Default Mode,Default Mode—Frontoparietal Control,3.682217461395879,0.005598880223955209,1.0,0.005598880223955209,positive
+15973,149,roi_149,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,3.4430929682165132,0.005598880223955209,1.0,0.005598880223955209,positive
+16083,153,roi_153,Frontoparietal Control,172,roi_172,Default Mode,Default Mode—Frontoparietal Control,3.468883272835081,0.005598880223955209,1.0,0.005598880223955209,positive
+16141,155,roi_155,Frontoparietal Control,177,roi_177,Default Mode,Default Mode—Frontoparietal Control,3.5532652615871014,0.005598880223955209,1.0,0.005598880223955209,positive
+16193,157,roi_157,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,3.466390877556379,0.005598880223955209,1.0,0.005598880223955209,positive
+8500,55,roi_055,Frontoparietal Control,86,roi_086,Default Mode,Default Mode—Frontoparietal Control,-3.580767701545687,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9455,63,roi_063,Frontoparietal Control,69,roi_069,Default Mode,Default Mode—Frontoparietal Control,-3.694659305159058,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9457,63,roi_063,Frontoparietal Control,71,roi_071,Default Mode,Default Mode—Frontoparietal Control,-3.742317360895224,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9472,63,roi_063,Frontoparietal Control,86,roi_086,Default Mode,Default Mode—Frontoparietal Control,-3.433844889429316,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9475,63,roi_063,Frontoparietal Control,89,roi_089,Default Mode,Default Mode—Frontoparietal Control,-3.550381366857437,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9566,63,roi_063,Frontoparietal Control,180,roi_180,Default Mode,Default Mode—Frontoparietal Control,-3.3739217794189553,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9572,64,roi_064,Frontoparietal Control,69,roi_069,Default Mode,Default Mode—Frontoparietal Control,-3.679742708757811,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9671,64,roi_064,Frontoparietal Control,168,roi_168,Default Mode,Default Mode—Frontoparietal Control,-3.5389038319928408,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9682,64,roi_064,Frontoparietal Control,179,roi_179,Default Mode,Default Mode—Frontoparietal Control,-3.807012331409043,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9895,66,roi_066,Default Mode,161,roi_161,Frontoparietal Control,Default Mode—Frontoparietal Control,-3.7963780819904955,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10344,70,roi_070,Default Mode,160,roi_160,Frontoparietal Control,Default Mode—Frontoparietal Control,-3.6504049034132033,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10454,71,roi_071,Default Mode,160,roi_160,Frontoparietal Control,Default Mode—Frontoparietal Control,-3.436243139822575,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11984,86,roi_086,Default Mode,160,roi_160,Frontoparietal Control,Default Mode—Frontoparietal Control,-3.7292692397341853,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12254,89,roi_089,Default Mode,151,roi_151,Frontoparietal Control,Default Mode—Frontoparietal Control,-3.758748950274603,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16248,160,roi_160,Frontoparietal Control,169,roi_169,Default Mode,Default Mode—Frontoparietal Control,-3.481221024068673,1.0,0.0057988402319536095,0.0057988402319536095,negative
+16260,160,roi_160,Frontoparietal Control,181,roi_181,Default Mode,Default Mode—Frontoparietal Control,-3.5880663737007428,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2327,13,roi_013,Somatomotor,66,roi_066,Default Mode,Default Mode—Somatomotor,4.316821820303017,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2328,13,roi_013,Somatomotor,67,roi_067,Default Mode,Default Mode—Somatomotor,5.062461062391259,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2429,13,roi_013,Somatomotor,168,roi_168,Default Mode,Default Mode—Somatomotor,4.463901243452783,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2494,14,roi_014,Somatomotor,66,roi_066,Default Mode,Default Mode—Somatomotor,4.493188769249006,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2495,14,roi_014,Somatomotor,67,roi_067,Default Mode,Default Mode—Somatomotor,5.4325877062594525,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2514,14,roi_014,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,4.823185064542748,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2596,14,roi_014,Somatomotor,168,roi_168,Default Mode,Default Mode—Somatomotor,4.677832805000094,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2607,14,roi_014,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,5.131651652238568,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2845,16,roi_016,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,4.79306473567789,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2938,16,roi_016,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.349043400510681,0.0001999600079984003,1.0,0.0001999600079984003,positive
+3009,17,roi_017,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,5.454235017615163,0.0001999600079984003,1.0,0.0001999600079984003,positive
+3102,17,roi_017,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.8838539797158615,0.0001999600079984003,1.0,0.0001999600079984003,positive
+9845,66,roi_066,Default Mode,111,roi_111,Somatomotor,Default Mode—Somatomotor,4.936340054785648,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11931,86,roi_086,Default Mode,107,roi_107,Somatomotor,Default Mode—Somatomotor,4.338688755853123,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11932,86,roi_086,Default Mode,108,roi_108,Somatomotor,Default Mode—Somatomotor,4.399464189611515,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11933,86,roi_086,Default Mode,109,roi_109,Somatomotor,Default Mode—Somatomotor,4.608091849149247,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11939,86,roi_086,Default Mode,115,roi_115,Somatomotor,Default Mode—Somatomotor,4.649809997183401,0.0001999600079984003,1.0,0.0001999600079984003,positive
+13767,107,roi_107,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.6644860762388625,0.0001999600079984003,1.0,0.0001999600079984003,positive
+13912,109,roi_109,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.9346391325382415,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2680,15,roi_015,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,4.052624334769519,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2825,16,roi_016,Somatomotor,66,roi_066,Default Mode,Default Mode—Somatomotor,3.8575729462812465,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2826,16,roi_016,Somatomotor,67,roi_067,Default Mode,Default Mode—Somatomotor,4.102797254663065,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9954,67,roi_067,Default Mode,106,roi_106,Somatomotor,Default Mode—Somatomotor,4.165830998615957,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9955,67,roi_067,Default Mode,107,roi_107,Somatomotor,Default Mode—Somatomotor,3.9642362009479846,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11934,86,roi_086,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,4.17847898785238,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11935,86,roi_086,Default Mode,111,roi_111,Somatomotor,Default Mode—Somatomotor,3.985220172029014,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12028,87,roi_087,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,3.8655030174771596,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12304,90,roi_090,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,3.903974682732854,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13840,108,roi_108,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.085699038318366,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13983,110,roi_110,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.143748527863703,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14323,115,roi_115,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.2153146683601,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14815,123,roi_123,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,4.201011072154935,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2347,13,roi_013,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,3.440112938983466,0.005598880223955209,1.0,0.005598880223955209,positive
+2496,14,roi_014,Somatomotor,68,roi_068,Default Mode,Default Mode—Somatomotor,3.662566377507878,0.005598880223955209,1.0,0.005598880223955209,positive
+2597,14,roi_014,Somatomotor,169,roi_169,Default Mode,Default Mode—Somatomotor,3.4499011599654277,0.005598880223955209,1.0,0.005598880223955209,positive
+2773,15,roi_015,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,3.5178902218298314,0.005598880223955209,1.0,0.005598880223955209,positive
+2834,16,roi_016,Somatomotor,75,roi_075,Default Mode,Default Mode—Somatomotor,3.6443212765787316,0.005598880223955209,1.0,0.005598880223955209,positive
+2849,16,roi_016,Somatomotor,90,roi_090,Default Mode,Default Mode—Somatomotor,3.5827179410702565,0.005598880223955209,1.0,0.005598880223955209,positive
+2927,16,roi_016,Somatomotor,168,roi_168,Default Mode,Default Mode—Somatomotor,3.7373902139464197,0.005598880223955209,1.0,0.005598880223955209,positive
+2998,17,roi_017,Somatomotor,75,roi_075,Default Mode,Default Mode—Somatomotor,3.5222090968450126,0.005598880223955209,1.0,0.005598880223955209,positive
+3334,19,roi_019,Somatomotor,86,roi_086,Default Mode,Default Mode—Somatomotor,3.6591044206998324,0.005598880223955209,1.0,0.005598880223955209,positive
+3427,19,roi_019,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,3.487987888483444,0.005598880223955209,1.0,0.005598880223955209,positive
+9841,66,roi_066,Default Mode,107,roi_107,Somatomotor,Default Mode—Somatomotor,3.552414697737529,0.005598880223955209,1.0,0.005598880223955209,positive
+9844,66,roi_066,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,3.67733846287692,0.005598880223955209,1.0,0.005598880223955209,positive
+11248,79,roi_079,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,3.4094935085097826,0.005598880223955209,1.0,0.005598880223955209,positive
+11947,86,roi_086,Default Mode,123,roi_123,Somatomotor,Default Mode—Somatomotor,3.7100220195458586,0.005598880223955209,1.0,0.005598880223955209,positive
+12213,89,roi_089,Default Mode,110,roi_110,Somatomotor,Default Mode—Somatomotor,3.5479404538647152,0.005598880223955209,1.0,0.005598880223955209,positive
+13682,106,roi_106,Somatomotor,168,roi_168,Default Mode,Default Mode—Somatomotor,3.449093918294436,0.005598880223955209,1.0,0.005598880223955209,positive
+13693,106,roi_106,Somatomotor,179,roi_179,Default Mode,Default Mode—Somatomotor,3.735190716497577,0.005598880223955209,1.0,0.005598880223955209,positive
+11552,82,roi_082,Default Mode,114,roi_114,Somatomotor,Default Mode—Somatomotor,-3.6363188119656495,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11558,82,roi_082,Default Mode,120,roi_120,Somatomotor,Default Mode—Somatomotor,-3.5795833322662065,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6765,42,roi_042,Ventral Attention,67,roi_067,Default Mode,Default Mode—Ventral Attention,4.358372321899963,0.0001999600079984003,1.0,0.0001999600079984003,positive
+6877,42,roi_042,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,4.5779953818180426,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7046,44,roi_044,Ventral Attention,73,roi_073,Default Mode,Default Mode—Ventral Attention,4.396687184820029,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7052,44,roi_044,Ventral Attention,79,roi_079,Default Mode,Default Mode—Ventral Attention,4.291102261125788,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7060,44,roi_044,Ventral Attention,87,roi_087,Default Mode,Default Mode—Ventral Attention,4.3220776141579345,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7148,44,roi_044,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,4.543701945536646,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7195,45,roi_045,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,4.418010317876602,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7331,46,roi_046,Ventral Attention,87,roi_087,Default Mode,Default Mode—Ventral Attention,4.340322590326935,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7332,46,roi_046,Ventral Attention,88,roi_088,Default Mode,Default Mode—Ventral Attention,4.289010337684207,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7424,46,roi_046,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,4.880082685178888,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7462,47,roi_047,Ventral Attention,84,roi_084,Default Mode,Default Mode—Ventral Attention,4.364475259222153,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7464,47,roi_047,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,4.5251617758077725,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7468,47,roi_047,Ventral Attention,90,roi_090,Default Mode,Default Mode—Ventral Attention,4.328409549064939,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7678,48,roi_048,Ventral Attention,167,roi_167,Default Mode,Default Mode—Ventral Attention,4.510778045165273,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7686,48,roi_048,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,4.639565468815361,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7687,48,roi_048,Ventral Attention,176,roi_176,Default Mode,Default Mode—Ventral Attention,5.120736806950812,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7852,50,roi_050,Ventral Attention,78,roi_078,Default Mode,Default Mode—Ventral Attention,4.516518294260069,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7860,50,roi_050,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,4.402065480301667,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7861,50,roi_050,Ventral Attention,87,roi_087,Default Mode,Default Mode—Ventral Attention,4.5217473446566165,0.0001999600079984003,1.0,0.0001999600079984003,positive
+9879,66,roi_066,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,4.603711645561311,0.0001999600079984003,1.0,0.0001999600079984003,positive
+9987,67,roi_067,Default Mode,139,roi_139,Ventral Attention,Default Mode—Ventral Attention,4.820078159791028,0.0001999600079984003,1.0,0.0001999600079984003,positive
+9988,67,roi_067,Default Mode,140,roi_140,Ventral Attention,Default Mode—Ventral Attention,4.456045851032426,0.0001999600079984003,1.0,0.0001999600079984003,positive
+9993,67,roi_067,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,4.88757092916613,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10656,73,roi_073,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,4.4481319102621715,0.0001999600079984003,1.0,0.0001999600079984003,positive
+11967,86,roi_086,Default Mode,143,roi_143,Ventral Attention,Default Mode—Ventral Attention,4.334687904744347,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12062,87,roi_087,Default Mode,144,roi_144,Ventral Attention,Default Mode—Ventral Attention,4.344172079282891,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12155,88,roi_088,Default Mode,144,roi_144,Ventral Attention,Default Mode—Ventral Attention,4.313189973889146,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12339,90,roi_090,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,4.706931367959455,0.0001999600079984003,1.0,0.0001999600079984003,positive
+15765,143,roi_143,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,4.2958625154434085,0.0001999600079984003,1.0,0.0001999600079984003,positive
+15799,144,roi_144,Ventral Attention,176,roi_176,Default Mode,Default Mode—Ventral Attention,4.47434689767436,0.0001999600079984003,1.0,0.0001999600079984003,positive
+6784,42,roi_042,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,4.07015140830714,0.0003999200159968006,1.0,0.0003999200159968006,positive
+6911,43,roi_043,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,3.862394583177988,0.0003999200159968006,1.0,0.0003999200159968006,positive
+6914,43,roi_043,Ventral Attention,78,roi_078,Default Mode,Default Mode—Ventral Attention,4.0412521986613825,0.0003999200159968006,1.0,0.0003999200159968006,positive
+6915,43,roi_043,Ventral Attention,79,roi_079,Default Mode,Default Mode—Ventral Attention,3.928179670360274,0.0003999200159968006,1.0,0.0003999200159968006,positive
+6917,43,roi_043,Ventral Attention,81,roi_081,Default Mode,Default Mode—Ventral Attention,4.243825176699773,0.0003999200159968006,1.0,0.0003999200159968006,positive
+6923,43,roi_043,Ventral Attention,87,roi_087,Default Mode,Default Mode—Ventral Attention,3.8657131491021017,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7051,44,roi_044,Ventral Attention,78,roi_078,Default Mode,Default Mode—Ventral Attention,4.184317612933253,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7184,45,roi_045,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,4.168314446848806,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7319,46,roi_046,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,4.16722095525531,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7330,46,roi_046,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,4.053730039788105,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7419,46,roi_046,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,4.153909152145924,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7420,46,roi_046,Ventral Attention,176,roi_176,Default Mode,Default Mode—Ventral Attention,3.8752611743456624,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7423,46,roi_046,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,4.185560894382093,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7557,47,roi_047,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,3.8932069148571182,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7586,48,roi_048,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,4.211295146259849,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7679,48,roi_048,Ventral Attention,168,roi_168,Default Mode,Default Mode—Ventral Attention,4.1542941988246795,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7688,48,roi_048,Ventral Attention,177,roi_177,Default Mode,Default Mode—Ventral Attention,3.859498254975773,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7849,50,roi_050,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,4.030551836958511,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7854,50,roi_050,Ventral Attention,80,roi_080,Default Mode,Default Mode—Ventral Attention,3.9726468746174777,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7954,50,roi_050,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,3.913979158407,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9872,66,roi_066,Default Mode,138,roi_138,Ventral Attention,Default Mode—Ventral Attention,3.8301341385929044,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9873,66,roi_066,Default Mode,139,roi_139,Ventral Attention,Default Mode—Ventral Attention,4.2463823410918975,0.0003999200159968006,1.0,0.0003999200159968006,positive
+10103,68,roi_068,Default Mode,142,roi_142,Ventral Attention,Default Mode—Ventral Attention,4.021213290202175,0.0003999200159968006,1.0,0.0003999200159968006,positive
+10655,73,roi_073,Default Mode,144,roi_144,Ventral Attention,Default Mode—Ventral Attention,3.844727996798502,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11283,79,roi_079,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.958898072754825,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11969,86,roi_086,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,4.254525697955298,0.0003999200159968006,1.0,0.0003999200159968006,positive
+11970,86,roi_086,Default Mode,146,roi_146,Ventral Attention,Default Mode—Ventral Attention,4.041064129483991,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15803,144,roi_144,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,4.111142008007963,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15834,145,roi_145,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,4.014471444644401,0.0003999200159968006,1.0,0.0003999200159968006,positive
+7732,49,roi_049,Ventral Attention,89,roi_089,Default Mode,Default Mode—Ventral Attention,3.8601414033694725,0.003599280143971206,1.0,0.003599280143971206,positive
+6903,43,roi_043,Ventral Attention,67,roi_067,Default Mode,Default Mode—Ventral Attention,3.767784366094988,0.005598880223955209,1.0,0.005598880223955209,positive
+6922,43,roi_043,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,3.618195019711569,0.005598880223955209,1.0,0.005598880223955209,positive
+7061,44,roi_044,Ventral Attention,88,roi_088,Default Mode,Default Mode—Ventral Attention,3.4194356429686827,0.005598880223955209,1.0,0.005598880223955209,positive
+7140,44,roi_044,Ventral Attention,167,roi_167,Default Mode,Default Mode—Ventral Attention,3.6181801351779708,0.005598880223955209,1.0,0.005598880223955209,positive
+7151,44,roi_044,Ventral Attention,178,roi_178,Default Mode,Default Mode—Ventral Attention,3.4716340035291884,0.005598880223955209,1.0,0.005598880223955209,positive
+7182,45,roi_045,Ventral Attention,73,roi_073,Default Mode,Default Mode—Ventral Attention,3.4098050739108214,0.005598880223955209,1.0,0.005598880223955209,positive
+7187,45,roi_045,Ventral Attention,78,roi_078,Default Mode,Default Mode—Ventral Attention,3.779906641902117,0.005598880223955209,1.0,0.005598880223955209,positive
+7288,45,roi_045,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,3.7333350115876835,0.005598880223955209,1.0,0.005598880223955209,positive
+7289,45,roi_045,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,3.444088923297161,0.005598880223955209,1.0,0.005598880223955209,positive
+7453,47,roi_047,Ventral Attention,75,roi_075,Default Mode,Default Mode—Ventral Attention,3.5350953284739095,0.005598880223955209,1.0,0.005598880223955209,positive
+7553,47,roi_047,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,3.7081261349466734,0.005598880223955209,1.0,0.005598880223955209,positive
+7578,48,roi_048,Ventral Attention,67,roi_067,Default Mode,Default Mode—Ventral Attention,3.7439068430141664,0.005598880223955209,1.0,0.005598880223955209,positive
+7585,48,roi_048,Ventral Attention,74,roi_074,Default Mode,Default Mode—Ventral Attention,3.765336953710589,0.005598880223955209,1.0,0.005598880223955209,positive
+7590,48,roi_048,Ventral Attention,79,roi_079,Default Mode,Default Mode—Ventral Attention,3.5533251186450054,0.005598880223955209,1.0,0.005598880223955209,positive
+7689,48,roi_048,Ventral Attention,178,roi_178,Default Mode,Default Mode—Ventral Attention,3.6305389342133436,0.005598880223955209,1.0,0.005598880223955209,positive
+7691,48,roi_048,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,3.8151553150336914,0.005598880223955209,1.0,0.005598880223955209,positive
+7823,49,roi_049,Ventral Attention,180,roi_180,Default Mode,Default Mode—Ventral Attention,3.4819786497335286,0.005598880223955209,1.0,0.005598880223955209,positive
+7847,50,roi_050,Ventral Attention,73,roi_073,Default Mode,Default Mode—Ventral Attention,3.7895079433928403,0.005598880223955209,1.0,0.005598880223955209,positive
+7941,50,roi_050,Ventral Attention,167,roi_167,Default Mode,Default Mode—Ventral Attention,3.500927939201416,0.005598880223955209,1.0,0.005598880223955209,positive
+8119,52,roi_052,Ventral Attention,86,roi_086,Default Mode,Default Mode—Ventral Attention,3.5187315904776533,0.005598880223955209,1.0,0.005598880223955209,positive
+8212,52,roi_052,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,3.722824740260041,0.005598880223955209,1.0,0.005598880223955209,positive
+9874,66,roi_066,Default Mode,140,roi_140,Ventral Attention,Default Mode—Ventral Attention,3.3956736256713405,0.005598880223955209,1.0,0.005598880223955209,positive
+9875,66,roi_066,Default Mode,141,roi_141,Ventral Attention,Default Mode—Ventral Attention,3.506008959499182,0.005598880223955209,1.0,0.005598880223955209,positive
+9877,66,roi_066,Default Mode,143,roi_143,Ventral Attention,Default Mode—Ventral Attention,3.455336270788364,0.005598880223955209,1.0,0.005598880223955209,positive
+10868,75,roi_075,Default Mode,144,roi_144,Ventral Attention,Default Mode—Ventral Attention,3.6723033453963114,0.005598880223955209,1.0,0.005598880223955209,positive
+10869,75,roi_075,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.6874701568266457,0.005598880223955209,1.0,0.005598880223955209,positive
+10870,75,roi_075,Default Mode,146,roi_146,Ventral Attention,Default Mode—Ventral Attention,3.8049748262753504,0.005598880223955209,1.0,0.005598880223955209,positive
+11176,78,roi_078,Default Mode,140,roi_140,Ventral Attention,Default Mode—Ventral Attention,3.723025064177732,0.005598880223955209,1.0,0.005598880223955209,positive
+11178,78,roi_078,Default Mode,142,roi_142,Ventral Attention,Default Mode—Ventral Attention,3.727071349346686,0.005598880223955209,1.0,0.005598880223955209,positive
+11182,78,roi_078,Default Mode,146,roi_146,Ventral Attention,Default Mode—Ventral Attention,3.526829373979209,0.005598880223955209,1.0,0.005598880223955209,positive
+11278,79,roi_079,Default Mode,140,roi_140,Ventral Attention,Default Mode—Ventral Attention,3.66962672343458,0.005598880223955209,1.0,0.005598880223955209,positive
+11484,81,roi_081,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.536575531414788,0.005598880223955209,1.0,0.005598880223955209,positive
+11778,84,roi_084,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.750506772420585,0.005598880223955209,1.0,0.005598880223955209,positive
+12063,87,roi_087,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.7888093385939547,0.005598880223955209,1.0,0.005598880223955209,positive
+12156,88,roi_088,Default Mode,145,roi_145,Ventral Attention,Default Mode—Ventral Attention,3.6404759398589106,0.005598880223955209,1.0,0.005598880223955209,positive
+15677,141,roi_141,Ventral Attention,168,roi_168,Default Mode,Default Mode—Ventral Attention,3.539188463255216,0.005598880223955209,1.0,0.005598880223955209,positive
+15838,145,roi_145,Ventral Attention,179,roi_179,Default Mode,Default Mode—Ventral Attention,3.458369941288697,0.005598880223955209,1.0,0.005598880223955209,positive
+15867,146,roi_146,Ventral Attention,173,roi_173,Default Mode,Default Mode—Ventral Attention,3.588225093846631,0.005598880223955209,1.0,0.005598880223955209,positive
+15869,146,roi_146,Ventral Attention,175,roi_175,Default Mode,Default Mode—Ventral Attention,3.5074188626120795,0.005598880223955209,1.0,0.005598880223955209,positive
+166,0,roi_000,Visual,167,roi_167,Default Mode,Default Mode—Visual,-4.615604657378633,1.0,0.0001999600079984003,0.0001999600079984003,negative
+786,4,roi_004,Visual,73,roi_073,Default Mode,Default Mode—Visual,-6.467358886760504,1.0,0.0001999600079984003,0.0001999600079984003,negative
+880,4,roi_004,Visual,167,roi_167,Default Mode,Default Mode—Visual,-5.092631380130001,1.0,0.0001999600079984003,0.0001999600079984003,negative
+893,4,roi_004,Visual,180,roi_180,Default Mode,Default Mode—Visual,-5.466058418118858,1.0,0.0001999600079984003,0.0001999600079984003,negative
+1843,10,roi_010,Visual,89,roi_089,Default Mode,Default Mode—Visual,-4.908477099804976,1.0,0.0001999600079984003,0.0001999600079984003,negative
+1931,10,roi_010,Visual,177,roi_177,Default Mode,Default Mode—Visual,-4.919947081460109,1.0,0.0001999600079984003,0.0001999600079984003,negative
+1932,10,roi_010,Visual,178,roi_178,Default Mode,Default Mode—Visual,-4.518870401085866,1.0,0.0001999600079984003,0.0001999600079984003,negative
+1934,10,roi_010,Visual,180,roi_180,Default Mode,Default Mode—Visual,-5.458836344745464,1.0,0.0001999600079984003,0.0001999600079984003,negative
+12983,97,roi_097,Visual,180,roi_180,Default Mode,Default Mode—Visual,-5.128894570084713,1.0,0.0001999600079984003,0.0001999600079984003,negative
+13464,103,roi_103,Visual,178,roi_178,Default Mode,Default Mode—Visual,-4.588670693079697,1.0,0.0001999600079984003,0.0001999600079984003,negative
+13466,103,roi_103,Visual,180,roi_180,Default Mode,Default Mode—Visual,-4.71125429814795,1.0,0.0001999600079984003,0.0001999600079984003,negative
+715,3,roi_003,Visual,179,roi_179,Default Mode,Default Mode—Visual,3.8400142233105083,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2096,11,roi_011,Visual,172,roi_172,Default Mode,Default Mode—Visual,-5.019453691668967,1.0,0.0003999200159968006,0.0003999200159968006,negative
+2265,12,roi_012,Visual,172,roi_172,Default Mode,Default Mode—Visual,-5.073079380730466,1.0,0.0003999200159968006,0.0003999200159968006,negative
+12640,93,roi_093,Visual,179,roi_179,Default Mode,Default Mode—Visual,4.130109082423735,0.0003999200159968006,1.0,0.0003999200159968006,positive
+957,5,roi_005,Visual,68,roi_068,Default Mode,Default Mode—Visual,-4.903870261461342,1.0,0.0007998400319936012,0.0007998400319936012,negative
+10057,68,roi_068,Default Mode,96,roi_096,Visual,Default Mode—Visual,-4.986766927384578,1.0,0.0007998400319936012,0.0007998400319936012,negative
+11823,85,roi_085,Default Mode,94,roi_094,Visual,Default Mode—Visual,-4.738944911517112,1.0,0.0011997600479904018,0.0011997600479904018,negative
+72,0,roi_000,Visual,73,roi_073,Default Mode,Default Mode—Visual,-3.9477111645518677,1.0,0.0015996800639872025,0.0015996800639872025,negative
+621,3,roi_003,Visual,85,roi_085,Default Mode,Default Mode—Visual,-4.386116493544198,1.0,0.0015996800639872025,0.0015996800639872025,negative
+801,4,roi_004,Visual,88,roi_088,Default Mode,Default Mode—Visual,-4.478557088025886,1.0,0.0015996800639872025,0.0015996800639872025,negative
+802,4,roi_004,Visual,89,roi_089,Default Mode,Default Mode—Visual,-4.188091640003761,1.0,0.0015996800639872025,0.0015996800639872025,negative
+891,4,roi_004,Visual,178,roi_178,Default Mode,Default Mode—Visual,-4.453887107445648,1.0,0.0015996800639872025,0.0015996800639872025,negative
+956,5,roi_005,Visual,67,roi_067,Default Mode,Default Mode—Visual,-4.104228295364518,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1323,7,roi_007,Visual,85,roi_085,Default Mode,Default Mode—Visual,-4.072628245916217,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1408,7,roi_007,Visual,170,roi_170,Default Mode,Default Mode—Visual,-4.100867202380105,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1484,8,roi_008,Visual,73,roi_073,Default Mode,Default Mode—Visual,-4.152963284826053,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1825,10,roi_010,Visual,71,roi_071,Default Mode,Default Mode—Visual,-3.9350094280916306,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1827,10,roi_010,Visual,73,roi_073,Default Mode,Default Mode—Visual,-3.975141426835439,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1841,10,roi_010,Visual,87,roi_087,Default Mode,Default Mode—Visual,-4.438950978446328,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1919,10,roi_010,Visual,165,roi_165,Default Mode,Default Mode—Visual,-4.314141294549433,1.0,0.0015996800639872025,0.0015996800639872025,negative
+1935,10,roi_010,Visual,181,roi_181,Default Mode,Default Mode—Visual,-4.227268485622395,1.0,0.0015996800639872025,0.0015996800639872025,negative
+11531,82,roi_082,Default Mode,93,roi_093,Visual,Default Mode—Visual,-4.056518960597227,1.0,0.0015996800639872025,0.0015996800639872025,negative
+11822,85,roi_085,Default Mode,93,roi_093,Visual,Default Mode—Visual,-4.461109388640648,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12010,87,roi_087,Default Mode,92,roi_092,Visual,Default Mode—Visual,-4.037620157446286,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12021,87,roi_087,Default Mode,103,roi_103,Visual,Default Mode—Visual,-3.9976177584399553,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12553,92,roi_092,Visual,180,roi_180,Default Mode,Default Mode—Visual,-3.9907881538725323,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12720,94,roi_094,Visual,172,roi_172,Default Mode,Default Mode—Visual,-4.2401729162829636,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13227,100,roi_100,Visual,178,roi_178,Default Mode,Default Mode—Visual,-4.159572989690709,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13229,100,roi_100,Visual,180,roi_180,Default Mode,Default Mode—Visual,-4.442520432841592,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13604,105,roi_105,Visual,165,roi_165,Default Mode,Default Mode—Visual,-4.178677750885701,1.0,0.0015996800639872025,0.0015996800639872025,negative
+358,1,roi_001,Visual,179,roi_179,Default Mode,Default Mode—Visual,3.702461301155744,0.005598880223955209,1.0,0.005598880223955209,positive
+1309,7,roi_007,Visual,71,roi_071,Default Mode,Default Mode—Visual,3.6234551002896036,0.005598880223955209,1.0,0.005598880223955209,positive
+11917,86,roi_086,Default Mode,93,roi_093,Visual,Default Mode—Visual,3.4910615653263224,0.005598880223955209,1.0,0.005598880223955209,positive
+12287,90,roi_090,Default Mode,93,roi_093,Visual,Default Mode—Visual,3.4050314808207416,0.005598880223955209,1.0,0.005598880223955209,positive
+12288,90,roi_090,Default Mode,94,roi_094,Visual,Default Mode—Visual,3.575372523122399,0.005598880223955209,1.0,0.005598880223955209,positive
+12727,94,roi_094,Visual,179,roi_179,Default Mode,Default Mode—Visual,3.429635351887844,0.005598880223955209,1.0,0.005598880223955209,positive
+81,0,roi_000,Visual,82,roi_082,Default Mode,Default Mode—Visual,-3.406982654773135,1.0,0.0057988402319536095,0.0057988402319536095,negative
+177,0,roi_000,Visual,178,roi_178,Default Mode,Default Mode—Visual,-3.4756013621199755,1.0,0.0057988402319536095,0.0057988402319536095,negative
+264,1,roi_001,Visual,85,roi_085,Default Mode,Default Mode—Visual,-3.6380841954831524,1.0,0.0057988402319536095,0.0057988402319536095,negative
+609,3,roi_003,Visual,73,roi_073,Default Mode,Default Mode—Visual,-3.494005047887777,1.0,0.0057988402319536095,0.0057988402319536095,negative
+708,3,roi_003,Visual,172,roi_172,Default Mode,Default Mode—Visual,-3.7544647121740327,1.0,0.0057988402319536095,0.0057988402319536095,negative
+792,4,roi_004,Visual,79,roi_079,Default Mode,Default Mode—Visual,-3.88092501638063,1.0,0.0057988402319536095,0.0057988402319536095,negative
+797,4,roi_004,Visual,84,roi_084,Default Mode,Default Mode—Visual,-3.585487993522203,1.0,0.0057988402319536095,0.0057988402319536095,negative
+800,4,roi_004,Visual,87,roi_087,Default Mode,Default Mode—Visual,-3.8165710493022273,1.0,0.0057988402319536095,0.0057988402319536095,negative
+879,4,roi_004,Visual,166,roi_166,Default Mode,Default Mode—Visual,-3.782729773480963,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1059,5,roi_005,Visual,170,roi_170,Default Mode,Default Mode—Visual,-3.7121009575268156,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1498,8,roi_008,Visual,87,roi_087,Default Mode,Default Mode—Visual,-3.571054485881071,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1500,8,roi_008,Visual,89,roi_089,Default Mode,Default Mode—Visual,-3.4042931719325447,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1589,8,roi_008,Visual,178,roi_178,Default Mode,Default Mode—Visual,-3.4667352378584226,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1591,8,roi_008,Visual,180,roi_180,Default Mode,Default Mode—Visual,-3.562918099887907,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1750,9,roi_009,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.535284408659192,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1921,10,roi_010,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.640801394293988,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2091,11,roi_011,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.3727557822941066,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2175,12,roi_012,Visual,82,roi_082,Default Mode,Default Mode—Visual,-3.445926654194745,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2260,12,roi_012,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.719001727739052,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10608,73,roi_073,Default Mode,97,roi_097,Visual,Default Mode—Visual,-3.5419450197620277,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10614,73,roi_073,Default Mode,103,roi_103,Visual,Default Mode—Visual,-3.656578593213744,1.0,0.0057988402319536095,0.0057988402319536095,negative
+10711,74,roi_074,Default Mode,93,roi_093,Visual,Default Mode—Visual,-3.572184977575794,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11230,79,roi_079,Default Mode,92,roi_092,Visual,Default Mode—Visual,-3.7881804903342595,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11532,82,roi_082,Default Mode,94,roi_094,Visual,Default Mode—Visual,-3.7002960395857882,1.0,0.0057988402319536095,0.0057988402319536095,negative
+11831,85,roi_085,Default Mode,102,roi_102,Visual,Default Mode—Visual,-3.621503697271868,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12015,87,roi_087,Default Mode,97,roi_097,Visual,Default Mode—Visual,-3.8646123804266295,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12628,93,roi_093,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.4500410104461623,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12715,94,roi_094,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.4009564653205233,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12889,96,roi_096,Visual,170,roi_170,Default Mode,Default Mode—Visual,-3.6860196343323737,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12970,97,roi_097,Visual,167,roi_167,Default Mode,Default Mode—Visual,-3.878679209281405,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12978,97,roi_097,Visual,175,roi_175,Default Mode,Default Mode—Visual,-3.59590626814691,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12981,97,roi_097,Visual,178,roi_178,Default Mode,Default Mode—Visual,-3.8955986826369617,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13380,102,roi_102,Visual,172,roi_172,Default Mode,Default Mode—Visual,-3.7786782149328486,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13451,103,roi_103,Visual,165,roi_165,Default Mode,Default Mode—Visual,-3.4752201199119357,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13463,103,roi_103,Visual,177,roi_177,Default Mode,Default Mode—Visual,-3.871578764582122,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13467,103,roi_103,Visual,181,roi_181,Default Mode,Default Mode—Visual,-3.46478286930243,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13619,105,roi_105,Visual,180,roi_180,Default Mode,Default Mode—Visual,-3.4361325286987543,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14995,127,roi_127,Dorsal Attention,137,roi_137,Dorsal Attention,Dorsal Attention—Dorsal Attention,-3.963564012892537,1.0,0.0015996800639872025,0.0015996800639872025,negative
+6123,37,roi_037,Dorsal Attention,130,roi_130,Dorsal Attention,Dorsal Attention—Dorsal Attention,-3.8819679589085565,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15040,128,roi_128,Dorsal Attention,129,roi_129,Dorsal Attention,Dorsal Attention—Dorsal Attention,-3.392856088908631,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15100,129,roi_129,Dorsal Attention,137,roi_137,Dorsal Attention,Dorsal Attention—Dorsal Attention,-3.42738018878049,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14964,126,roi_126,Dorsal Attention,160,roi_160,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-5.531147143300615,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15007,127,roi_127,Dorsal Attention,149,roi_149,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-5.087665317092781,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15008,127,roi_127,Dorsal Attention,150,roi_150,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-4.854999969434814,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15013,127,roi_127,Dorsal Attention,155,roi_155,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-4.7561690231638325,1.0,0.0001999600079984003,0.0001999600079984003,negative
+9158,60,roi_060,Frontoparietal Control,129,roi_129,Dorsal Attention,Dorsal Attention—Frontoparietal Control,-4.05444997019235,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15112,129,roi_129,Dorsal Attention,149,roi_149,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.937311908924761,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15113,129,roi_129,Dorsal Attention,150,roi_150,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-4.344061446139938,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15118,129,roi_129,Dorsal Attention,155,roi_155,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-4.388255514904052,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15310,133,roi_133,Dorsal Attention,149,roi_149,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-4.456880213730778,1.0,0.0015996800639872025,0.0015996800639872025,negative
+6051,37,roi_037,Dorsal Attention,58,roi_058,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,3.6102695983326227,0.005598880223955209,1.0,0.005598880223955209,positive
+9405,62,roi_062,Frontoparietal Control,137,roi_137,Dorsal Attention,Dorsal Attention—Frontoparietal Control,3.4352403090409225,0.005598880223955209,1.0,0.005598880223955209,positive
+5413,32,roi_032,Dorsal Attention,150,roi_150,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.711652740633075,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8668,56,roi_056,Frontoparietal Control,129,roi_129,Dorsal Attention,Dorsal Attention—Frontoparietal Control,-3.3874940677832193,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14955,126,roi_126,Dorsal Attention,151,roi_151,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.910998400657661,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14965,126,roi_126,Dorsal Attention,161,roi_161,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.4117024430942084,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15316,133,roi_133,Dorsal Attention,155,roi_155,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.4232364675172566,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15403,135,roi_135,Dorsal Attention,149,roi_149,Frontoparietal Control,Dorsal Attention—Frontoparietal Control,-3.572621704296739,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14465,118,roi_118,Somatomotor,129,roi_129,Dorsal Attention,Dorsal Attention—Somatomotor,3.783323000755735,0.005598880223955209,1.0,0.005598880223955209,positive
+2953,17,roi_017,Somatomotor,30,roi_030,Dorsal Attention,Dorsal Attention—Somatomotor,-3.4584298473346102,1.0,0.0057988402319536095,0.0057988402319536095,negative
+3543,20,roi_020,Somatomotor,134,roi_134,Dorsal Attention,Dorsal Attention—Somatomotor,-3.479177902339739,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6537,40,roi_040,Dorsal Attention,118,roi_118,Somatomotor,Dorsal Attention—Somatomotor,-3.4992637752816007,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14141,113,roi_113,Somatomotor,130,roi_130,Dorsal Attention,Dorsal Attention—Somatomotor,-3.860964250654627,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14147,113,roi_113,Somatomotor,136,roi_136,Dorsal Attention,Dorsal Attention—Somatomotor,-3.470119137651568,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7903,50,roi_050,Ventral Attention,129,roi_129,Dorsal Attention,Dorsal Attention—Ventral Attention,-5.363441243786866,1.0,0.0001999600079984003,0.0001999600079984003,negative
+7373,46,roi_046,Ventral Attention,129,roi_129,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.698509864930425,1.0,0.0003999200159968006,0.0003999200159968006,negative
+7908,50,roi_050,Ventral Attention,134,roi_134,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.730153386324948,1.0,0.0003999200159968006,0.0003999200159968006,negative
+8034,51,roi_051,Ventral Attention,130,roi_130,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.922040420214319,1.0,0.0011997600479904018,0.0011997600479904018,negative
+5010,30,roi_030,Dorsal Attention,46,roi_046,Ventral Attention,Dorsal Attention—Ventral Attention,-3.9611291426617328,1.0,0.0015996800639872025,0.0015996800639872025,negative
+5609,34,roi_034,Dorsal Attention,51,roi_051,Ventral Attention,Dorsal Attention—Ventral Attention,-4.358535009299864,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7234,45,roi_045,Ventral Attention,125,roi_125,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.068282076364138,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7237,45,roi_045,Ventral Attention,128,roi_128,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.2650695755645875,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7240,45,roi_045,Ventral Attention,131,roi_131,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.028307925431446,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7906,50,roi_050,Ventral Attention,132,roi_132,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.0066700457713935,1.0,0.0015996800639872025,0.0015996800639872025,negative
+8032,51,roi_051,Ventral Attention,128,roi_128,Dorsal Attention,Dorsal Attention—Ventral Attention,-4.001647837777354,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15485,137,roi_137,Dorsal Attention,142,roi_142,Ventral Attention,Dorsal Attention—Ventral Attention,-3.9814749446523274,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15446,136,roi_136,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-4.193162876433126,1.0,0.004399120175964807,0.004399120175964807,negative
+5007,30,roi_030,Dorsal Attention,43,roi_043,Ventral Attention,Dorsal Attention—Ventral Attention,-3.7032430737473296,1.0,0.0057988402319536095,0.0057988402319536095,negative
+5461,33,roi_033,Dorsal Attention,50,roi_050,Ventral Attention,Dorsal Attention—Ventral Attention,-3.4500993853279893,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6964,43,roi_043,Ventral Attention,128,roi_128,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.4685357293225523,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6973,43,roi_043,Ventral Attention,137,roi_137,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.802688323276504,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7100,44,roi_044,Ventral Attention,127,roi_127,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.538190623698326,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7238,45,roi_045,Ventral Attention,129,roi_129,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.525473774926522,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7244,45,roi_045,Ventral Attention,135,roi_135,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.40723025824647,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7369,46,roi_046,Ventral Attention,125,roi_125,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.76989302334115,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7506,47,roi_047,Ventral Attention,128,roi_128,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.9098719016757864,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7509,47,roi_047,Ventral Attention,131,roi_131,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.6736602753069394,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7515,47,roi_047,Ventral Attention,137,roi_137,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.392676745730672,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7640,48,roi_048,Ventral Attention,129,roi_129,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.6696695916021924,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7902,50,roi_050,Ventral Attention,128,roi_128,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.459799585619193,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7905,50,roi_050,Ventral Attention,131,roi_131,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.603574336198042,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7907,50,roi_050,Ventral Attention,133,roi_133,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.548508291431077,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8035,51,roi_051,Ventral Attention,131,roi_131,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.808497267196238,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8036,51,roi_051,Ventral Attention,132,roi_132,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.7099971100032008,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8037,51,roi_051,Ventral Attention,133,roi_133,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.4649030448209004,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8040,51,roi_051,Ventral Attention,136,roi_136,Dorsal Attention,Dorsal Attention—Ventral Attention,-3.6118538837271226,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15005,127,roi_127,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-3.69293867592125,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15051,128,roi_128,Dorsal Attention,140,roi_140,Ventral Attention,Dorsal Attention—Ventral Attention,-3.608516400634998,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15053,128,roi_128,Dorsal Attention,142,roi_142,Ventral Attention,Dorsal Attention—Ventral Attention,-3.469466206399639,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15056,128,roi_128,Dorsal Attention,145,roi_145,Ventral Attention,Dorsal Attention—Ventral Attention,-3.4437765506927454,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15058,128,roi_128,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-3.742227179825366,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15107,129,roi_129,Dorsal Attention,144,roi_144,Ventral Attention,Dorsal Attention—Ventral Attention,-3.555388547003565,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15108,129,roi_129,Dorsal Attention,145,roi_145,Ventral Attention,Dorsal Attention—Ventral Attention,-3.3663308747012994,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15161,130,roi_130,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-3.6109277204104266,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15209,131,roi_131,Dorsal Attention,145,roi_145,Ventral Attention,Dorsal Attention—Ventral Attention,-3.453968606705731,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15211,131,roi_131,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-3.5971944598762886,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15308,133,roi_133,Dorsal Attention,147,roi_147,Ventral Attention,Dorsal Attention—Ventral Attention,-3.5208689926898837,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15399,135,roi_135,Dorsal Attention,145,roi_145,Ventral Attention,Dorsal Attention—Ventral Attention,-3.4436484845006827,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15483,137,roi_137,Dorsal Attention,140,roi_140,Ventral Attention,Dorsal Attention—Ventral Attention,-3.9076693027120926,1.0,0.0057988402319536095,0.0057988402319536095,negative
+210,1,roi_001,Visual,31,roi_031,Dorsal Attention,Dorsal Attention—Visual,5.166305920155951,0.0001999600079984003,1.0,0.0001999600079984003,positive
+214,1,roi_001,Visual,35,roi_035,Dorsal Attention,Dorsal Attention—Visual,4.9737360524187775,0.0001999600079984003,1.0,0.0001999600079984003,positive
+309,1,roi_001,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,4.7302834680695725,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1269,7,roi_007,Visual,31,roi_031,Dorsal Attention,Dorsal Attention—Visual,5.464419519240343,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1363,7,roi_007,Visual,125,roi_125,Dorsal Attention,Dorsal Attention—Visual,4.726162300978326,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1962,11,roi_011,Visual,38,roi_038,Dorsal Attention,Dorsal Attention—Visual,4.765657780213404,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2128,12,roi_012,Visual,35,roi_035,Dorsal Attention,Dorsal Attention—Visual,4.902716766637026,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2224,12,roi_012,Visual,131,roi_131,Dorsal Attention,Dorsal Attention—Visual,5.011043944134649,0.0001999600079984003,1.0,0.0001999600079984003,positive
+6086,37,roi_037,Dorsal Attention,93,roi_093,Visual,Dorsal Attention—Visual,4.754084134123561,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12591,93,roi_093,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,4.996775994429943,0.0001999600079984003,1.0,0.0001999600079984003,positive
+13339,102,roi_102,Visual,131,roi_131,Dorsal Attention,Dorsal Attention—Visual,4.78152639139973,0.0001999600079984003,1.0,0.0001999600079984003,positive
+13340,102,roi_102,Visual,132,roi_132,Dorsal Attention,Dorsal Attention—Visual,5.277565459010542,0.0001999600079984003,1.0,0.0001999600079984003,positive
+311,1,roi_001,Visual,132,roi_132,Dorsal Attention,Dorsal Attention—Visual,4.128642636732246,0.0003999200159968006,1.0,0.0003999200159968006,positive
+488,2,roi_002,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,3.9563984539932364,0.0003999200159968006,1.0,0.0003999200159968006,positive
+920,5,roi_005,Visual,31,roi_031,Dorsal Attention,Dorsal Attention—Visual,4.010806825287337,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1190,6,roi_006,Visual,126,roi_126,Dorsal Attention,Dorsal Attention—Visual,4.062205277763768,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1272,7,roi_007,Visual,34,roi_034,Dorsal Attention,Dorsal Attention—Visual,4.184431148306173,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1273,7,roi_007,Visual,35,roi_035,Dorsal Attention,Dorsal Attention—Visual,4.4552693226365925,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1368,7,roi_007,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,4.40157707584006,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1369,7,roi_007,Visual,131,roi_131,Dorsal Attention,Dorsal Attention—Visual,4.258534922803588,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1370,7,roi_007,Visual,132,roi_132,Dorsal Attention,Dorsal Attention—Visual,4.211509324111708,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1883,10,roi_010,Visual,129,roi_129,Dorsal Attention,Dorsal Attention—Visual,3.8470409537202035,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1888,10,roi_010,Visual,134,roi_134,Dorsal Attention,Dorsal Attention—Visual,4.201070420125482,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2057,11,roi_011,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,4.4081007312331,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2058,11,roi_011,Visual,134,roi_134,Dorsal Attention,Dorsal Attention—Visual,4.579328206907012,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2124,12,roi_012,Visual,31,roi_031,Dorsal Attention,Dorsal Attention—Visual,3.855893264045091,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2129,12,roi_012,Visual,36,roi_036,Dorsal Attention,Dorsal Attention—Visual,4.283175521454916,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2222,12,roi_012,Visual,129,roi_129,Dorsal Attention,Dorsal Attention—Visual,4.114052153302582,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2223,12,roi_012,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,4.375175887241764,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2225,12,roi_012,Visual,132,roi_132,Dorsal Attention,Dorsal Attention—Visual,4.002145117226725,0.0003999200159968006,1.0,0.0003999200159968006,positive
+5062,30,roi_030,Dorsal Attention,98,roi_098,Visual,Dorsal Attention—Visual,4.02450676507474,0.0003999200159968006,1.0,0.0003999200159968006,positive
+5210,31,roi_031,Dorsal Attention,96,roi_096,Visual,Dorsal Attention—Visual,4.494253718537235,0.0003999200159968006,1.0,0.0003999200159968006,positive
+5212,31,roi_031,Dorsal Attention,98,roi_098,Visual,Dorsal Attention—Visual,4.461304776106568,0.0003999200159968006,1.0,0.0003999200159968006,positive
+5797,35,roi_035,Dorsal Attention,93,roi_093,Visual,Dorsal Attention—Visual,4.478814928217444,0.0003999200159968006,1.0,0.0003999200159968006,positive
+5806,35,roi_035,Dorsal Attention,102,roi_102,Visual,Dorsal Attention—Visual,4.114580945212015,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12587,93,roi_093,Visual,126,roi_126,Dorsal Attention,Dorsal Attention—Visual,4.027604545113949,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12593,93,roi_093,Visual,132,roi_132,Dorsal Attention,Dorsal Attention—Visual,3.837301538721666,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12594,93,roi_093,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,4.116865856092674,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12681,94,roi_094,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,4.238833435789084,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12760,95,roi_095,Visual,126,roi_126,Dorsal Attention,Dorsal Attention—Visual,4.4869440448690785,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13011,98,roi_098,Visual,125,roi_125,Dorsal Attention,Dorsal Attention—Visual,3.9253555922693817,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13017,98,roi_098,Visual,131,roi_131,Dorsal Attention,Dorsal Attention—Visual,4.2306039075934025,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13021,98,roi_098,Visual,135,roi_135,Dorsal Attention,Dorsal Attention—Visual,4.394637225387734,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13338,102,roi_102,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,4.63799168786535,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13341,102,roi_102,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,4.1036845244786955,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13420,103,roi_103,Visual,134,roi_134,Dorsal Attention,Dorsal Attention—Visual,4.170557028903235,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13497,104,roi_104,Visual,134,roi_134,Dorsal Attention,Dorsal Attention—Visual,4.665210023991374,0.0003999200159968006,1.0,0.0003999200159968006,positive
+209,1,roi_001,Visual,30,roi_030,Dorsal Attention,Dorsal Attention—Visual,3.5499182591614806,0.005598880223955209,1.0,0.005598880223955209,positive
+213,1,roi_001,Visual,34,roi_034,Dorsal Attention,Dorsal Attention—Visual,3.7289517188259222,0.005598880223955209,1.0,0.005598880223955209,positive
+573,3,roi_003,Visual,37,roi_037,Dorsal Attention,Dorsal Attention—Visual,3.729058642491517,0.005598880223955209,1.0,0.005598880223955209,positive
+574,3,roi_003,Visual,38,roi_038,Dorsal Attention,Dorsal Attention—Visual,3.5530173941612437,0.005598880223955209,1.0,0.005598880223955209,positive
+669,3,roi_003,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,3.702532883922597,0.005598880223955209,1.0,0.005598880223955209,positive
+921,5,roi_005,Visual,32,roi_032,Dorsal Attention,Dorsal Attention—Visual,3.5128373635050476,0.005598880223955209,1.0,0.005598880223955209,positive
+1275,7,roi_007,Visual,37,roi_037,Dorsal Attention,Dorsal Attention—Visual,3.506072411934563,0.005598880223955209,1.0,0.005598880223955209,positive
+1371,7,roi_007,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,3.6174204414088,0.005598880223955209,1.0,0.005598880223955209,positive
+1792,10,roi_010,Visual,38,roi_038,Dorsal Attention,Dorsal Attention—Visual,3.5944127947292963,0.005598880223955209,1.0,0.005598880223955209,positive
+2127,12,roi_012,Visual,34,roi_034,Dorsal Attention,Dorsal Attention—Visual,3.6158221362978185,0.005598880223955209,1.0,0.005598880223955209,positive
+5057,30,roi_030,Dorsal Attention,93,roi_093,Visual,Dorsal Attention—Visual,3.5100097766317817,0.005598880223955209,1.0,0.005598880223955209,positive
+5656,34,roi_034,Dorsal Attention,98,roi_098,Visual,Dorsal Attention—Visual,3.5738569366137733,0.005598880223955209,1.0,0.005598880223955209,positive
+5954,36,roi_036,Dorsal Attention,105,roi_105,Visual,Dorsal Attention—Visual,3.4740209539654408,0.005598880223955209,1.0,0.005598880223955209,positive
+6087,37,roi_037,Dorsal Attention,94,roi_094,Visual,Dorsal Attention—Visual,3.626394806766143,0.005598880223955209,1.0,0.005598880223955209,positive
+6095,37,roi_037,Dorsal Attention,102,roi_102,Visual,Dorsal Attention—Visual,3.592578542127421,0.005598880223955209,1.0,0.005598880223955209,positive
+6230,38,roi_038,Dorsal Attention,94,roi_094,Visual,Dorsal Attention—Visual,3.6468850607304595,0.005598880223955209,1.0,0.005598880223955209,positive
+6239,38,roi_038,Dorsal Attention,103,roi_103,Visual,Dorsal Attention—Visual,3.4977823608716925,0.005598880223955209,1.0,0.005598880223955209,positive
+12417,91,roi_091,Visual,133,roi_133,Dorsal Attention,Dorsal Attention—Visual,3.5655820271473266,0.005598880223955209,1.0,0.005598880223955209,positive
+12678,94,roi_094,Visual,130,roi_130,Dorsal Attention,Dorsal Attention—Visual,3.4227811971328204,0.005598880223955209,1.0,0.005598880223955209,positive
+13337,102,roi_102,Visual,129,roi_129,Dorsal Attention,Dorsal Attention—Visual,3.637176776032666,0.005598880223955209,1.0,0.005598880223955209,positive
+13342,102,roi_102,Visual,134,roi_134,Dorsal Attention,Dorsal Attention—Visual,3.4914646197273957,0.005598880223955209,1.0,0.005598880223955209,positive
+13415,103,roi_103,Visual,129,roi_129,Dorsal Attention,Dorsal Attention—Visual,3.4860712722189144,0.005598880223955209,1.0,0.005598880223955209,positive
+13492,104,roi_104,Visual,129,roi_129,Dorsal Attention,Dorsal Attention—Visual,3.6969919478815694,0.005598880223955209,1.0,0.005598880223955209,positive
+13185,100,roi_100,Visual,136,roi_136,Dorsal Attention,Dorsal Attention—Visual,-3.644575051487637,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15975,150,roi_150,Frontoparietal Control,151,roi_151,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.2980270409686065,0.0001999600079984003,1.0,0.0001999600079984003,positive
+16009,151,roi_151,Frontoparietal Control,155,roi_155,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.465473193735892,0.0001999600079984003,1.0,0.0001999600079984003,positive
+8946,58,roi_058,Frontoparietal Control,160,roi_160,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.274045404161626,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16007,151,roi_151,Frontoparietal Control,153,roi_153,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.048412027535241,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16008,151,roi_151,Frontoparietal Control,154,roi_154,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.201884832417097,0.0003999200159968006,1.0,0.0003999200159968006,positive
+16065,153,roi_153,Frontoparietal Control,154,roi_154,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,5.087684750379728,0.0003999200159968006,1.0,0.0003999200159968006,positive
+9424,62,roi_062,Frontoparietal Control,156,roi_156,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,4.218824673452609,0.003599280143971206,1.0,0.003599280143971206,positive
+8726,57,roi_057,Frontoparietal Control,63,roi_063,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.3973304540667133,0.005598880223955209,1.0,0.005598880223955209,positive
+8823,57,roi_057,Frontoparietal Control,160,roi_160,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.6449750178071363,0.005598880223955209,1.0,0.005598880223955209,positive
+8937,58,roi_058,Frontoparietal Control,151,roi_151,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.777355589673386,0.005598880223955209,1.0,0.005598880223955209,positive
+8968,59,roi_059,Frontoparietal Control,60,roi_060,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.5790937363583475,0.005598880223955209,1.0,0.005598880223955209,positive
+9068,59,roi_059,Frontoparietal Control,160,roi_160,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.683688664639882,0.005598880223955209,1.0,0.005598880223955209,positive
+9069,59,roi_059,Frontoparietal Control,161,roi_161,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.5932813364899405,0.005598880223955209,1.0,0.005598880223955209,positive
+15982,150,roi_150,Frontoparietal Control,158,roi_158,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.6089617668979552,0.005598880223955209,1.0,0.005598880223955209,positive
+16011,151,roi_151,Frontoparietal Control,157,roi_157,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.523162612650425,0.005598880223955209,1.0,0.005598880223955209,positive
+16070,153,roi_153,Frontoparietal Control,159,roi_159,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.4456909106470155,0.005598880223955209,1.0,0.005598880223955209,positive
+16122,155,roi_155,Frontoparietal Control,158,roi_158,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.7639067285025427,0.005598880223955209,1.0,0.005598880223955209,positive
+16123,155,roi_155,Frontoparietal Control,159,roi_159,Frontoparietal Control,Frontoparietal Control—Frontoparietal Control,3.4991400550934184,0.005598880223955209,1.0,0.005598880223955209,positive
+13737,107,roi_107,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-5.8247802723568824,1.0,0.0001999600079984003,0.0001999600079984003,negative
+13742,107,roi_107,Somatomotor,154,roi_154,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.857926690575843,1.0,0.0001999600079984003,0.0001999600079984003,negative
+13743,107,roi_107,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-5.089456648452214,1.0,0.0001999600079984003,0.0001999600079984003,negative
+14023,111,roi_111,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-5.662337826404582,1.0,0.0001999600079984003,0.0001999600079984003,negative
+2577,14,roi_014,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.311736127212908,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13668,106,roi_106,Somatomotor,154,roi_154,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.082491682956726,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13882,109,roi_109,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.938713802688998,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13959,110,roi_110,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.390160321282175,1.0,0.0015996800639872025,0.0015996800639872025,negative
+14228,114,roi_114,Somatomotor,150,roi_150,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.976215451683511,1.0,0.0015996800639872025,0.0015996800639872025,negative
+14293,115,roi_115,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.075875774651254,1.0,0.0015996800639872025,0.0015996800639872025,negative
+14294,115,roi_115,Somatomotor,150,roi_150,Frontoparietal Control,Frontoparietal Control—Somatomotor,-4.172527010404462,1.0,0.0015996800639872025,0.0015996800639872025,negative
+14167,113,roi_113,Somatomotor,156,roi_156,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.9730646131546914,1.0,0.004399120175964807,0.004399120175964807,negative
+4205,24,roi_024,Somatomotor,162,roi_162,Frontoparietal Control,Frontoparietal Control—Somatomotor,3.607246226156044,0.005598880223955209,1.0,0.005598880223955209,positive
+2410,13,roi_013,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.4647441507052,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2415,13,roi_013,Somatomotor,154,roi_154,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.6399117839725372,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2416,13,roi_013,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.675550454255911,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2488,14,roi_014,Somatomotor,60,roi_060,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.477816133605295,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2581,14,roi_014,Somatomotor,153,roi_153,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.5335484690006753,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2582,14,roi_014,Somatomotor,154,roi_154,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.9094424829979806,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2583,14,roi_014,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.9122245780035607,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2914,16,roi_016,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.4852073628827926,1.0,0.0057988402319536095,0.0057988402319536095,negative
+3733,21,roi_021,Somatomotor,164,roi_164,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.407559308816842,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8892,58,roi_058,Frontoparietal Control,106,roi_106,Somatomotor,Frontoparietal Control—Somatomotor,-3.3920605990618604,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9136,60,roi_060,Frontoparietal Control,107,roi_107,Somatomotor,Frontoparietal Control—Somatomotor,-3.4074599554165927,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9147,60,roi_060,Frontoparietal Control,118,roi_118,Somatomotor,Frontoparietal Control—Somatomotor,-3.3867616893802786,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13663,106,roi_106,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.791187456928908,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13669,106,roi_106,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.6286837729241808,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13741,107,roi_107,Somatomotor,153,roi_153,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.5274419585421652,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13953,110,roi_110,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.83922955412193,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14029,111,roi_111,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.5956545102548088,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14166,113,roi_113,Somatomotor,155,roi_155,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.37978706628187,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14608,120,roi_120,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.689362427787402,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14668,121,roi_121,Somatomotor,149,roi_149,Frontoparietal Control,Frontoparietal Control—Somatomotor,-3.8503297705230652,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6985,43,roi_043,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-5.718958090387368,1.0,0.0001999600079984003,0.0001999600079984003,negative
+6991,43,roi_043,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-5.400513177903171,1.0,0.0001999600079984003,0.0001999600079984003,negative
+7258,45,roi_045,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.71711534917949,1.0,0.0001999600079984003,0.0001999600079984003,negative
+7533,47,roi_047,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-5.03989644232245,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15577,139,roi_139,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.738485990610062,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15618,140,roi_140,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-5.221657801898369,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15624,140,roi_140,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-5.143445054719987,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15697,142,roi_142,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.892432474469726,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15703,142,roi_142,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.617649563777996,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15735,143,roi_143,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.7101701770114035,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15741,143,roi_143,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.794151234241722,1.0,0.0001999600079984003,0.0001999600079984003,negative
+15814,145,roi_145,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.708611799582188,1.0,0.0001999600079984003,0.0001999600079984003,negative
+7405,46,roi_046,Ventral Attention,161,roi_161,Frontoparietal Control,Frontoparietal Control—Ventral Attention,4.207962495638605,0.0003999200159968006,1.0,0.0003999200159968006,positive
+15808,145,roi_145,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-4.194441944613479,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7804,49,roi_049,Ventral Attention,161,roi_161,Frontoparietal Control,Frontoparietal Control—Ventral Attention,3.620553011343176,0.005598880223955209,1.0,0.005598880223955209,positive
+7935,50,roi_050,Ventral Attention,161,roi_161,Frontoparietal Control,Frontoparietal Control—Ventral Attention,3.6014599460147805,0.005598880223955209,1.0,0.005598880223955209,positive
+7937,50,roi_050,Ventral Attention,163,roi_163,Frontoparietal Control,Frontoparietal Control—Ventral Attention,3.4665066055576363,0.005598880223955209,1.0,0.005598880223955209,positive
+6896,43,roi_043,Ventral Attention,60,roi_060,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.500123866539782,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7264,45,roi_045,Ventral Attention,155,roi_155,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.611002577125766,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7527,47,roi_047,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.6235650688811494,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7923,50,roi_050,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.4992398306925505,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9169,60,roi_060,Frontoparietal Control,140,roi_140,Ventral Attention,Frontoparietal Control—Ventral Attention,-3.5116234314838604,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15780,144,roi_144,Ventral Attention,157,roi_157,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.372694239722253,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15843,146,roi_146,Ventral Attention,149,roi_149,Frontoparietal Control,Frontoparietal Control—Ventral Attention,-3.6891790117751913,1.0,0.0057988402319536095,0.0057988402319536095,negative
+150,0,roi_000,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-5.3337801818491,1.0,0.0001999600079984003,0.0001999600079984003,negative
+768,4,roi_004,Visual,55,roi_055,Frontoparietal Control,Frontoparietal Control—Visual,-4.9078774969980685,1.0,0.0001999600079984003,0.0001999600079984003,negative
+864,4,roi_004,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-5.5891957872189755,1.0,0.0001999600079984003,0.0001999600079984003,negative
+1905,10,roi_010,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-4.657880197406529,1.0,0.0001999600079984003,0.0001999600079984003,negative
+2246,12,roi_012,Visual,153,roi_153,Frontoparietal Control,Frontoparietal Control—Visual,-4.626227919370085,1.0,0.0003999200159968006,0.0003999200159968006,negative
+158,0,roi_000,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-4.4906884649070395,1.0,0.0015996800639872025,0.0015996800639872025,negative
+2083,11,roi_011,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-4.1169622193039785,1.0,0.0015996800639872025,0.0015996800639872025,negative
+2088,11,roi_011,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-4.110332892385338,1.0,0.0015996800639872025,0.0015996800639872025,negative
+2151,12,roi_012,Visual,58,roi_058,Frontoparietal Control,Frontoparietal Control—Visual,-4.131087327949884,1.0,0.0015996800639872025,0.0015996800639872025,negative
+8879,58,roi_058,Frontoparietal Control,93,roi_093,Visual,Frontoparietal Control—Visual,-4.297497118201635,1.0,0.0015996800639872025,0.0015996800639872025,negative
+8888,58,roi_058,Frontoparietal Control,102,roi_102,Visual,Frontoparietal Control—Visual,-3.9696392745716045,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12700,94,roi_094,Visual,152,roi_152,Frontoparietal Control,Frontoparietal Control—Visual,-3.94596139235559,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12712,94,roi_094,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-4.370295700785165,1.0,0.0015996800639872025,0.0015996800639872025,negative
+12954,97,roi_097,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-4.1945609392574905,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13437,103,roi_103,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-4.1446305292897705,1.0,0.0015996800639872025,0.0015996800639872025,negative
+13042,98,roi_098,Visual,156,roi_156,Frontoparietal Control,Frontoparietal Control—Visual,3.6954540493565107,0.005598880223955209,1.0,0.005598880223955209,positive
+872,4,roi_004,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.6551047308712037,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1296,7,roi_007,Visual,58,roi_058,Frontoparietal Control,Frontoparietal Control—Visual,-3.4028846002890303,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1570,8,roi_008,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.752415594423208,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1575,8,roi_008,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-3.574262625354741,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1641,9,roi_009,Visual,58,roi_058,Frontoparietal Control,Frontoparietal Control—Visual,-3.543170043638778,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1733,9,roi_009,Visual,150,roi_150,Frontoparietal Control,Frontoparietal Control—Visual,-3.616256185859596,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1734,9,roi_009,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-3.594056872504465,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1809,10,roi_010,Visual,55,roi_055,Frontoparietal Control,Frontoparietal Control—Visual,-3.425701673456565,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1912,10,roi_010,Visual,158,roi_158,Frontoparietal Control,Frontoparietal Control—Visual,-3.874493609172671,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1913,10,roi_010,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.6778368433348927,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1918,10,roi_010,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-3.6563643995262685,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2078,11,roi_011,Visual,154,roi_154,Frontoparietal Control,Frontoparietal Control—Visual,-3.6507340981078453,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2082,11,roi_011,Visual,158,roi_158,Frontoparietal Control,Frontoparietal Control—Visual,-3.535907428555533,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2087,11,roi_011,Visual,163,roi_163,Frontoparietal Control,Frontoparietal Control—Visual,-3.914425998027689,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8881,58,roi_058,Frontoparietal Control,95,roi_095,Visual,Frontoparietal Control—Visual,-3.3900067228588013,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8887,58,roi_058,Frontoparietal Control,101,roi_101,Visual,Frontoparietal Control—Visual,-3.4790265886129275,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9362,62,roi_062,Frontoparietal Control,94,roi_094,Visual,Frontoparietal Control—Visual,-3.4724328755709655,1.0,0.0057988402319536095,0.0057988402319536095,negative
+9595,64,roi_064,Frontoparietal Control,92,roi_092,Visual,Frontoparietal Control—Visual,-3.4742232916860303,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12534,92,roi_092,Visual,161,roi_161,Frontoparietal Control,Frontoparietal Control—Visual,-3.520142331943614,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12962,97,roi_097,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.8353974329780596,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13200,100,roi_100,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-3.436938554824323,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13207,100,roi_100,Visual,158,roi_158,Frontoparietal Control,Frontoparietal Control—Visual,-3.8236572233655317,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13280,101,roi_101,Visual,151,roi_151,Frontoparietal Control,Frontoparietal Control—Visual,-3.7655024928895915,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13282,101,roi_101,Visual,153,roi_153,Frontoparietal Control,Frontoparietal Control—Visual,-3.437897443012913,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13372,102,roi_102,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-3.366254444597163,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13440,103,roi_103,Visual,154,roi_154,Frontoparietal Control,Frontoparietal Control—Visual,-3.6674385144114146,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13444,103,roi_103,Visual,158,roi_158,Frontoparietal Control,Frontoparietal Control—Visual,-3.89476178506265,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13445,103,roi_103,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.8125670256111506,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13450,103,roi_103,Visual,164,roi_164,Frontoparietal Control,Frontoparietal Control—Visual,-3.7114462815092524,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13522,104,roi_104,Visual,159,roi_159,Frontoparietal Control,Frontoparietal Control—Visual,-3.861256278754713,1.0,0.0057988402319536095,0.0057988402319536095,negative
+13599,105,roi_105,Visual,160,roi_160,Frontoparietal Control,Frontoparietal Control—Visual,-3.4511901327178127,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2944,17,roi_017,Somatomotor,21,roi_021,Somatomotor,Somatomotor—Somatomotor,4.35339627806752,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2945,17,roi_017,Somatomotor,22,roi_022,Somatomotor,Somatomotor—Somatomotor,4.561660637520236,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2702,15,roi_015,Somatomotor,108,roi_108,Somatomotor,Somatomotor—Somatomotor,4.005164220936005,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13770,108,roi_108,Somatomotor,109,roi_109,Somatomotor,Somatomotor—Somatomotor,4.1684568429063305,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13848,109,roi_109,Somatomotor,115,roi_115,Somatomotor,Somatomotor—Somatomotor,3.8852626119606124,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13850,109,roi_109,Somatomotor,117,roi_117,Somatomotor,Somatomotor—Somatomotor,4.070397109107887,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14197,114,roi_114,Somatomotor,119,roi_119,Somatomotor,Somatomotor—Somatomotor,3.8309855457763873,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14198,114,roi_114,Somatomotor,120,roi_120,Somatomotor,Somatomotor—Somatomotor,3.8267524161816504,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14393,117,roi_117,Somatomotor,120,roi_120,Somatomotor,Somatomotor—Somatomotor,5.017905931794053,0.0003999200159968006,1.0,0.0003999200159968006,positive
+14519,119,roi_119,Somatomotor,121,roi_121,Somatomotor,Somatomotor—Somatomotor,4.1035519183616636,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2455,14,roi_014,Somatomotor,27,roi_027,Somatomotor,Somatomotor—Somatomotor,3.4360744011324087,0.005598880223955209,1.0,0.005598880223955209,positive
+2700,15,roi_015,Somatomotor,106,roi_106,Somatomotor,Somatomotor—Somatomotor,3.707560926661411,0.005598880223955209,1.0,0.005598880223955209,positive
+2947,17,roi_017,Somatomotor,24,roi_024,Somatomotor,Somatomotor—Somatomotor,3.530814074933217,0.005598880223955209,1.0,0.005598880223955209,positive
+3756,22,roi_022,Somatomotor,28,roi_028,Somatomotor,Somatomotor—Somatomotor,3.454229304000269,0.005598880223955209,1.0,0.005598880223955209,positive
+4614,27,roi_027,Somatomotor,106,roi_106,Somatomotor,Somatomotor—Somatomotor,3.5441603102607786,0.005598880223955209,1.0,0.005598880223955209,positive
+13629,106,roi_106,Somatomotor,115,roi_115,Somatomotor,Somatomotor—Somatomotor,3.643667650110937,0.005598880223955209,1.0,0.005598880223955209,positive
+13774,108,roi_108,Somatomotor,113,roi_113,Somatomotor,Somatomotor—Somatomotor,3.5797297673901998,0.005598880223955209,1.0,0.005598880223955209,positive
+13852,109,roi_109,Somatomotor,119,roi_119,Somatomotor,Somatomotor—Somatomotor,3.773449517410318,0.005598880223955209,1.0,0.005598880223955209,positive
+14128,113,roi_113,Somatomotor,117,roi_117,Somatomotor,Somatomotor—Somatomotor,3.574375030631803,0.005598880223955209,1.0,0.005598880223955209,positive
+14199,114,roi_114,Somatomotor,121,roi_121,Somatomotor,Somatomotor—Somatomotor,3.5154533461003963,0.005598880223955209,1.0,0.005598880223955209,positive
+14392,117,roi_117,Somatomotor,119,roi_119,Somatomotor,Somatomotor—Somatomotor,3.498164946194894,0.005598880223955209,1.0,0.005598880223955209,positive
+4344,25,roi_025,Somatomotor,145,roi_145,Ventral Attention,Somatomotor—Ventral Attention,-4.649414894362714,1.0,0.0001999600079984003,0.0001999600079984003,negative
+3936,23,roi_023,Somatomotor,50,roi_050,Ventral Attention,Somatomotor—Ventral Attention,-4.532284580767638,1.0,0.0003999200159968006,0.0003999200159968006,negative
+7892,50,roi_050,Ventral Attention,118,roi_118,Somatomotor,Somatomotor—Ventral Attention,-4.769741309786917,1.0,0.0003999200159968006,0.0003999200159968006,negative
+7895,50,roi_050,Ventral Attention,121,roi_121,Somatomotor,Somatomotor—Ventral Attention,-4.593223326983048,1.0,0.0003999200159968006,0.0003999200159968006,negative
+4031,23,roi_023,Somatomotor,145,roi_145,Ventral Attention,Somatomotor—Ventral Attention,-4.039856606388782,1.0,0.0015996800639872025,0.0015996800639872025,negative
+4032,23,roi_023,Somatomotor,146,roi_146,Ventral Attention,Somatomotor—Ventral Attention,-4.023696711934734,1.0,0.0015996800639872025,0.0015996800639872025,negative
+4400,26,roi_026,Somatomotor,46,roi_046,Ventral Attention,Somatomotor—Ventral Attention,-4.2028368869460815,1.0,0.0015996800639872025,0.0015996800639872025,negative
+7365,46,roi_046,Ventral Attention,121,roi_121,Somatomotor,Somatomotor—Ventral Attention,-4.119437670832218,1.0,0.0015996800639872025,0.0015996800639872025,negative
+2737,15,roi_015,Somatomotor,143,roi_143,Ventral Attention,Somatomotor—Ventral Attention,3.8100608613208427,0.005598880223955209,1.0,0.005598880223955209,positive
+4243,25,roi_025,Somatomotor,44,roi_044,Ventral Attention,Somatomotor—Ventral Attention,-3.5117936331923185,1.0,0.0057988402319536095,0.0057988402319536095,negative
+4345,25,roi_025,Somatomotor,146,roi_146,Ventral Attention,Somatomotor—Ventral Attention,-3.7040111569353376,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7088,44,roi_044,Ventral Attention,115,roi_115,Somatomotor,Somatomotor—Ventral Attention,-3.794597105053987,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7091,44,roi_044,Ventral Attention,118,roi_118,Somatomotor,Somatomotor—Ventral Attention,-3.671495474119243,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7093,44,roi_044,Ventral Attention,120,roi_120,Somatomotor,Somatomotor—Ventral Attention,-3.5796023536816493,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7094,44,roi_044,Ventral Attention,121,roi_121,Somatomotor,Somatomotor—Ventral Attention,-3.50320115861079,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7362,46,roi_046,Ventral Attention,118,roi_118,Somatomotor,Somatomotor—Ventral Attention,-3.578063737375917,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7498,47,roi_047,Ventral Attention,120,roi_120,Somatomotor,Somatomotor—Ventral Attention,-3.499488569023204,1.0,0.0057988402319536095,0.0057988402319536095,negative
+14604,120,roi_120,Somatomotor,145,roi_145,Ventral Attention,Somatomotor—Ventral Attention,-3.530422532932016,1.0,0.0057988402319536095,0.0057988402319536095,negative
+1774,10,roi_010,Visual,20,roi_020,Somatomotor,Somatomotor—Visual,3.9598340487410613,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1775,10,roi_010,Visual,21,roi_021,Somatomotor,Somatomotor—Visual,3.981444938251038,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1776,10,roi_010,Visual,22,roi_022,Somatomotor,Somatomotor—Visual,3.9865838867856973,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1779,10,roi_010,Visual,25,roi_025,Somatomotor,Somatomotor—Visual,3.8728853342270884,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1868,10,roi_010,Visual,114,roi_114,Somatomotor,Somatomotor—Visual,4.398387595418021,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13481,104,roi_104,Visual,118,roi_118,Somatomotor,Somatomotor—Visual,4.072516861453964,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1254,7,roi_007,Visual,16,roi_016,Somatomotor,Somatomotor—Visual,-4.072490405733592,1.0,0.0015996800639872025,0.0015996800639872025,negative
+730,4,roi_004,Visual,17,roi_017,Somatomotor,Somatomotor—Visual,3.6694284992681157,0.005598880223955209,1.0,0.005598880223955209,positive
+1434,8,roi_008,Visual,23,roi_023,Somatomotor,Somatomotor—Visual,3.8052684269431194,0.005598880223955209,1.0,0.005598880223955209,positive
+1526,8,roi_008,Visual,115,roi_115,Somatomotor,Somatomotor—Visual,3.4026336291288537,0.005598880223955209,1.0,0.005598880223955209,positive
+1773,10,roi_010,Visual,19,roi_019,Somatomotor,Somatomotor—Visual,3.4898602491074233,0.005598880223955209,1.0,0.005598880223955209,positive
+1777,10,roi_010,Visual,23,roi_023,Somatomotor,Somatomotor—Visual,3.8168720127477336,0.005598880223955209,1.0,0.005598880223955209,positive
+1781,10,roi_010,Visual,27,roi_027,Somatomotor,Somatomotor—Visual,3.7930773871559307,0.005598880223955209,1.0,0.005598880223955209,positive
+1863,10,roi_010,Visual,109,roi_109,Somatomotor,Somatomotor—Visual,3.472694674997547,0.005598880223955209,1.0,0.005598880223955209,positive
+1869,10,roi_010,Visual,115,roi_115,Somatomotor,Somatomotor—Visual,3.407598962158803,0.005598880223955209,1.0,0.005598880223955209,positive
+1947,11,roi_011,Visual,23,roi_023,Somatomotor,Somatomotor—Visual,3.818244119678581,0.005598880223955209,1.0,0.005598880223955209,positive
+2042,11,roi_011,Visual,118,roi_118,Somatomotor,Somatomotor—Visual,3.675036345690013,0.005598880223955209,1.0,0.005598880223955209,positive
+3990,23,roi_023,Somatomotor,104,roi_104,Visual,Somatomotor—Visual,3.691293272688744,0.005598880223955209,1.0,0.005598880223955209,positive
+13326,102,roi_102,Visual,118,roi_118,Somatomotor,Somatomotor—Visual,3.4969856175556377,0.005598880223955209,1.0,0.005598880223955209,positive
+13483,104,roi_104,Visual,120,roi_120,Somatomotor,Somatomotor—Visual,3.4577195263652913,0.005598880223955209,1.0,0.005598880223955209,positive
+194,1,roi_001,Visual,15,roi_015,Somatomotor,Somatomotor—Visual,-3.4607386266522124,1.0,0.0057988402319536095,0.0057988402319536095,negative
+195,1,roi_001,Visual,16,roi_016,Somatomotor,Somatomotor—Visual,-3.4189856501899456,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2109,12,roi_012,Visual,16,roi_016,Somatomotor,Somatomotor—Visual,-3.3810487523867216,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12571,93,roi_093,Visual,110,roi_110,Somatomotor,Somatomotor—Visual,-3.4803593681274867,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12758,95,roi_095,Visual,124,roi_124,Somatomotor,Somatomotor—Visual,-3.513920821282086,1.0,0.0057988402319536095,0.0057988402319536095,negative
+6976,43,roi_043,Ventral Attention,140,roi_140,Ventral Attention,Ventral Attention—Ventral Attention,-3.9679675673519217,1.0,0.0015996800639872025,0.0015996800639872025,negative
+6978,43,roi_043,Ventral Attention,142,roi_142,Ventral Attention,Ventral Attention—Ventral Attention,-3.979253931431197,1.0,0.0015996800639872025,0.0015996800639872025,negative
+15574,139,roi_139,Ventral Attention,146,roi_146,Ventral Attention,Ventral Attention—Ventral Attention,-4.275846578229207,1.0,0.0015996800639872025,0.0015996800639872025,negative
+6881,43,roi_043,Ventral Attention,45,roi_045,Ventral Attention,Ventral Attention—Ventral Attention,-3.3666164264159857,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7113,44,roi_044,Ventral Attention,140,roi_140,Ventral Attention,Ventral Attention—Ventral Attention,-3.4749932477872276,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7115,44,roi_044,Ventral Attention,142,roi_142,Ventral Attention,Ventral Attention—Ventral Attention,-3.7296109268654605,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7913,50,roi_050,Ventral Attention,139,roi_139,Ventral Attention,Ventral Attention—Ventral Attention,-3.6701005725533395,1.0,0.0057988402319536095,0.0057988402319536095,negative
+8045,51,roi_051,Ventral Attention,141,roi_141,Ventral Attention,Ventral Attention—Ventral Attention,-3.591356627390765,1.0,0.0057988402319536095,0.0057988402319536095,negative
+15568,139,roi_139,Ventral Attention,140,roi_140,Ventral Attention,Ventral Attention—Ventral Attention,-3.4702327239452004,1.0,0.0057988402319536095,0.0057988402319536095,negative
+856,4,roi_004,Visual,143,roi_143,Ventral Attention,Ventral Attention—Visual,3.7724181006720663,0.005598880223955209,1.0,0.005598880223955209,positive
+13027,98,roi_098,Visual,141,roi_141,Ventral Attention,Ventral Attention—Visual,3.4003921506727393,0.005598880223955209,1.0,0.005598880223955209,positive
+2068,11,roi_011,Visual,144,roi_144,Ventral Attention,Ventral Attention—Visual,-3.475131645235585,1.0,0.0057988402319536095,0.0057988402319536095,negative
+7338,46,roi_046,Ventral Attention,94,roi_094,Visual,Ventral Attention—Visual,-3.523616654685045,1.0,0.0057988402319536095,0.0057988402319536095,negative
+12692,94,roi_094,Visual,144,roi_144,Ventral Attention,Ventral Attention—Visual,-3.723990494016116,1.0,0.0057988402319536095,0.0057988402319536095,negative
+2,0,roi_000,Visual,3,roi_003,Visual,Visual—Visual,4.713147815661347,0.0001999600079984003,1.0,0.0001999600079984003,positive
+10,0,roi_000,Visual,11,roi_011,Visual,Visual—Visual,5.58447806048753,0.0001999600079984003,1.0,0.0001999600079984003,positive
+93,0,roi_000,Visual,94,roi_094,Visual,Visual—Visual,5.9928842834056555,0.0001999600079984003,1.0,0.0001999600079984003,positive
+101,0,roi_000,Visual,102,roi_102,Visual,Visual—Visual,5.021911509094067,0.0001999600079984003,1.0,0.0001999600079984003,positive
+540,3,roi_003,Visual,4,roi_004,Visual,Visual—Visual,4.754961523417228,0.0001999600079984003,1.0,0.0001999600079984003,positive
+724,4,roi_004,Visual,11,roi_011,Visual,Visual—Visual,4.914472961996546,0.0001999600079984003,1.0,0.0001999600079984003,positive
+813,4,roi_004,Visual,100,roi_100,Visual,Visual—Visual,4.754071850929283,0.0001999600079984003,1.0,0.0001999600079984003,positive
+816,4,roi_004,Visual,103,roi_103,Visual,Visual—Visual,4.770711628328084,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1508,8,roi_008,Visual,97,roi_097,Visual,Visual—Visual,5.210320848640181,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1765,10,roi_010,Visual,11,roi_011,Visual,Visual—Visual,4.804832375003134,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1848,10,roi_010,Visual,94,roi_094,Visual,Visual—Visual,5.30286403264745,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1851,10,roi_010,Visual,97,roi_097,Visual,Visual—Visual,4.800672046953529,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1854,10,roi_010,Visual,100,roi_100,Visual,Visual—Visual,5.102955360905098,0.0001999600079984003,1.0,0.0001999600079984003,positive
+1858,10,roi_010,Visual,104,roi_104,Visual,Visual—Visual,4.943065507471634,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2021,11,roi_011,Visual,97,roi_097,Visual,Visual—Visual,5.0191845509705155,0.0001999600079984003,1.0,0.0001999600079984003,positive
+2028,11,roi_011,Visual,104,roi_104,Visual,Visual—Visual,5.637190069238272,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12651,94,roi_094,Visual,103,roi_103,Visual,Visual—Visual,5.08770247624541,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12652,94,roi_094,Visual,104,roi_104,Visual,Visual—Visual,4.96829720469983,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12903,97,roi_097,Visual,100,roi_100,Visual,Visual—Visual,5.405659503490165,0.0001999600079984003,1.0,0.0001999600079984003,positive
+12906,97,roi_097,Visual,103,roi_103,Visual,Visual—Visual,5.307658064428742,0.0001999600079984003,1.0,0.0001999600079984003,positive
+13152,100,roi_100,Visual,103,roi_103,Visual,Visual—Visual,5.227168214266282,0.0001999600079984003,1.0,0.0001999600079984003,positive
+7,0,roi_000,Visual,8,roi_008,Visual,Visual—Visual,3.9196756202055876,0.0003999200159968006,1.0,0.0003999200159968006,positive
+102,0,roi_000,Visual,103,roi_103,Visual,Visual—Visual,4.296948566002679,0.0003999200159968006,1.0,0.0003999200159968006,positive
+544,3,roi_003,Visual,8,roi_008,Visual,Visual—Visual,4.242881855933312,0.0003999200159968006,1.0,0.0003999200159968006,positive
+546,3,roi_003,Visual,10,roi_010,Visual,Visual—Visual,4.631584431430499,0.0003999200159968006,1.0,0.0003999200159968006,positive
+547,3,roi_003,Visual,11,roi_011,Visual,Visual—Visual,4.0216131998465725,0.0003999200159968006,1.0,0.0003999200159968006,positive
+630,3,roi_003,Visual,94,roi_094,Visual,Visual—Visual,4.097053544818538,0.0003999200159968006,1.0,0.0003999200159968006,positive
+633,3,roi_003,Visual,97,roi_097,Visual,Visual—Visual,4.30711275953388,0.0003999200159968006,1.0,0.0003999200159968006,positive
+639,3,roi_003,Visual,103,roi_103,Visual,Visual—Visual,3.8413723617981934,0.0003999200159968006,1.0,0.0003999200159968006,positive
+640,3,roi_003,Visual,104,roi_104,Visual,Visual—Visual,4.34108516695743,0.0003999200159968006,1.0,0.0003999200159968006,positive
+721,4,roi_004,Visual,8,roi_008,Visual,Visual—Visual,4.051914236750075,0.0003999200159968006,1.0,0.0003999200159968006,positive
+723,4,roi_004,Visual,10,roi_010,Visual,Visual—Visual,4.340305435223789,0.0003999200159968006,1.0,0.0003999200159968006,positive
+810,4,roi_004,Visual,97,roi_097,Visual,Visual—Visual,4.207094557159509,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1343,7,roi_007,Visual,105,roi_105,Visual,Visual—Visual,3.8750836273112435,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1505,8,roi_008,Visual,94,roi_094,Visual,Visual—Visual,4.1728939670459075,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1514,8,roi_008,Visual,103,roi_103,Visual,Visual—Visual,3.872210880224081,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1595,9,roi_009,Visual,12,roi_012,Visual,Visual—Visual,3.8648201160073183,0.0003999200159968006,1.0,0.0003999200159968006,positive
+1676,9,roi_009,Visual,93,roi_093,Visual,Visual—Visual,4.653457169158081,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2018,11,roi_011,Visual,94,roi_094,Visual,Visual—Visual,4.190400029196133,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2027,11,roi_011,Visual,103,roi_103,Visual,Visual—Visual,4.07506257036359,0.0003999200159968006,1.0,0.0003999200159968006,positive
+2195,12,roi_012,Visual,102,roi_102,Visual,Visual—Visual,4.099892021975712,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12645,94,roi_094,Visual,97,roi_097,Visual,Visual—Visual,4.573892563013656,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12647,94,roi_094,Visual,99,roi_099,Visual,Visual—Visual,4.095024779475082,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12648,94,roi_094,Visual,100,roi_100,Visual,Visual—Visual,3.986590182920406,0.0003999200159968006,1.0,0.0003999200159968006,positive
+12902,97,roi_097,Visual,99,roi_099,Visual,Visual—Visual,4.113659351671199,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13312,102,roi_102,Visual,104,roi_104,Visual,Visual—Visual,3.934248670868703,0.0003999200159968006,1.0,0.0003999200159968006,positive
+13390,103,roi_103,Visual,104,roi_104,Visual,Visual—Visual,3.960224757763505,0.0003999200159968006,1.0,0.0003999200159968006,positive
+8,0,roi_000,Visual,9,roi_009,Visual,Visual—Visual,3.6413634905080094,0.005598880223955209,1.0,0.005598880223955209,positive
+9,0,roi_000,Visual,10,roi_010,Visual,Visual—Visual,3.7832830489358713,0.005598880223955209,1.0,0.005598880223955209,positive
+11,0,roi_000,Visual,12,roi_012,Visual,Visual—Visual,3.742870568576868,0.005598880223955209,1.0,0.005598880223955209,positive
+96,0,roi_000,Visual,97,roi_097,Visual,Visual—Visual,3.564023666829616,0.005598880223955209,1.0,0.005598880223955209,positive
+98,0,roi_000,Visual,99,roi_099,Visual,Visual—Visual,3.395470297792382,0.005598880223955209,1.0,0.005598880223955209,positive
+99,0,roi_000,Visual,100,roi_100,Visual,Visual—Visual,3.6974406100116255,0.005598880223955209,1.0,0.005598880223955209,positive
+103,0,roi_000,Visual,104,roi_104,Visual,Visual—Visual,3.435007477520475,0.005598880223955209,1.0,0.005598880223955209,positive
+284,1,roi_001,Visual,105,roi_105,Visual,Visual—Visual,3.7032838968946615,0.005598880223955209,1.0,0.005598880223955209,positive
+636,3,roi_003,Visual,100,roi_100,Visual,Visual—Visual,3.687420016388464,0.005598880223955209,1.0,0.005598880223955209,positive
+807,4,roi_004,Visual,94,roi_094,Visual,Visual—Visual,3.6975930842943523,0.005598880223955209,1.0,0.005598880223955209,positive
+1159,6,roi_006,Visual,95,roi_095,Visual,Visual—Visual,3.493642852926927,0.005598880223955209,1.0,0.005598880223955209,positive
+1421,8,roi_008,Visual,10,roi_010,Visual,Visual—Visual,3.5684791346672244,0.005598880223955209,1.0,0.005598880223955209,positive
+1422,8,roi_008,Visual,11,roi_011,Visual,Visual—Visual,3.535780827212437,0.005598880223955209,1.0,0.005598880223955209,positive
+1511,8,roi_008,Visual,100,roi_100,Visual,Visual—Visual,3.579021719747154,0.005598880223955209,1.0,0.005598880223955209,positive
+1674,9,roi_009,Visual,91,roi_091,Visual,Visual—Visual,3.4283627839624216,0.005598880223955209,1.0,0.005598880223955209,positive
+1677,9,roi_009,Visual,94,roi_094,Visual,Visual—Visual,3.733184784819276,0.005598880223955209,1.0,0.005598880223955209,positive
+2024,11,roi_011,Visual,100,roi_100,Visual,Visual—Visual,3.719197907646667,0.005598880223955209,1.0,0.005598880223955209,positive
+12467,92,roi_092,Visual,94,roi_094,Visual,Visual—Visual,3.415129444393878,0.005598880223955209,1.0,0.005598880223955209,positive

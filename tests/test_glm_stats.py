@@ -62,6 +62,20 @@ class TestPrecomputeOLS(unittest.TestCase):
         self.assertEqual(XtX_inv_diag.shape, (3,))
         self.assertEqual(XtX_inv.shape, (3, 3))
 
+    def test_rank_deficient_design_uses_pinv(self):
+        """Rank-deficient designs should match lstsq instead of crashing."""
+        rng = np.random.RandomState(43)
+        n = 30
+        x = rng.randn(n)
+        X = np.column_stack([np.ones(n), x, x])
+        Y = rng.randn(n, 5)
+
+        X_pinv, _, _ = _precompute_ols(X)
+        beta_pinv = X_pinv @ Y
+        beta_lstsq, _, _, _ = np.linalg.lstsq(X, Y, rcond=None)
+
+        npt.assert_allclose(beta_pinv, beta_lstsq, atol=1e-10)
+
 
 class TestComputeGLMStat(unittest.TestCase):
     """Test compute_glm_stat core logic."""
@@ -211,6 +225,25 @@ class TestComputeGLMStat(unittest.TestCase):
 
         # Both should agree on sign
         self.assertGreater(result_tstat["positive"][1, 2], 0)
+
+    def test_rank_deficient_design_runs_for_estimable_contrast(self):
+        """Duplicate nuisance columns do not break an estimable GLM contrast."""
+        rng = np.random.RandomState(56)
+        n, N = 24, 4
+        nuisance = rng.randn(n)
+        interest = rng.randn(n)
+        X = np.column_stack([np.ones(n), nuisance, nuisance, interest])
+        contrast = np.array([0.0, 0.0, 0.0, 1.0])
+        Y = rng.randn(n, N, N)
+        Y = (Y + Y.transpose(0, 2, 1)) / 2
+        for s in range(n):
+            np.fill_diagonal(Y[s], 0)
+
+        result = compute_glm_stat(Y, X, contrast, stat_type='tstat')
+
+        self.assertEqual(result["positive"].shape, (N, N))
+        self.assertFalse(np.any(np.isnan(result["positive"])))
+        self.assertFalse(np.any(np.isnan(result["negative"])))
 
     def test_output_keys_and_shape(self):
         """Output has 'positive' and 'negative' keys with correct shape."""
@@ -446,6 +479,21 @@ class TestComputePValGLM(unittest.TestCase):
         self.assertEqual(p_vals["positive"].shape, (N, N))
         self.assertTrue(np.all(p_vals["positive"] >= 0))
         self.assertTrue(np.all(p_vals["positive"] <= 1))
+
+    def test_all_zero_permutation_p_values_are_one(self):
+        """Tie-inclusive GLM max-stat counting keeps zero data at p=1."""
+        n, N = 10, 4
+        Y = np.zeros((n, N, N), dtype=float)
+        age = np.linspace(-1.0, 1.0, n)
+
+        p_vals = compute_p_val_glm(
+            Y, interest=age, method='tstat',
+            n_permutations=20, use_mp=False, random_state=0,
+        )
+
+        triu = np.triu_indices(N, k=1)
+        np.testing.assert_allclose(p_vals["positive"][triu], 1.0)
+        np.testing.assert_allclose(p_vals["negative"][triu], 1.0)
 
     def test_tfnbs_method_smoke(self):
         """Smoke test: TFNBS enhancement runs with GLM pipeline."""

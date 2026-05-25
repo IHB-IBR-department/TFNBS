@@ -21,6 +21,7 @@ Winkler et al. (2014). Permutation inference for the general linear model.
 from __future__ import annotations
 
 import logging
+import warnings
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -115,28 +116,67 @@ def _precompute_ols(
     Returns
     -------
     X_pinv : ndarray of shape (p, n_subjects)
-        Pseudoinverse: (X'X)^{-1} X'.
+        Moore-Penrose pseudoinverse of the design matrix.
     XtX_inv_diag : ndarray of shape (p,)
-        Diagonal of (X'X)^{-1}, needed for SE computation.
+        Diagonal of the generalized inverse of X'X, needed for SE computation.
     XtX_inv : ndarray of shape (p, p)
-        Full (X'X)^{-1}, needed for contrast SE computation.
-
-    Raises
-    ------
-    np.linalg.LinAlgError
-        If X'X is singular (e.g., perfectly collinear regressors).
+        Generalized inverse of X'X, needed for contrast SE computation.
     """
-    XtX = X.T @ X
-    cond = np.linalg.cond(XtX)
-    if cond > 1e12:
+    rank = np.linalg.matrix_rank(X)
+    if rank < X.shape[1]:
         logger.warning(
-            f"Design matrix is ill-conditioned (cond={cond:.1e}). "
-            f"Results may be numerically unstable."
+            "Design matrix is rank deficient "
+            f"(rank={rank}, columns={X.shape[1]}). "
+            "Using Moore-Penrose pseudoinverse; non-estimable contrasts may "
+            "still be unstable."
         )
-    XtX_inv = np.linalg.inv(XtX)
-    X_pinv = XtX_inv @ X.T
+    else:
+        cond = np.linalg.cond(X)
+        if cond > 1e12:
+            logger.warning(
+                f"Design matrix is ill-conditioned (cond={cond:.1e}). "
+                f"Results may be numerically unstable."
+            )
+
+    X_pinv = np.linalg.pinv(X)
+    XtX_inv = X_pinv @ X_pinv.T
     XtX_inv_diag = np.diag(XtX_inv)
     return X_pinv, XtX_inv_diag, XtX_inv
+
+
+def _residual_degrees_of_freedom(X: npt.NDArray[np.float64]) -> int:
+    """Return residual df based on design rank, not raw column count."""
+    df = X.shape[0] - int(np.linalg.matrix_rank(X))
+    if df <= 0:
+        raise ValueError(
+            "Design matrix has no residual degrees of freedom "
+            f"(n={X.shape[0]}, rank={np.linalg.matrix_rank(X)})."
+        )
+    return df
+
+
+def _warn_beta_threshold_scale(
+    stat_type_str: str,
+    method_enum: StatMethod,
+) -> None:
+    """Warn when beta-scale statistics are paired with threshold enhancers."""
+    threshold_methods = {
+        StatMethod.NBS,
+        StatMethod.TFNBS,
+        StatMethod.NI_TFNBS,
+        StatMethod.FBC_TFNBS,
+    }
+    if (
+        stat_type_str == GLMStatType.BETA.value
+        and method_enum in threshold_methods
+    ):
+        warnings.warn(
+            "stat_type='beta' uses raw coefficient units. Ensure NBS/TFNBS "
+            "thresholds are chosen on the beta scale, not the default t-stat "
+            "scale.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 # =============================================================================
@@ -174,10 +214,14 @@ def compute_glm_stat(
     stat_type : {'tstat', 'beta', 'fstat'} or GLMStatType, default='tstat'
         Type of statistic to compute.
     X_pinv : ndarray of shape (p, n_subjects), optional
-        Precomputed pseudoinverse. If None, computed internally.
+        Precomputed Moore-Penrose pseudoinverse. If None, computed
+        internally by :func:`_precompute_ols`.
     XtX_inv_diag : ndarray of shape (p,), optional
-        Precomputed diagonal of (X'X)^{-1}. Required when stat_type='tstat'
-        and X_pinv is provided.
+        Precomputed diagonal of the generalized inverse of ``X'X``.
+        Required when ``stat_type='tstat'`` and ``X_pinv`` is provided.
+    XtX_inv : ndarray of shape (p, p), optional
+        Generalized inverse of ``X'X``. Required for contrast standard
+        errors when ``X_pinv`` is provided.
 
     Returns
     -------
@@ -203,7 +247,7 @@ def compute_glm_stat(
     beta = beta_flat.reshape(p, N, N)  # (p, N, N)
 
     if stat_type_str == GLMStatType.FSTAT.value:
-        # --- F-statistic: (Cβ)' [C(X'X)⁻¹C']⁻¹ (Cβ) / (r · σ²) ---
+        # --- F-statistic: (Cβ)' [C(X'X)^+ C']^-1 (Cβ) / (r · σ²) ---
         if contrast.ndim == 1:
             C = contrast.reshape(1, -1)
         elif contrast.ndim == 2:
@@ -220,15 +264,20 @@ def compute_glm_stat(
 
         # Residual variance per edge
         residuals_flat = Y_flat - X @ beta_flat  # (n, N*N)
-        df = n - p
+        df = _residual_degrees_of_freedom(X)
         sigma2_flat = np.sum(residuals_flat ** 2, axis=0) / df
         sigma2 = sigma2_flat.reshape(N, N)
 
         if XtX_inv is None:
-            XtX_inv = np.linalg.inv(X.T @ X)
+            _, _, XtX_inv = _precompute_ols(X)
 
-        # M = C (X'X)⁻¹ C' shape (r, r); invert once (small)
+        # M = C (X'X)^+ C' shape (r, r); invert once (small)
         M = C @ XtX_inv @ C.T
+        if np.linalg.matrix_rank(M) < r:
+            raise ValueError(
+                "C(X'X)⁻¹C' is singular — contrast rows are not linearly "
+                "independent on the column space of X."
+            )
         try:
             M_inv = np.linalg.inv(M)
         except np.linalg.LinAlgError as err:
@@ -265,14 +314,14 @@ def compute_glm_stat(
         # Residuals: (n, N*N)
         residuals_flat = Y_flat - X @ beta_flat  # (n, N*N)
 
-        # Residual variance per edge: sigma^2 = RSS / (n - p)
-        df = n - p
+        # Residual variance per edge: sigma^2 = RSS / (n - rank(X))
+        df = _residual_degrees_of_freedom(X)
         sigma2_flat = np.sum(residuals_flat ** 2, axis=0) / df  # (N*N,)
         sigma2 = sigma2_flat.reshape(N, N)
 
-        # SE of contrast beta: sqrt(c' (X'X)^{-1} c * sigma^2)
+        # SE of contrast beta: sqrt(c' (X'X)^+ c * sigma^2)
         if XtX_inv is None:
-            XtX_inv = np.linalg.inv(X.T @ X)
+            _, _, XtX_inv = _precompute_ols(X)
         c_XtX_inv_c = contrast @ XtX_inv @ contrast  # scalar
         se = np.sqrt(c_XtX_inv_c * sigma2)
 
@@ -546,8 +595,10 @@ def compute_p_val_glm(
         Permutation acceleration method (Winkler et al., 2016). If None,
         use standard empirical p-values. 'gpd' fits a Generalized Pareto
         Distribution to the tail of the null distribution. 'gamma' fits
-        a gamma distribution using method of moments. Both allow accurate
-        p-values with fewer permutations (~200 instead of ~5000).
+        a gamma distribution using method of moments. Both are
+        approximation accelerators with empirical fallback; use
+        ``acceleration=None`` for exact empirical finite-permutation
+        p-values.
     use_mp : bool, default=True
         Use multiprocessing for permutation testing.
     random_state : int, optional
@@ -655,6 +706,8 @@ def compute_p_val_glm(
             f"Method '{method_str}' is not supported in the GLM pipeline. "
             f"Use compute_p_val() for parametric baselines."
         )
+
+    _warn_beta_threshold_scale(stat_type_str, method_enum)
 
     if method_enum in CONSTRAINED_METHODS and net_labels is None:
         raise ValueError(
@@ -889,11 +942,11 @@ def compute_p_val_glm_multi(
 
     For studies with multiple contrasts of interest under the same nuisance
     structure (e.g. testing age, sex, and motion separately while using
-    the others as covariates), the Freedman-Lane reduced model is shared
-    and the full-model fit ``X_pinv @ Y_perm`` is reused — only the
-    contrast-specific stat extraction differs across contrasts. For 3
-    contrasts this is roughly a 3× speedup vs calling
-    :func:`compute_p_val_glm` once per contrast.
+    the others as covariates), the Freedman-Lane reduced model and residual
+    permutations are shared across contrasts. The current implementation
+    still recomputes contrast-specific GLM statistics for each contrast, so
+    the speedup is amortized rather than a full K-fold reuse of one fitted
+    model.
 
     Parameters
     ----------
@@ -984,6 +1037,8 @@ def compute_p_val_glm_multi(
             f"Method {method_str!r} is not supported in the GLM multi-contrast "
             f"pipeline. Must be one of {valid}."
         )
+
+    _warn_beta_threshold_scale(stat_type_str, method_enum)
 
     if method_enum in CONSTRAINED_METHODS and net_labels is None:
         raise ValueError(

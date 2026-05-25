@@ -41,7 +41,7 @@ What you get out of one `pip install`:
   (hub, rich-club, chain, scattered, gradient, fragmented within-module,
   …) used in the paper's no-method-dominates-across-topologies finding.
 
-![Pipeline overview](https://github.com/IHB-IBR-department/ConnInfPy/blob/main/docs/fig1_pipeline.png)
+![Pipeline overview](figures/fig1_pipeline.png)
 
 ### What's in the figure (panels A–H)
 

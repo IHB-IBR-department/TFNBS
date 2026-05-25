@@ -352,6 +352,29 @@ class TestNetworkInformedTFNBS(TestCase):
         self.assertEqual(result.shape, (self.N, self.N))
         self.assertFalse(np.any(np.isnan(result)))
 
+    def test_block_weights_are_roi_order_invariant(self):
+        """Undirected network-pair density must not depend on ROI ordering."""
+        labels = np.array([0, 1, 0, 1])
+        t_stats = np.zeros((4, 4), dtype=float)
+        t_stats[0, 1] = t_stats[1, 0] = 2.0
+        t_stats[0, 3] = t_stats[3, 0] = 2.0
+        perm = np.array([1, 0, 2, 3])
+        inv_perm = np.argsort(perm)
+
+        score = get_network_informed_tfnbs_score(
+            t_stats, labels, e=1.0, h=0.0, n=5, start_thres=1.0,
+        )
+        score_perm = get_network_informed_tfnbs_score(
+            t_stats[np.ix_(perm, perm)],
+            labels[perm],
+            e=1.0,
+            h=0.0,
+            n=5,
+            start_thres=1.0,
+        )[np.ix_(inv_perm, inv_perm)]
+
+        np.testing.assert_allclose(score, score_perm)
+
 
 class TestTFNBSNumbaBackend(TestCase):
     """Test that numba backend produces identical results to scipy."""

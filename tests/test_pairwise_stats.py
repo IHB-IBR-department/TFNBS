@@ -6,7 +6,8 @@ from conninfpy.pairwise_stats import (_permutation_task_ind,
                                    compute_null_dist,
                                    compute_t_stat_diff,
                                    compute_p_val,
-                                   compute_t_stat)
+                                   compute_t_stat,
+                                   _compute_welch_degrees_of_freedom)
 from conninfpy._enhancement import apply_tfnbs
 
 from tests import fixtures
@@ -149,6 +150,41 @@ class TestBasicStats(TestCase):
         # Signal should surface: at least one edge with small p
         self.assertLess(p['g2>g1'][np.triu_indices(10, k=1)].min(), 0.2)
         self.assertGreater(emp_tfnbs['g2>g1'].mean(), 0)
+
+    def test_all_zero_permutation_p_values_are_one(self):
+        """Tie-inclusive max-stat counting keeps all-null zero data at p=1."""
+        group = np.zeros((8, 4, 4), dtype=float)
+        p = compute_p_val(
+            group,
+            n_permutations=20,
+            test_type='one-sample',
+            method='tstat',
+            random_state=0,
+            use_mp=False,
+        )
+        triu = np.triu_indices(4, k=1)
+        np.testing.assert_allclose(p["positive"][triu], 1.0)
+        np.testing.assert_allclose(p["negative"][triu], 1.0)
+
+    def test_welch_degrees_of_freedom_are_edgewise(self):
+        """Parametric two-sample p-values use Welch-Satterthwaite df."""
+        group1 = np.zeros((6, 2, 2), dtype=float)
+        group2 = np.zeros((10, 2, 2), dtype=float)
+        group1[:, 0, 1] = np.linspace(-1, 1, 6)
+        group1[:, 1, 0] = group1[:, 0, 1]
+        group2[:, 0, 1] = np.linspace(-3, 3, 10)
+        group2[:, 1, 0] = group2[:, 0, 1]
+
+        df = _compute_welch_degrees_of_freedom(group1, group2)
+        var1 = np.var(group1[:, 0, 1], ddof=1)
+        var2 = np.var(group2[:, 0, 1], ddof=1)
+        se1 = var1 / group1.shape[0]
+        se2 = var2 / group2.shape[0]
+        expected = (se1 + se2) ** 2 / (
+            se1 ** 2 / (group1.shape[0] - 1)
+            + se2 ** 2 / (group2.shape[0] - 1)
+        )
+        self.assertAlmostEqual(float(df[0, 1]), float(expected))
 
     def test_compute_p_val_tfnbs_multi_param(self):
         """compute_p_val with list e/h returns param-dimensioned p-values."""
@@ -795,4 +831,3 @@ class TestPrecomputedSumsFastPath(TestCase):
             self.assertEqual(p[key].shape, (N, N))
             self.assertTrue(np.all(p[key] > 0), f"{key}: +1 correction in slow path too")
             self.assertTrue(np.all(p[key] <= 1))
-

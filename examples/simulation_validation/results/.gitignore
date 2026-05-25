@@ -1,0 +1,9 @@
+*
+!.gitignore
+!*/
+!README.md
+!summary*.csv
+!*.csv
+!*.txt
+!*.png
+!*.pdf

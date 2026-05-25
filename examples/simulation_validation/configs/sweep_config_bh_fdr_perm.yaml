@@ -1,0 +1,47 @@
+# BH-FDR Permutation Experiment (Exp 5)
+#
+# Compares permutation-based BH-FDR against parametric BH-FDR and
+# other methods as a fairer non-topological comparator.
+#
+# Usage:
+#   python examples/simulation_validation/power/power_analysis.py \
+#     --config examples/simulation_validation/configs/sweep_config_bh_fdr_perm.yaml \
+#     --output-dir examples/simulation_validation/results/bh_fdr_perm \
+#     --mode effect-size
+
+effect_sizes:
+  - 0.25
+  - 0.50
+
+n_samples: 30
+
+scenarios:
+  - hub
+  - rich_club
+  - chain
+  - between_modules_dense
+
+methods:
+  - bh_fdr_perm
+  - bh_fdr         # parametric control
+  - tfnbs          # topological control
+  - ni_tfnbs
+  - fbc_tfnbs
+
+tfnbs_options:
+  e: [0.5]
+  h: [2.0]
+  n_thresholds: 30
+  start_thres: 1.25
+  fbc_min_cluster_size: 3
+
+n_repeats: 10
+n_permutations: 100
+alpha: 0.05
+
+n_nodes: 60
+n_modules: 4
+intra_corr: 0.3
+inter_corr: 0.05
+noise_level: 0.05
+seed: 42

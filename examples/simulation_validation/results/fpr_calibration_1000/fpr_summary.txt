@@ -1,0 +1,58 @@
+FPR Calibration Summary
+================================================================================
+
+Parameters:
+  n_null_runs = 100
+  n_permutations = 1000
+  alpha = 0.05
+  n_nodes = 60
+  n_edges = 1770
+  sample_sizes = [10, 30, 50, 100]
+
+Metrics Explained:
+  FWER: Family-Wise Error Rate = P(any FP | H0)
+        For FWER-controlling methods, this should = alpha
+  Edge FPR: Mean proportion of FP edges = E[n_FP / n_edges | H0]
+        For uncorrected tests, this should = alpha
+        For FWER methods, this is << alpha
+
+Method          n_samples     FWER                 95% CI     Edge FPR       Cal.
+--------------------------------------------------------------------------------
+  bh_fdr               10   0.0400       [0.0110, 0.0993]     0.000028         OK
+  bh_fdr               30   0.0700       [0.0286, 0.1389]     0.000079         OK
+  bh_fdr               50   0.0400       [0.0110, 0.0993]     0.000023         OK
+  bh_fdr              100   0.0400       [0.0110, 0.0993]     0.000023         OK
+  bonferroni           10   0.0400       [0.0110, 0.0993]     0.000023         OK
+  bonferroni           30   0.0700       [0.0286, 0.1389]     0.000045         OK
+  bonferroni           50   0.0400       [0.0110, 0.0993]     0.000023         OK
+  bonferroni          100   0.0400       [0.0110, 0.0993]     0.000023         OK
+  cnbs                 10   0.0300       [0.0062, 0.0852]     0.001492         OK
+  cnbs                 30   0.0500       [0.0164, 0.1128]     0.004164         OK
+  cnbs                 50   0.0300       [0.0062, 0.0852]     0.001960         OK
+  cnbs                100   0.0700       [0.0286, 0.1389]     0.005333         OK
+  fbc_tfnbs            10   0.0400       [0.0110, 0.0993]     0.000107         OK
+  fbc_tfnbs            30   0.0400       [0.0110, 0.0993]     0.000186         OK
+  fbc_tfnbs            50   0.0300       [0.0062, 0.0852]     0.000062         OK
+  fbc_tfnbs           100   0.0300       [0.0062, 0.0852]     0.000192         OK
+  nbs_extent           10   0.0500       [0.0164, 0.1128]     0.003006         OK
+  nbs_extent           30   0.0600       [0.0223, 0.1260]     0.003124         OK
+  nbs_extent           50   0.0200       [0.0024, 0.0704]     0.001096         OK
+  nbs_extent          100   0.0400       [0.0110, 0.0993]     0.002277         OK
+  nbs_intensity        10   0.0500       [0.0164, 0.1128]     0.003006         OK
+  nbs_intensity        30   0.0600       [0.0223, 0.1260]     0.003124         OK
+  nbs_intensity        50   0.0200       [0.0024, 0.0704]     0.001096         OK
+  nbs_intensity       100   0.0400       [0.0110, 0.0993]     0.002277         OK
+  ni_tfnbs             10   0.0500       [0.0164, 0.1128]     0.000034         OK
+  ni_tfnbs             30   0.0400       [0.0110, 0.0993]     0.000056         OK
+  ni_tfnbs             50   0.0300       [0.0062, 0.0852]     0.000017         OK
+  ni_tfnbs            100   0.0400       [0.0110, 0.0993]     0.000028         OK
+  tfnbs                10   0.0400       [0.0110, 0.0993]     0.000034         OK
+  tfnbs                30   0.0500       [0.0164, 0.1128]     0.000136         OK
+  tfnbs                50   0.0300       [0.0062, 0.0852]     0.000017         OK
+  tfnbs               100   0.0300       [0.0062, 0.0852]     0.000102         OK
+  tstat                10   0.0500       [0.0164, 0.1128]     0.000028         OK
+  tstat                30   0.0700       [0.0286, 0.1389]     0.000040         OK
+  tstat                50   0.0400       [0.0110, 0.0993]     0.000023         OK
+  tstat               100   0.0700       [0.0286, 0.1389]     0.000045         OK
+
+Overall FWER: PASS

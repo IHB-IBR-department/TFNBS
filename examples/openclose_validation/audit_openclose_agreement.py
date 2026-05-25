@@ -46,6 +46,7 @@ from _audit_utils import (  # noqa: E402
 HERE = Path(__file__).resolve().parent
 RESULTS = HERE / "results"
 AUDIT = RESULTS / "audit"
+PLOTS = RESULTS / "plots"
 
 
 def _load(name: str) -> Dict[str, np.ndarray]:
@@ -77,7 +78,7 @@ def _plot_block_panel(ihb_p, china_p, lab, names, outpath):
     """Side-by-side Yeo-7 block-mass heatmaps per tail."""
     K = int(lab.max() + 1)
     fig, axes = plt.subplots(2, 2, figsize=(13, 11))
-    for row, tail in enumerate(["g2>g1", "g1>g2"]):
+    for row, tail in enumerate(["positive", "negative"]):
         if tail not in ihb_p or tail not in china_p:
             continue
         ma = _block_mass(ihb_p[tail], lab)
@@ -90,13 +91,14 @@ def _plot_block_panel(ihb_p, china_p, lab, names, outpath):
             ax.set_yticks(range(K)); ax.set_yticklabels(names, fontsize=8)
             ax.set_title(title)
             fig.colorbar(im, ax=ax, fraction=0.046)
-    fig.suptitle("§3.7 Block-mass (Σ −log10 p) per Yeo-7 block pair — IHB vs China")
+    fig.suptitle("Block-Mass Matrix Convergence: Cross-Cohort Replication (TF-NBS: E=0.4, H=3.0)\nIHB vs Beijing (China) Cohorts")
     fig.tight_layout()
     fig.savefig(outpath, dpi=140); plt.close(fig)
 
 
 def main() -> None:
     os.makedirs(AUDIT, exist_ok=True)
+    os.makedirs(PLOTS, exist_ok=True)
     # Load p-maps
     ihb = _load("ihb_paired_tfnbs.npz")
     china = _load("china_paired_tfnbs_run0.npz")
@@ -114,7 +116,7 @@ def main() -> None:
         ("China run0 paired vs China retest", china, retest),
     ]
     for label, pa_full, pb_full in pairs:
-        for tail in ("g2>g1", "g1>g2"):
+        for tail in ("positive", "negative"):
             if tail not in pa_full or tail not in pb_full:
                 continue
             q = _quartet(pa_full[tail], pb_full[tail], lab)
@@ -131,8 +133,9 @@ def main() -> None:
     print(f"\nsaved: {out_csv}")
 
     # ---- Block-mass panel ----------------------------------------
-    _plot_block_panel(ihb, china, lab, names, AUDIT / "block_mass_panel.png")
-    print(f"saved: {AUDIT / 'block_mass_panel.png'}")
+    plot_path = PLOTS / "plot2_block_mass_convergence.png"
+    _plot_block_panel(ihb, china, lab, names, plot_path)
+    print(f"saved: {plot_path}")
 
 
 if __name__ == "__main__":

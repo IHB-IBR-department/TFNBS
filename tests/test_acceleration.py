@@ -92,7 +92,7 @@ class TestFitGPDTail(unittest.TestCase):
         observed = np.array([[0.0, 1.0], [2.0, 3.0]])
 
         p_gpd = fit_gpd_tail(null_dist, observed)
-        p_emp = np.mean(observed[..., np.newaxis] < null_dist, axis=-1)
+        p_emp = np.mean(observed[..., np.newaxis] <= null_dist, axis=-1)
 
         # GPD and empirical should roughly agree for moderate values
         # For extreme values (3.0), GPD should give more precise estimate
@@ -111,7 +111,7 @@ class TestFitGPDTail(unittest.TestCase):
         observed = np.array([[1.0, 2.0], [0.5, 0.0]])
 
         p_gpd = fit_gpd_tail(null_dist, observed)
-        p_emp = np.mean(observed[..., np.newaxis] < null_dist, axis=-1)
+        p_emp = np.mean(observed[..., np.newaxis] <= null_dist, axis=-1)
 
         # Should get valid p-values regardless
         self.assertEqual(p_gpd.shape, observed.shape)
@@ -148,7 +148,7 @@ class TestFitGammaTail(unittest.TestCase):
         observed = np.array([[1.5]])
 
         p_gamma = fit_gamma_tail(null_dist, observed)
-        p_emp = np.mean(observed[..., np.newaxis] < null_dist, axis=-1)
+        p_emp = np.mean(observed[..., np.newaxis] <= null_dist, axis=-1)
 
         # Should agree within 0.1 for moderate values
         self.assertAlmostEqual(p_gamma.item(), p_emp.item(), delta=0.1)

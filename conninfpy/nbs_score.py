@@ -271,7 +271,9 @@ def nbs_bct(
     """
     Compute classical NBS with permutation testing.
 
-    Returns p-values, adjacency matrices (thresholded t-stats), and null maxima.
+    Returns p-values, adjacency matrices (thresholded t-stats), and null
+    maxima. P-values use tie-inclusive max-statistic counting and the
+    Phipson-Smyth +1 correction, matching the main ``compute_p_val`` path.
     """
     from .pairwise_stats import compute_null_dist, compute_t_stat, compute_t_stat_diff
 
@@ -331,6 +333,8 @@ def nbs_bct(
     p_values: Dict[str, npt.NDArray[np.float64]] = {}
     for key in keys:
         emp_t = emp_t_dict[key][..., np.newaxis]
-        p_values[key] = np.mean(emp_t < max_null_dict[key], axis=-1)
+        null_dist = max_null_dict[key]
+        count = np.sum(emp_t <= null_dist, axis=-1)
+        p_values[key] = (count + 1.0) / (null_dist.shape[0] + 1.0)
 
     return p_values, adj_matrices, max_null_dict

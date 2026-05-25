@@ -851,9 +851,12 @@ def _precompute_block_metadata(
     node_labels: npt.NDArray[np.integer],
 ) -> Tuple[npt.NDArray[np.intp], npt.NDArray[np.floating]]:
     """
-    Pre-compute block assignments and capacity factors for all extractable edges.
+    Pre-compute canonical block assignments and capacity factors.
     
-    This avoids re-calculating block IDs and capacities inside the threshold loop.
+    Block IDs are canonical for undirected network pairs:
+    ``min(label_i, label_j) * K + max(label_i, label_j)``. This avoids
+    ROI-order-dependent density weights and avoids re-calculating block IDs
+    and capacities inside the threshold loop.
     
     Parameters
     ----------
@@ -867,22 +870,20 @@ def _precompute_block_metadata(
     Returns
     -------
     edge_block_ids : ndarray
-        The Block ID assigned to each edge in `edge_rows`.
+        Canonical block ID assigned to each edge in `edge_rows`.
     sqrt_capacities : ndarray
         Lookup table for sqrt(M_total) indexed by Block ID.
     """
     n_nets = np.max(node_labels) + 1
     
-    # Calculate Block ID for each edge: Block_ID = Label_i * N_nets + Label_j
-    # Note: For symmetric analysis (triu), this implicitly defines blocks 
-    # based on the upper triangle connections.
     labels_i = node_labels[edge_rows]
     labels_j = node_labels[edge_cols]
-    
-    # Ensure canonical block ID for undirected edges (min, max) to handle symmetry
-    # effectively if needed, though simple mapping usually suffices if we stick 
-    # to upper triangle. Here we stick to direct mapping.
-    edge_block_ids = labels_i * n_nets + labels_j
+
+    # Canonical block ID for undirected network pairs. This keeps block-density
+    # weights invariant to ROI ordering within the upper triangle.
+    min_labels = np.minimum(labels_i, labels_j)
+    max_labels = np.maximum(labels_i, labels_j)
+    edge_block_ids = min_labels * n_nets + max_labels
     
     # Total number of possible blocks
     n_blocks_total = n_nets * n_nets

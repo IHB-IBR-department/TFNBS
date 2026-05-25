@@ -531,13 +531,16 @@ def combat_harmonize(
         Apply empirical-Bayes shrinkage on site effects (recommended).
     return_diagnostics : bool, default=True
         If True, compute a between-site / within-site variance ratio before
-        and after correction, and attach it to the result.
+        and after correction, plus the explicit
+        ``between_site_variance_ratio_after_over_before`` key used by
+        :func:`conninfpy.analyze` for residual-site-variance flags.
 
     Returns
     -------
     CombatResult
         ``Y_adjusted`` (same shape as input), ``model``, and ``diagnostics``
-        (between-site variance ratio before/after, per-site sample sizes).
+        (between-site variance ratio before/after, after/before ratio,
+        ratio reduction, and per-site sample sizes).
     """
     model = combat_fit(Y, sites, preserve=preserve, eb=eb)
     Y_adj = combat_apply(model, Y, sites, preserve=preserve)
@@ -560,10 +563,12 @@ def combat_harmonize(
 
         ratio_before = _between_over_total(features_before)
         ratio_after = _between_over_total(features_after)
+        ratio_after_over_before = ratio_after / max(ratio_before, 1e-12)
         diagnostics = {
             "between_site_variance_ratio_before": float(ratio_before),
             "between_site_variance_ratio_after": float(ratio_after),
-            "ratio_reduction": float(1.0 - ratio_after / max(ratio_before, 1e-12)),
+            "between_site_variance_ratio_after_over_before": float(ratio_after_over_before),
+            "ratio_reduction": float(1.0 - ratio_after_over_before),
             "site_labels": model.site_labels,
             "per_site_n": [int(np.sum(site_codes == s)) for s in range(len(model.site_labels))],
         }

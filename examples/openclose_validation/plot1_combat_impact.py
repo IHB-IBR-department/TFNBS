@@ -72,22 +72,28 @@ def main() -> None:
     net_labels = np.asarray(ihb.net_labels, dtype=int); order = np.argsort(net_labels, kind="stable"); labels_ord = net_labels[order]
     M_raw = _to_matrix(f_raw, iu, N)[np.ix_(order, order)]; M_harm = _to_matrix(f_harm, iu, N)[np.ix_(order, order)]
     vmax = float(np.percentile(np.concatenate([f_raw, f_harm]), 99))
-    fig = plt.figure(figsize=(18, 12))
-    ax_a = plt.subplot2grid((2, 3), (0, 0))
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+    
     df_box = pd.DataFrame({"F": np.concatenate([f_raw, f_harm]), "Stage": ["Before ComBat"] * len(f_raw) + ["After ComBat"] * len(f_harm)})
-    sns.boxplot(data=df_box, x="Stage", y="F", palette={"Before ComBat": "#e08020", "After ComBat": "#2080c0"}, ax=ax_a, fliersize=2)
-    ax_a.set_yscale("log"); ax_a.set_title(f"ANOVA F-distribution\nmean F {f_raw.mean():.2f} → {f_harm.mean():.2f}")
-    ax_b = plt.subplot2grid((2, 3), (0, 1))
+    sns.boxplot(data=df_box, x="Stage", y="F", hue="Stage", palette={"Before ComBat": "#e08020", "After ComBat": "#2080c0"}, ax=axes[0, 0], fliersize=1, legend=False)
+    axes[0, 0].set_yscale("log"); axes[0, 0].set_title(f"ANOVA F-distribution\nmean F {f_raw.mean():.2f} → {f_harm.mean():.2f}")
+    
     df_b = pd.DataFrame({"Cohort": np.concatenate([cohort, cohort]), "Mean residual FC": np.concatenate([resid_raw.mean(axis=1), resid_harm.mean(axis=1)]), "Stage": ["Before ComBat"] * len(cohort) + ["After ComBat"] * len(cohort)})
-    sns.boxplot(data=df_b, x="Cohort", y="Mean residual FC", hue="Stage", palette={"Before ComBat": "#e08020", "After ComBat": "#2080c0"}, ax=ax_b)
-    ax_b.set_title("Per-cohort mean residual FC")
-    ax_c = plt.subplot2grid((2, 3), (1, 0))
-    im_c = ax_c.imshow(M_raw, cmap="YlOrRd", vmin=0, vmax=vmax); _draw_block_boundaries(ax_c, labels_ord); ax_c.set_title("Cohort F BEFORE ComBat")
-    ax_d = plt.subplot2grid((2, 3), (1, 1))
-    im_d = ax_d.imshow(M_harm, cmap="YlOrRd", vmin=0, vmax=vmax); _draw_block_boundaries(ax_d, labels_ord); ax_d.set_title("Cohort F AFTER ComBat")
-    plt.suptitle("Site-Effect Neutralization Diagnostic (IHB + China Pooled)\nMethod: ComBat (Cohort = Batch, State = Preserved)", fontsize=16)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(PLOTS / "plot1_combat_impact.png", dpi=150); plt.close()
+    sns.boxplot(data=df_b, x="Cohort", y="Mean residual FC", hue="Stage", palette={"Before ComBat": "#e08020", "After ComBat": "#2080c0"}, ax=axes[0, 1])
+    axes[0, 1].set_title("Per-cohort mean residual FC")
+    
+    im_c = axes[1, 0].imshow(M_raw, cmap="YlOrRd", vmin=0, vmax=vmax); _draw_block_boundaries(axes[1, 0], labels_ord); axes[1, 0].set_title("Cohort F BEFORE ComBat")
+    fig.colorbar(im_c, ax=axes[1, 0], shrink=0.8)
+    
+    im_d = axes[1, 1].imshow(M_harm, cmap="YlOrRd", vmin=0, vmax=vmax); _draw_block_boundaries(axes[1, 1], labels_ord); axes[1, 1].set_title("Cohort F AFTER ComBat")
+    fig.colorbar(im_d, ax=axes[1, 1], shrink=0.8)
+    
+    plt.suptitle("Site-Effect Neutralization Diagnostic (IHB + China Pooled)\nMethod: ComBat (Cohort = Batch, State = Preserved)", fontsize=16, fontweight='bold')
+    out_path = PLOTS / "plot1_combat_impact.png"
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"saved: {out_path}")
 
 if __name__ == "__main__":
     main()

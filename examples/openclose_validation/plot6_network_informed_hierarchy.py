@@ -1,15 +1,16 @@
 """
-Plot 4 — Hierarchy of Network Constraint for the Open-Close paired contrast.
+Hierarchy of Network Constraint for the Open-Close paired contrast.
 
 Mirrors the ABIDE Plot 9 layout, but for the paired Open-vs-Close (run 0)
-contrast on IHB and China cohorts.
+contrast on IHB and China cohorts, plus the joint harmonized pooled dataset.
 
 Three methods, ordered by how strongly the network prior constrains the
 result:
 
   - TFNBS       (unrestricted topological enhancement)
   - NI-TFNBS    (soft per-edge network prior)
-  - cNBS        (hard within-block aggregation)
+  - FBC-TFNBS   (functional-block clustering)
+  - NBS 3.0     (univariate clustering baseline)
 
 For each (cohort, method) we threshold the saved p-map at α = 0.05 on each
 tail, collapse positive ∪ negative, and aggregate significant edges into a
@@ -37,11 +38,12 @@ ALPHA = 0.05
 
 METHODS = [
     ("tfnbs",    "TFNBS (Unrestricted)",           "Greens"),
-    ("ni_tfnbs", "NI-TFNBS (Soft Network Prior)",  "YlGn"),
-    ("cnbs",     "cNBS (Pure Block-based)",        "Blues"),
+    ("ni_tfnbs", "NI-TFNBS (Soft Prior)",          "YlGn"),
+    ("fbc_tfnbs","FBC-TFNBS",                      "Oranges"),
+    ("nbs_30",   "NBS τ=3.0 (Fixed Threshold)",    "Blues"),
 ]
 
-COHORTS = ["ihb", "china"]
+COHORTS = ["ihb", "china", "pooled"]
 
 
 def _block_counts(pmap_path: Path, net_labels: np.ndarray, n_nets: int) -> np.ndarray:
@@ -78,7 +80,7 @@ def main() -> None:
     n_nets = int(net_labels.max() + 1)
 
     fig, axes = plt.subplots(
-        len(COHORTS), len(METHODS), figsize=(18, 11),
+        len(COHORTS), len(METHODS), figsize=(24, 18),
     )
 
     for r, cohort in enumerate(COHORTS):
@@ -92,16 +94,17 @@ def main() -> None:
                 xticklabels=names, yticklabels=names,
                 ax=ax, cbar_kws={"shrink": 0.7},
             )
-            ax.set_title(f"{cohort.upper()} — {title}\n(n_sig={n_sig})",
-                         fontsize=11)
+            pretty_cohort = cohort.upper() if cohort != "pooled" else "JOINT HARMONIZED"
+            ax.set_title(f"{pretty_cohort} (OPEN vs CLOSE)\n{title} (n_sig={n_sig})",
+                         fontsize=12, fontweight='bold')
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right",
-                               fontsize=8)
-            ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=8)
+                               fontsize=9)
+            ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=9)
 
     fig.suptitle(
-        "Plot 4: Hierarchy of Network Constraint — Open vs Close paired (α=0.05)\n"
-        "Columns left → right: increasing network prior strength",
-        fontsize=14,
+        "Hierarchy of Network Constraint — Open vs Close paired (α=0.05)\n"
+        "Columns left → right: increasing network prior strength; Rows: discovery cohorts",
+        fontsize=16, fontweight='bold'
     )
     fig.tight_layout(rect=[0, 0.02, 1, 0.95])
     out = PLOTS / "plot6_network_informed_hierarchy.png"

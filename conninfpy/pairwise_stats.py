@@ -733,8 +733,7 @@ def compute_null_dist(
             X, sumsq_all = _precompute_edge_sums(group1)
             task_func = partial(_fast_permutation_task_paired, X, sumsq_all)
         else:
-            group2_zeros = np.zeros(group1.shape)
-            array_to_permute = group2_zeros - group1
+            array_to_permute = group1
             task_func = partial(_permutation_task_paired, array_to_permute, func, **func_kwargs)
     else:
         raise ValueError(
@@ -964,7 +963,12 @@ def _compute_p_values_from_null(
     max_null_dict: Dict[str, npt.NDArray]
 ) -> Dict[str, npt.NDArray]:
     """
-    Compute p-values by comparing empirical statistics to null distribution.
+    Compute max-statistic p-values from empirical statistics and a null.
+
+    Ties are counted in the conservative direction (``null >= observed``)
+    and the Phipson-Smyth +1 correction is applied:
+    ``p = (count + 1) / (B + 1)``. This keeps an all-zero observed map
+    against an all-zero null at ``p = 1`` rather than ``1 / (B + 1)``.
 
     Parameters
     ----------
@@ -991,13 +995,13 @@ def _compute_p_values_from_null(
             # Shape: (N, N) vs (n_permutations,)
             n_perm = null_dist.shape[0]
             emp_t_expanded = emp_t[..., np.newaxis]
-            count = np.sum(emp_t_expanded < null_dist, axis=-1)
+            count = np.sum(emp_t_expanded <= null_dist, axis=-1)
         else:
             # Multi-param: (N, N, n_params) vs (n_permutations, n_params)
             n_perm = null_dist.shape[0]
             emp_t_expanded = emp_t[..., np.newaxis]
             null_reshaped = null_dist.swapaxes(0, 1)[None, None, ...]
-            count = np.sum(emp_t_expanded < null_reshaped, axis=-1)
+            count = np.sum(emp_t_expanded <= null_reshaped, axis=-1)
 
         # +1 correction (Phipson & Smyth 2010): prevents p = 0 with finite perms
         p_values[key] = (count + 1.0) / (n_perm + 1.0)
@@ -1031,6 +1035,25 @@ def _compute_degrees_of_freedom(
     else:
         # paired or one-sample: df = n - 1
         return n1 - 1
+
+
+def _compute_welch_degrees_of_freedom(
+    group1: npt.NDArray[np.float64],
+    group2: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """Compute edge-wise Welch-Satterthwaite degrees of freedom."""
+    n1 = group1.shape[0]
+    n2 = group2.shape[0]
+    var1 = np.var(group1, axis=0, ddof=1)
+    var2 = np.var(group2, axis=0, ddof=1)
+    se1 = var1 / n1
+    se2 = var2 / n2
+    numerator = (se1 + se2) ** 2
+    denominator = (se1 ** 2) / (n1 - 1) + (se2 ** 2) / (n2 - 1)
+    pooled_df = float(n1 + n2 - 2)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        df = numerator / denominator
+    return np.where(denominator > 0, df, pooled_df)
 
 
 def _compute_parametric_p_values(
@@ -1074,7 +1097,7 @@ def _compute_parametric_p_values(
         df = _compute_degrees_of_freedom(group1.shape[0], 0, test_type_str)
     elif test_type_str == TestType.TWO_SAMPLE.value:
         t_dict = _compute_t_stat_ind(group1, group2)
-        df = _compute_degrees_of_freedom(group1.shape[0], group2.shape[0], test_type_str)
+        df = _compute_welch_degrees_of_freedom(group1, group2)
     else:
         raise ValueError(f"Invalid test_type: '{test_type_str}'")
 
@@ -1213,7 +1236,15 @@ def compute_p_val(
        ``StatMethod.BONFERRONI`` and ``StatMethod.BH_FDR`` are parametric baselines
        that do **not** use permutation testing. They compute p-values from the
        t-distribution and apply multiple comparison corrections. The
-       ``n_permutations`` parameter is ignored for these methods.
+       ``n_permutations`` parameter is ignored for these methods. In the
+       two-sample path, the parametric baseline uses edge-wise
+       Welch-Satterthwaite degrees of freedom to match the Welch statistic.
+
+    .. note:: **Permutation p-values**
+
+       Empirical max-statistic p-values count ties conservatively
+       (``null >= observed``) and use the Phipson-Smyth +1 correction:
+       ``p = (count + 1) / (B + 1)``.
 
     Parameters
     ----------
@@ -1275,8 +1306,8 @@ def compute_p_val(
 
     Returns
     -------
-    dict
-        Dictionary with p-value arrays:
+    InferenceResult
+        Dict-like result with p-value arrays:
 
         - 'negative': P-values for group 1 > group 2.
         - 'positive': P-values for group 2 > group 1.
@@ -1500,8 +1531,8 @@ def compute_t_stat(
     test_type_str = test_type.value if isinstance(test_type, TestType) else test_type
 
     if test_type_str == TestType.ONE_SAMPLE.value:
-        if group2 is not None and not isinstance(group2, int):
-            logger.warning("Group 1 input will be considered for one-sample T-test.")
+        if group2 is not None:
+            logger.warning("group2 is provided but test_type is 'one-sample'. It will be ignored.")
         if group1.ndim != 3:
             raise ValueError("Dimensions of group 1 data should be: (subjects, N, N).")
         return compute_t_stat_diff(group1)
@@ -1609,4 +1640,3 @@ def _compute_t_stat_ind(
     neg_t = np.where(t_stat < 0, -t_stat, 0)
 
     return make_tail_result(pos_t, neg_t)
-

@@ -64,6 +64,10 @@ class TestAutoDispatchGLM(unittest.TestCase):
         )
         self.assertTrue(out.inference.harmonized)
         self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
+        self.assertIn(
+            "between_site_variance_ratio_after_over_before",
+            out.inference.combat_diagnostics,
+        )
         self.assertTrue(
             any("preserve excludes interest (Strategy D)" in f
                 for f in out.flags),

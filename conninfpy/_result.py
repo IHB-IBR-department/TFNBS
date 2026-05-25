@@ -69,8 +69,11 @@ class InferenceResult(TailResult):
     strata_provided : bool
         True iff inference used stratified permutation.
     combat_diagnostics : dict or None
-        ComBat diagnostics blob (between-site variance ratio, etc.) when
-        ``harmonized=True``.
+        ComBat diagnostics blob when available. Strategy D diagnostics
+        include between-site variance before/after and the explicit
+        ``between_site_variance_ratio_after_over_before`` key used by
+        :func:`conninfpy.analyze` for residual-site flags. Strategy E
+        records provenance but does not run ComBat.
     """
 
     method: str

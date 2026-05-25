@@ -4,12 +4,9 @@
 # Uses the full server YAML config but overrides the expensive parameters
 # via CLI flags. CLI flags take priority over YAML values.
 #
-# Full server config (sweep_config_power_server_short.yaml):
-#   n_permutations=1000, n_repeats=100, 10 scenarios, 8 ES, 8 SS
-#   → ~325 hours on 32-core server, impossible locally
-#
-# This script overrides to a quick local test:
-#   n_permutations=200, n_repeats=5, 3 scenarios, 4 ES, 4 SS
+# This script uses the quick refactored YAML and overrides a few parameters
+# for a local smoke test:
+#   n_permutations=200, n_repeats=5, 3 scenarios, 4 ES
 #   Measured: ~1.4 min per (scenario, ES, repeat) on 16 cores (macOS)
 #   effect-size only: 3×4×5 = 60 units → ~84 min (1.4 hours)
 #   both modes: ~168 min (2.8 hours)
@@ -34,30 +31,30 @@ mkdir -p "$LOGDIR"
 LOG="$LOGDIR/TEST_power_$(date +%d%m_%H%M).log"
 
 echo "=== Local Power Analysis Test ==="
-echo "Config: sweep_config_power_server_short.yaml + local overrides"
+echo "Config: configs/sweep_config_power_quick.yaml + local overrides"
 echo "Log: $LOG"
 echo ""
 
 # Run in foreground (use nohup ... & for background)
-python -u examples/simulation_validation/power_test/power_analysis.py \
-  --config examples/simulation_validation/power_test/sweep_config_power_server_short.yaml \
+python -u power/power_analysis.py \
+  --config configs/sweep_config_power_quick.yaml \
   --mode effect-size \
   --n-permutations 200 \
   --n-repeats 5 \
   --scenarios within_module_dense chain hub \
   --effect-sizes 0.15 0.25 0.40 0.60 \
-  --output-dir examples/simulation_validation/results/power_analysis_test \
+  --output-dir results/power_analysis_test \
   --checkpoint-every 5 \
   2>&1 | tee "$LOG"
 
 # To also run sample-size mode, uncomment:
-# python -u examples/simulation_validation/power_test/power_analysis.py \
-#   --config examples/simulation_validation/power_test/sweep_config_power_server_short.yaml \
+# python -u power/power_analysis.py \
+#   --config configs/sweep_config_power_quick.yaml \
 #   --mode sample-size \
 #   --n-permutations 200 \
 #   --n-repeats 5 \
 #   --scenarios within_module_dense chain hub \
 #   --sample-sizes 15 25 50 100 \
-#   --output-dir examples/simulation_validation/results/power_analysis_test \
+#   --output-dir results/power_analysis_test \
 #   --checkpoint-every 5 \
 #   2>&1 | tee -a "$LOG"
