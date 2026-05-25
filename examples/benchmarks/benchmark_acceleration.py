@@ -53,7 +53,7 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
         t0 = time.time()
         p_ref = compute_p_val_glm(
             Y, interest=age, method=method_name,
-            n_permutations=n_perm_ref, use_mp=False, random_state=seed,
+            n_permutations=n_perm_ref, use_mp=False, rng=seed,
             **method_kwargs,
         )
         t_ref = time.time() - t0
@@ -72,7 +72,7 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
             t0 = time.time()
             p_accel = compute_p_val_glm(
                 Y, interest=age, method=method_name,
-                n_permutations=n_perm_accel, use_mp=False, random_state=seed,
+                n_permutations=n_perm_accel, use_mp=False, rng=seed,
                 acceleration=accel_name, **method_kwargs,
             )
             t_accel = time.time() - t0
@@ -98,7 +98,7 @@ def run_benchmark(N, n_subjects, methods, n_perm_ref, n_perm_accel,
         t0 = time.time()
         p_emp = compute_p_val_glm(
             Y, interest=age, method=method_name,
-            n_permutations=n_perm_accel, use_mp=False, random_state=seed,
+            n_permutations=n_perm_accel, use_mp=False, rng=seed,
             **method_kwargs,
         )
         t_emp = time.time() - t0

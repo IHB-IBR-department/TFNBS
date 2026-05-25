@@ -69,11 +69,11 @@ def plot_timing_benchmark(df: pd.DataFrame, out_path: Path) -> None:
         ax.bar(x + i * width, sub.values, width, label=m)
 
     ax.set_xlabel("n_nodes")
-    ax.set_ylabel("wall-clock (s, log scale)")
+    ax.set_ylabel("wall-clock (s)")
     ax.set_title(f"Wall-clock time (n_perms={df['n_permutations'].max()})")
     ax.set_xticks(x + width * (len(methods) - 1) / 2)
     ax.set_xticklabels(n_nodes_list)
-    ax.set_yscale("log")
+    # ax.set_yscale("log")
     ax.legend(fontsize=8, ncol=2)
     ax.grid(True, alpha=0.3)
 

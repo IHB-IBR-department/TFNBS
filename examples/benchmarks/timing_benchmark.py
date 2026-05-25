@@ -1,31 +1,3 @@
-#!/usr/bin/env python3
-"""
-Computational cost estimation for ConnInfPy methods.
-
-Times ``compute_p_val`` across different network sizes and permutation counts.
-Generates a summary table and optional CSV for inclusion in papers.
-
-Usage
------
-Quick local test (30 nodes, 100 permutations)::
-
-    python examples/benchmarks/timing_benchmark.py --n_nodes 30 --n_perms 100
-
-Typical atlas sizes::
-
-    python examples/benchmarks/timing_benchmark.py --n_nodes 90 200 400 --n_perms 1000
-
-All parameters::
-
-    python examples/benchmarks/timing_benchmark.py \\
-        --n_nodes 90 200 400 \\
-        --n_perms 500 1000 \\
-        --n_samples 30 \\
-        --methods tstat tfnbs ni_tfnbs fbc_tfnbs nbs_extent nbs_intensity cnbs bonferroni bh_fdr \\
-        --repeats 3 \\
-        --output examples/results/timing_benchmark.csv
-"""
-
 import argparse
 import sys
 import time
@@ -37,25 +9,17 @@ import pandas as pd
 # ── ensure the package is importable ──────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root (2 levels up from examples/benchmarks/)
 
-from conninfpy import compute_p_val  # noqa: E402
-from _common import PAPER_TOPOLOGIES, make_two_sample  # noqa: E402
+from conninfpy import compute_p_val, compute_p_val_glm  # noqa: E402
+from _common import PAPER_TOPOLOGIES, make_two_sample, make_glm_data  # noqa: E402
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 ALL_METHODS = [
-    "tstat",
     "tfnbs",
-    "ni_tfnbs",
-    "fbc_tfnbs",
-    "nbs_extent",
-    "nbs_intensity",
-    "cnbs",
-    "bonferroni",
-    "bh_fdr",
+    "nbs",
+    "glm_tfnbs",
 ]
-
-PARAMETRIC_METHODS = {"bonferroni", "bh_fdr"}
 
 
 def _generate_data(n_nodes: int, n_samples: int, topology: str = "within_module_dense", seed: int = 42):
@@ -65,71 +29,71 @@ def _generate_data(n_nodes: int, n_samples: int, topology: str = "within_module_
     )
 
 
-def _make_net_labels(n_nodes: int) -> np.ndarray:
-    """Generate module labels for n_nodes split into 4 modules."""
-    mod_size = n_nodes // 4
-    labels = np.repeat(np.arange(4), mod_size)
-    if n_nodes % 4 != 0:
-        labels = np.concatenate([labels, np.full(n_nodes - len(labels), 3)])
-    return labels
+def _generate_glm_data(n_nodes: int, n_samples: int, topology: str = "within_module_dense", seed: int = 42):
+    """Generate GLM data (Y, interest)."""
+    # make_glm_data returns (Y, age, motion)
+    Y, age, _ = make_glm_data(
+        N=n_nodes, n_sub=n_samples, topology=topology, seed=seed,
+    )
+    return Y, age
 
 
 # Map user-facing method names to compute_p_val method + extra kwargs
 METHOD_TO_API = {
-    "tstat": "tstat",
     "tfnbs": "tfnbs",
-    "ni_tfnbs": "ni_tfnbs",
-    "fbc_tfnbs": "fbc_tfnbs",
-    "nbs_extent": "nbs",
-    "nbs_intensity": "nbs",
-    "cnbs": "cnbs",
-    "bonferroni": "bonferroni",
-    "bh_fdr": "bh_fdr",
+    "nbs": "nbs",
+    "glm_tfnbs": "tfnbs",
 }
 
 
-def _get_method_kwargs(method: str, n_nodes: int):
-    """Return (api_method, extra_kwargs) for compute_p_val."""
+def _get_method_kwargs(method: str):
+    """Return extra kwargs for compute_p_val / compute_p_val_glm."""
     kw = {}
-    if method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
+    if "tfnbs" in method:
         kw.update(e=0.5, h=2.0, n=30, start_thres=1.25)
-    if method == "fbc_tfnbs":
-        kw["min_cluster_size"] = 3
-    if method in ("nbs_extent", "nbs_intensity"):
+    if "nbs" in method and "tfnbs" not in method:
         kw["threshold"] = 2.0
-    if method == "nbs_extent":
         kw["nbs_stat"] = "extent"
-    elif method == "nbs_intensity":
-        kw["nbs_stat"] = "intensity"
-    # cnbs, ni_tfnbs, and fbc_tfnbs all require net_labels
-    if method in ("cnbs", "ni_tfnbs", "fbc_tfnbs"):
-        kw["net_labels"] = _make_net_labels(n_nodes)
     return kw
 
 
 def time_method(
     method: str,
-    group1: np.ndarray,
-    group2: np.ndarray,
+    n_nodes: int,
+    n_samples: int,
     n_perms: int,
+    topology: str = "within_module_dense",
     seed: int = 42,
 ) -> float:
-    """Time a single compute_p_val call. Returns elapsed seconds."""
-    n_nodes = group1.shape[1]
+    """Time a single computation. Returns elapsed seconds."""
     api_method = METHOD_TO_API[method]
-    kw = _get_method_kwargs(method, n_nodes)
+    kw = _get_method_kwargs(method)
 
-    t0 = time.perf_counter()
-    compute_p_val(
-        group1, group2,
-        n_permutations=n_perms,
-        test_type="two-sample",
-        method=api_method,
-        use_mp=False,       # single-core for reproducible timing
-        random_state=seed,
-        **kw,
-    )
-    return time.perf_counter() - t0
+    if method == "glm_tfnbs":
+        Y, age = _generate_glm_data(n_nodes, n_samples, topology=topology, seed=seed)
+        t0 = time.perf_counter()
+        compute_p_val_glm(
+            Y, interest=age,
+            n_permutations=n_perms,
+            method=api_method,
+            use_mp=False,
+            rng=seed,
+            **kw,
+        )
+        return time.perf_counter() - t0
+    else:
+        group1, group2 = _generate_data(n_nodes, n_samples, topology=topology, seed=seed)
+        t0 = time.perf_counter()
+        compute_p_val(
+            group1, group2,
+            n_permutations=n_perms,
+            test_type="two-sample",
+            method=api_method,
+            use_mp=False,
+            rng=seed,
+            **kw,
+        )
+        return time.perf_counter() - t0
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -157,9 +121,6 @@ def run_benchmark(
             print(f"  n_nodes={n_nodes}  (n_edges={n_edges}), n_samples={n_samples}, topology={topology}")
             print(f"{'='*70}")
 
-            # Generate data once per (n_nodes, topology) pair
-            g1, g2 = _generate_data(n_nodes, n_samples, topology=topology, seed=seed)
-
             for n_perms in n_perms_list:
                 print(f"\n  n_permutations={n_perms}")
                 print(f"  {'Method':<18} {'Time (s)':>10}  {'per-perm (ms)':>14}  {'per-edge-perm (us)':>18}")
@@ -168,20 +129,15 @@ def run_benchmark(
                 for method in methods:
                     times = []
                     for r in range(repeats):
-                        t = time_method(method, g1, g2, n_perms, seed=seed + r)
+                        t = time_method(method, n_nodes, n_samples, n_perms, topology=topology, seed=seed + r)
                         times.append(t)
                         done += 1
 
                     mean_t = np.mean(times)
                     std_t = np.std(times) if repeats > 1 else 0.0
 
-                    # Parametric methods don't scale with n_perms
-                    if method in PARAMETRIC_METHODS:
-                        per_perm_ms = 0.0
-                        per_edge_perm_us = 0.0
-                    else:
-                        per_perm_ms = mean_t / n_perms * 1000
-                        per_edge_perm_us = mean_t / n_perms / n_edges * 1e6
+                    per_perm_ms = mean_t / n_perms * 1000
+                    per_edge_perm_us = mean_t / n_perms / n_edges * 1e6
 
                     print(
                         f"  {method:<18} {mean_t:>10.3f}  {per_perm_ms:>14.3f}  "
@@ -269,12 +225,8 @@ def print_summary_table(df: pd.DataFrame):
         for nn in n_nodes_tested:
             row = df[(df["method"] == method) & (df["n_nodes"] == nn)]
             if len(row) > 0:
-                if method in PARAMETRIC_METHODS:
-                    # Parametric: constant time regardless of n_perms
-                    t = row.iloc[0]["time_mean_s"]
-                else:
-                    # Scale to 1000 perms using measured per-perm cost
-                    t = row.iloc[0]["per_perm_ms"] * 1000 / 1000  # per_perm_ms * 1000_perms / 1000
+                # Scale to 1000 perms using measured per-perm cost
+                t = row.iloc[0]["per_perm_ms"] * 1000 / 1000  # per_perm_ms * 1000_perms / 1000
                 line += _format_time_cell(t, width=20)
             else:
                 line += f" {'—':>20} |"
@@ -289,12 +241,12 @@ def main():
         epilog=__doc__,
     )
     parser.add_argument(
-        "--n_nodes", type=int, nargs="+", default=[90, 200, 400],
-        help="Network sizes to test (default: 90 200 400)",
+        "--n_nodes", type=int, nargs="+", default=[60, 100, 200, 400],
+        help="Network sizes to test (default: 60 100 200 400)",
     )
     parser.add_argument(
-        "--n_perms", type=int, nargs="+", default=[1000],
-        help="Permutation counts to test (default: 1000)",
+        "--n_perms", type=int, nargs="+", default=[100],
+        help="Permutation counts to test (default: 100 for speed)",
     )
     parser.add_argument(
         "--n_samples", type=int, default=30,

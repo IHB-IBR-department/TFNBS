@@ -3,18 +3,17 @@ Unified default parameters for ConnInfPy.
 
 Single source of truth for all default constants used across modules.
 
-TFCE exponent defaults (E, H) use Smith & Nichols (2009) values
-``E=0.5, H=2.0`` across both the scoring and permutation paths.
+TFCE exponent defaults (E, H) use the validation-paper setting
+``E=0.3, H=3.0`` across both the scoring and permutation paths.
+This matches the ABIDE, Open-Close, and simulation examples.
 
 Hao et al. (2024) recommend ``E=0.4, H in [3.0, 7.0]`` for empirical
 FDR < 10% on network data — Baggio (2018) defaults overshoot FDR > 50%
 in their benchmarks; Vinokur et al. (2023) report 75-fold variation in
 detected edge counts across (E,H) within Baggio's recommended range.
-The package does not impose Hao's defaults globally to preserve
-backward compatibility, but every validation pipeline in
-``examples/`` (ABIDE, Open-Close, simulation) calls
-``compute_p_val(...)`` / ``compute_p_val_glm(...)`` with explicit
-``e=0.4, h=3.0, n=10`` — that is the regime our paper figures use.
+Smith & Nichols (2009) originally used ``E=0.5, H=2.0`` for image TFCE;
+that remains a sensible sensitivity point, but it is no longer the
+ConnInfPy default for network validation.
 
 Users tuning (E,H) for a specific dataset should treat the exponents as
 a sensitivity knob: ablate within Hao's recommended box
@@ -37,14 +36,15 @@ strictly speaking only validates one of them at this resolution:
 * **FWER control via max-statistic permutation.** No specific
   literature endorses ``n=10`` for this path; the choice is a
   pragmatic compromise between integration resolution and permutation
-  budget. ConnInfPy's simulation calibration grid
-  (1 000 null repeats × 9 methods × 4 sample sizes, see
-  ``examples/simulation_validation/``) confirms that the
-  one-sided FWER ≤ α rule still holds in all 36 cells at ``n=10``,
-  but this is an empirical observation rather than a theoretical
-  guarantee — users with budget for ``n=30+`` permutation-time
+  budget. ConnInfPy's simulation calibration grid in
+  ``examples/simulation_validation/`` is the empirical regression check
+  for this choice; users with budget for ``n=30+`` permutation-time
   integration steps can pass ``n=30`` to ``compute_p_val(...)`` /
   ``compute_p_val_glm(...)`` without changing any other default.
+  Because the default pairwise API returns positive and negative tails
+  with separate max-statistic nulls, one undirected/two-sided family
+  should be interpreted with ``α/2`` per tail unless a caller uses a
+  joint two-sided max-null path.
 
 Threshold tie-breaking convention
 ---------------------------------
@@ -52,12 +52,10 @@ ConnInfPy's TFCE integral uses ``edge_t >= threshold`` (inclusive lower
 bound) at each integration step. Smith & Nichols (2009) define the
 TFCE indicator as ``e(h) = 1 if t > h``, i.e. strict inequality. The
 inclusive convention is mathematically equivalent under continuous
-``t``-statistics and computationally simpler. We retain ``>=`` because
-the production FPR calibration on 1{,}000 null repeats × 9 methods × 4
-sample sizes (see ``examples/simulation_validation/``) confirms all
-36 cells PASS the one-sided FWER ≤ α rule with this choice. A future
-release will switch to ``>`` to match the literal Smith & Nichols
-formula and rerun calibration as a regression check.
+``t``-statistics and computationally simpler. We retain ``>=`` and use
+the production FPR/FWER calibration in ``examples/simulation_validation/``
+as the regression check. A future release may switch to ``>`` to match
+the literal Smith & Nichols formula and rerun calibration.
 
 References
 ----------
@@ -72,14 +70,14 @@ References
 """
 
 # =============================================================================
-# TFCE parameters (Smith & Nichols, 2009)
+# TFCE parameters (validation-paper network setting)
 # =============================================================================
 
-DEFAULT_EXTENT_EXPONENT: float = 0.5
-"""Default extent exponent E. See module docstring for Hao 2024 alternative."""
+DEFAULT_EXTENT_EXPONENT: float = 0.3
+"""Default extent exponent E."""
 
-DEFAULT_HEIGHT_EXPONENT: float = 2.0
-"""Default height exponent H. See module docstring for Hao 2024 alternative."""
+DEFAULT_HEIGHT_EXPONENT: float = 3.0
+"""Default height exponent H."""
 
 DEFAULT_START_THRESHOLD: float = 1.65
 """Initial threshold for cluster formation (p < 0.05 one-tailed)."""

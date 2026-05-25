@@ -178,7 +178,7 @@ def analyze(
     method: Union[str, StatMethod] = "tfnbs",
     acceleration: Optional[str] = "gpd",
     n_permutations: int = 200,
-    e: Union[float, Sequence[float]] = 0.4,
+    e: Union[float, Sequence[float]] = 0.3,
     h: Union[float, Sequence[float]] = 3.0,
     n: int = 10,
     rng: RngLike = None,
@@ -262,7 +262,7 @@ def analyze(
         Permutations. The default is tuned for exploratory
         GPD-accelerated inference; final empirical runs typically use a
         larger value with ``acceleration=None``.
-    e, h : float or sequence of float, default ``0.4``, ``3.0``
+    e, h : float or sequence of float, default ``0.3``, ``3.0``
         TFNBS exponents. Pass equal-length sequences to evaluate a
         whole ``(E, H)`` grid in one call — the threshold loop runs
         once and the per-cell scores are broadcast at the end, so
@@ -272,7 +272,7 @@ def analyze(
         ``result.e_grid``, ``result.h_grid``); use
         ``result.select(param_idx)`` or pass ``param_idx=`` to
         ``significant_edges`` / ``to_csv`` to project to a single
-        cell. Hao 2024 default ``(0.4, 3.0)``.
+        cell. Validation-paper default ``(0.3, 3.0)``.
     n : int, default ``10``
         Threshold integration steps.
     rng : int, ``numpy.random.Generator``, or ``None``

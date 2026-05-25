@@ -586,9 +586,16 @@ def _is_worker_process() -> bool:
     """Check if running inside a multiprocessing worker.
 
     Returns True when the current process was spawned by a Pool,
-    preventing nested Pool creation which causes deadlocks.
+    preventing nested Pool creation which causes deadlocks and
+    unintentional process multiplication.
     """
-    return multiprocessing.current_process().name != 'MainProcess'
+    proc_name = multiprocessing.current_process().name
+    return (
+        proc_name != 'MainProcess' or 
+        'PoolWorker' in proc_name or 
+        'SpawnPoolWorker' in proc_name or
+        'ForkPoolWorker' in proc_name
+    )
 
 
 def get_available_cores():
@@ -1271,7 +1278,7 @@ def compute_p_val(
         T-statistic threshold for NBS (only used when method='nbs').
     nbs_stat : {'extent', 'intensity'}, default='extent'
         Cluster statistic for NBS (only used when method='nbs').
-    e : float or sequence of float, default=0.4
+    e : float or sequence of float, default=0.3
         Extent exponent for TFNBS-based methods. Pass an equal-length
         sequence with ``h`` to evaluate a whole ``(E, H)`` grid in one
         permutation pass — TFNBS's threshold integration runs once

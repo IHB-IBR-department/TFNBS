@@ -88,7 +88,7 @@ def benchmark_full_pipeline(N_values, n_subjects, n_perms, use_mp, methods, topo
                 method=method_name,
                 n_permutations=n_perms,
                 use_mp=use_mp,
-                random_state=42,
+                rng=42,
                 **method_kwargs,
             )
             elapsed = time.time() - t0

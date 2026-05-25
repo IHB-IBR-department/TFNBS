@@ -196,7 +196,7 @@ class TestPalmEquivalenceTwoSample(unittest.TestCase):
             res = compute_p_val_glm(
                 Y_3d, design_matrix=self.X, contrast=self.contrast,
                 stat_type="tstat", method="tstat",
-                n_permutations=N_PERM, use_mp=False, random_state=42,
+                n_permutations=N_PERM, use_mp=False, rng=42,
             )
         # PALM's [0, 1] contrast → "Group2 > Group1" → conninfpy's positive tail
         cinf_p = res["positive"][self.iu[0], self.iu[1]]
@@ -228,7 +228,7 @@ class TestPalmEquivalenceTwoSample(unittest.TestCase):
             res = compute_p_val_glm(
                 Y_3d, design_matrix=self.X, contrast=self.contrast,
                 stat_type="tstat", method="tstat",
-                n_permutations=N_PERM, use_mp=False, random_state=42,
+                n_permutations=N_PERM, use_mp=False, rng=42,
             )
         cinf_p_pos = res["positive"][self.iu[0], self.iu[1]]
         signed_t = compute_glm_stat(
@@ -318,7 +318,7 @@ class TestPalmEquivalenceOneSample(unittest.TestCase):
             warnings.simplefilter("ignore")
             res = compute_p_val(
                 Y_A_3d, Y_B_3d, test_type="paired", method="tstat",
-                n_permutations=N_PERM, use_mp=False, random_state=42,
+                n_permutations=N_PERM, use_mp=False, rng=42,
             )
         cinf_p = res["positive"][self.iu[0], self.iu[1]]
 
@@ -416,7 +416,7 @@ class TestPalmEbParity(unittest.TestCase):
             res = compute_p_val_glm(
                 Y_3d, design_matrix=self.X, contrast=self.contrast,
                 stat_type="tstat", method="tstat",
-                n_permutations=N_PERM, use_mp=False, random_state=42,
+                n_permutations=N_PERM, use_mp=False, rng=42,
                 strata=self.sites,
             )
         self.assertTrue(res.strata_provided)

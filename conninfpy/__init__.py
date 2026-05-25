@@ -10,7 +10,7 @@ Public quick-start
 >>> from conninfpy import compute_p_val, fisher_r_to_z
 >>> z = fisher_r_to_z(corr_matrices)
 >>> p = compute_p_val(g1_z, g2_z, test_type='two-sample',
-...                   method='tfnbs', e=0.4, h=3.0, n=10)
+...                   method='tfnbs', e=0.3, h=3.0, n=10)
 >>> p['positive']  # significant edges where group2 > group1
 
 Returns a :class:`~conninfpy._compat.TailResult` with canonical keys

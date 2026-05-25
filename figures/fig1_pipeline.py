@@ -1,18 +1,19 @@
 """
-Fig 1 — ConnInfPy pipeline overview (matplotlib first draft, v2).
+Fig 1 — ConnInfPy pipeline overview (v3, 2026-05-25 layout).
 
-Implements the 8-panel design at
-``MainVault/Projects/NetworkStatistics/Figure1_pipeline_spec.md``.
+v3 layout — six enhancement operators on one dedicated row, a
+horizontal workflow strip underneath:
 
-Layout fix (v2 vs v1): panel-letter titles are placed via ``fig.text()``
-at computed y-coordinates above each panel rather than via
-``ax.set_title()`` on the outer (axis-off) axes — this avoids overlap
-with inner sub-panel titles when an outer panel hosts a subgridspec.
-Descriptive captions are moved to the LaTeX figure caption (not overlaid
-on the figure). NEW badges are kept inside panel bounds.
+    Row 1 (height 1.0):  A Ground truth | B Per-subject FC | C ComBat
+    Row 2 (height 1.0):  D Edge-wise GLM + Freedman-Lane (full width)
+    Row 3 (height 0.95): E Enhancement operators — 6 thumbnails:
+                          NBS τ=2 | NBS τ=3 | TFNBS | cNBS |
+                          NI-TFNBS | FBC-TFNBS
+    Row 4 (height 0.75): F Inference workflow — enhanced stat →
+                          permutation null + GPD tail → p-map →
+                          edge CSV (horizontal flow)
 
-Output:
-    figures/fig1_pipeline.pdf
+Output (PNG only, per 2026-05-25 figure-folder pruning):
     figures/fig1_pipeline.png    (300 dpi)
 """
 
@@ -44,12 +45,8 @@ mpl.rcParams.update({
 
 
 HERE = Path(__file__).parent
-OUT_PDF = HERE / "fig1_pipeline.pdf"
 OUT_PNG = HERE / "fig1_pipeline.png"
-OUT_SVG = HERE / "fig1_pipeline.svg"
-DOCS_PDF = HERE.parent.parent / "docs" / "fig1_pipeline.pdf"
 DOCS_PNG = HERE.parent.parent / "docs" / "fig1_pipeline.png"
-DOCS_SVG = HERE.parent.parent / "docs" / "fig1_pipeline.svg"
 
 
 # =============================================================================
@@ -228,19 +225,18 @@ def panel_C_combat(ax, fc, site_codes, rng):
 def panel_D_glm(ax):
     """D — Edge-wise GLM with Freedman–Lane, multi-contrast in one pass.
 
-    Three sub-panels:
+    Two sub-panels:
       (left)   Design X with three contrasts c_age, c_sex, c_FD
                highlighted as separate "of-interest" columns.
-      (centre) Freedman–Lane flowchart with the shared-nuisance loop
-               annotated — one residual fit, K contrast evaluations.
-      (right)  Three resulting per-edge stat maps t_e^{age}, t_e^{sex},
-               t_e^{FD} produced in a single permutation pass via
+      (right)  Freedman–Lane flowchart with the shared-nuisance loop
+               annotated — one residual fit, K contrast evaluations
+               in a single permutation pass via
                compute_p_val_glm_multi.
     """
     ax.axis("off")
     fig = ax.figure
     sub = ax.get_subplotspec().subgridspec(
-        1, 5, width_ratios=[1.5, 0.25, 2.6, 0.3, 2.6], wspace=0.08
+        1, 3, width_ratios=[1.5, 0.25, 3.0], wspace=0.08
     )
 
     # ---- Design matrix X with contrast-row strip below ----
@@ -308,41 +304,10 @@ def panel_D_glm(ax):
                                       mutation_scale=8, color="#345", lw=0.7))
     # Annotation: one beta vector per perm, K stats per beta
     a_f.text(0.71, 0.32,
-             r"$\hat\beta^\pi$ reused" + "\n" + r"for all $K$ contrasts",
-             ha="center", va="center", fontsize=6.0, color="#a33",
+             r"$\hat\beta^\pi$ reused" + "\n" + r"for all $K$ contrasts"
+             + "\n" + r"$\rightarrow$ compute_p_val_glm_multi",
+             ha="center", va="center", fontsize=6.2, color="#a33",
              style="italic")
-
-    # ---- Three per-edge stat maps, one per contrast ----
-    a_t = fig.add_subplot(sub[4])
-    a_t.axis("off")
-    inner = sub[4].subgridspec(1, 3, wspace=0.18)
-    rng2 = np.random.default_rng(3)
-    contrast_labels = [
-        ("$t_e^{\\rm age}$", "#c33"),
-        ("$t_e^{\\rm sex}$", "#c33"),
-        ("$t_e^{\\rm FD}$", "#c33"),
-    ]
-    for j, (label, color) in enumerate(contrast_labels):
-        a_in = fig.add_subplot(inner[j])
-        # Each contrast gets a slightly different signal pattern
-        rng_j = np.random.default_rng(3 + j)
-        Tmap = np.abs(rng_j.normal(0, 1.0, (20, 20)))
-        if j == 0:  # age — strong cluster top-left
-            Tmap[:6, :6] += 2.5
-        elif j == 1:  # sex — single hub
-            Tmap[7, :] += 1.8; Tmap[:, 7] += 1.8
-        else:  # FD — diffuse
-            Tmap += 0.6
-        Tmap = (Tmap + Tmap.T) / 2
-        np.fill_diagonal(Tmap, 0)
-        a_in.imshow(Tmap, cmap="magma", vmin=0, vmax=4)
-        a_in.set_xticks([]); a_in.set_yticks([])
-        a_in.set_title(label, fontsize=8, pad=1, color=color)
-    # Banner under the three thumbnails
-    a_t.text(0.5, -0.06,
-             r"$\rightarrow$ compute_p_val_glm_multi  ·  one perm pass",
-             transform=a_t.transAxes, ha="center", va="top",
-             fontsize=6.5, style="italic", color="#a33")
 
 
 def _make_t_for_NBS(rng):
@@ -429,6 +394,189 @@ def panel_G_block_methods(ax):
             _new_badge(a, x=0.97, y=0.95)
 
 
+def panel_E_enhancement_row(ax, rng):
+    """E — Seven enhancement-operator thumbnails on one row.
+
+    Layout (left → right): NBS τ=2 | NBS τ=3 | TFNBS h=2 | TFNBS h=3 |
+    cNBS | NI-TFNBS | FBC-TFNBS.
+    Each cell shows the operator's output on a common synthetic t-stat
+    map with a planted within-module signal. For TFNBS the two
+    threshold panels illustrate the threshold-free integration as a
+    pair of representative levels (h=2.0 and h=3.0).
+    """
+    n_nodes = 24
+    n_modules = 3
+    mask = _make_modular_mask(n_nodes=n_nodes, n_modules=n_modules,
+                              effect_blocks=(0,), rng=rng)
+    T = np.abs(rng.normal(0, 1, (n_nodes, n_nodes)))
+    T = (T + T.T) / 2
+    T += 2.5 * mask
+    np.fill_diagonal(T, 0)
+
+    # Block labels for cNBS / NI / FBC
+    mod_size = n_nodes // n_modules
+    block_labels = np.repeat(np.arange(n_modules), mod_size)
+
+    # NBS at two thresholds — show suprathreshold + largest component
+    def nbs_panel(tau):
+        suprath = (T > tau).astype(int)
+        components, _ = get_components(suprath, no_depend=True)
+        n = T.shape[0]
+        out = np.zeros((n, n), dtype=int)
+        if components is not None:
+            comp_node = np.array(components)
+            for i in range(n):
+                for j in range(n):
+                    if suprath[i, j] and comp_node[i] == comp_node[j]:
+                        out[i, j] = comp_node[i] + 1
+        return out
+
+    nbs_t2 = nbs_panel(2.0)
+    nbs_t3 = nbs_panel(3.0)
+
+    # TFNBS at two illustrative h levels — h^H-weighted suprathreshold
+    # mask at each h, displayed as a continuous heatmap.
+    H_exp = 2.0
+    def tfnbs_at(h):
+        return (T > h).astype(float) * (h ** H_exp)
+
+    tfnbs_h2 = tfnbs_at(2.0)
+    tfnbs_h3 = tfnbs_at(3.0)
+    # For the block-aware methods, use the full integration as a
+    # cleaner illustration of the "enhanced stat" they operate on.
+    tfnbs_full = tfnbs_at(2.0) + tfnbs_at(3.0)
+
+    # cNBS — pure block-mean
+    cnbs = np.zeros_like(T)
+    for b1 in range(n_modules):
+        for b2 in range(n_modules):
+            cells = T[np.ix_(block_labels == b1, block_labels == b2)]
+            cnbs[np.ix_(block_labels == b1, block_labels == b2)] = cells.mean()
+    np.fill_diagonal(cnbs, 0)
+
+    # NI-TFNBS — soft prior weighting (within-module amplification)
+    ni = np.copy(tfnbs_full)
+    for b in range(n_modules):
+        idx = block_labels == b
+        ni[np.ix_(idx, idx)] *= 1.6
+
+    # FBC-TFNBS — TFNBS restricted to blocks whose mean exceeds the global block-mean
+    fbc = np.where(cnbs > cnbs.mean(), tfnbs_full, 0)
+
+    ax.axis("off")
+    fig = ax.figure
+    sub = ax.get_subplotspec().subgridspec(1, 7, wspace=0.18)
+    # All panels use per-cell auto-scaling and a perceptually
+    # uniform colormap so the structure is visible even when most of
+    # the matrix is near zero (avoids the "all-black" look of
+    # absolute-scaled magma).
+    nbs_mask_t2 = (nbs_t2 > 0).astype(float)
+    nbs_mask_t3 = (nbs_t3 > 0).astype(float)
+    panels = [
+        (nbs_mask_t2, r"NBS  $\tau=2$",        False),
+        (nbs_mask_t3, r"NBS  $\tau=3$",        False),
+        (tfnbs_h2,    r"TFNBS  $h=2$",         False),
+        (tfnbs_h3,    r"TFNBS  $h=3$",         False),
+        (cnbs,        "cNBS",                  False),
+        (ni,          "NI-TFNBS",              True),
+        (fbc,         "FBC-TFNBS",             True),
+    ]
+    for k, (mat, title, is_new) in enumerate(panels):
+        a = fig.add_subplot(sub[k])
+        vmax = float(np.max(mat)) if np.any(mat) else 1.0
+        a.imshow(mat, cmap="viridis", vmin=0, vmax=vmax)
+        a.set_xticks([]); a.set_yticks([])
+        a.set_title(title, fontsize=7, pad=2)
+        for kk in range(1, n_modules):
+            a.axvline(kk * mod_size - 0.5, color="white", lw=0.3, alpha=0.7)
+            a.axhline(kk * mod_size - 0.5, color="white", lw=0.3, alpha=0.7)
+        if is_new:
+            _new_badge(a, x=0.97, y=0.95)
+
+
+def panel_F_workflow(ax, rng):
+    """F — What you can compute: three group-wise comparison workflows.
+
+    Graphical-abstract style — emphasis on what the user gets out, not
+    on how the permutation engine works. Three branches drawn as
+    side-by-side boxed columns:
+
+      ① simple group  : compute_p_val(test_type='two-sample'|'paired')
+      ② + confounds   : compute_p_val_glm(interest=, confounds=)
+      ③ multi-site    : combat_harmonize(...) → compute_p_val_glm(...)
+                         with site dummies (Strategy D)
+
+    Each branch ends in its science deliverable — FWER-corrected
+    edges, atlas-aware report, network-level summary.
+    """
+    ax.axis("off")
+    fig = ax.figure
+    sub = ax.get_subplotspec().subgridspec(
+        1, 3, wspace=0.12,
+    )
+
+    branches = [
+        {
+            "title": "① Group-wise (no confound)",
+            "scientific_q": "“Do groups A and B differ in connectivity?”",
+            "call": (
+                "analyze(\n"
+                "  group1=$Y_A$,  group2=$Y_B$,\n"
+                "  test_type='two-sample'|'paired',\n"
+                "  method='tfnbs'|'nbs'|'cnbs'|…)"
+            ),
+            "color": "#dfe6f0",
+        },
+        {
+            "title": "② With confounds (continuous / categorical)",
+            "scientific_q": "“Does $x$ predict connectivity after $C$?”",
+            "call": (
+                "analyze(\n"
+                "  Y, interest=$x$,\n"
+                "  confounds=$C$,\n"
+                "  method='tfnbs'|…)"
+            ),
+            "color": "#dfecdf",
+        },
+        {
+            "title": "③ Multi-site (Strategy D)",
+            "scientific_q": "“Same question, across $S$ scanners.”",
+            "call": (
+                "analyze(\n"
+                "  Y, interest=$x$,\n"
+                "  confounds=$C$,\n"
+                "  sites=$s$,        # auto Strategy D\n"
+                "  method='tfnbs'|…)"
+            ),
+            "color": "#f5e0d0",
+        },
+    ]
+
+    # Top banner: all three call the unified analyze() entry point.
+    ax.text(
+        0.5, 1.04,
+        "all three workflows  →  one umbrella API:  "
+        r"$\mathtt{conninfpy.analyze(\,\ldots\,)}$",
+        transform=ax.transAxes, ha="center", va="bottom",
+        fontsize=8.5, fontweight="bold", color="#234",
+    )
+
+    for j, branch in enumerate(branches):
+        a = fig.add_subplot(sub[j])
+        a.set_xlim(0, 1); a.set_ylim(0, 1); a.axis("off")
+        a.add_patch(FancyBboxPatch(
+            (0.02, 0.04), 0.96, 0.92,
+            boxstyle="round,pad=0.02",
+            fc=branch["color"], ec="#345", lw=0.9,
+        ))
+        a.text(0.5, 0.91, branch["title"], ha="center", va="top",
+               fontsize=8.0, fontweight="bold")
+        a.text(0.5, 0.76, branch["scientific_q"], ha="center", va="top",
+               fontsize=6.8, style="italic", color="#234")
+        a.text(0.06, 0.58, branch["call"], ha="left", va="top",
+               fontsize=6.6, family="monospace")
+
+
 def panel_H_inference(ax, rng):
     n_perm = 200
     null_max = np.abs(rng.normal(0, 1, n_perm)) * 2 + 1.0
@@ -490,75 +638,62 @@ def panel_H_inference(ax, rng):
 
 def main():
     rng = np.random.default_rng(42)
-    fig = plt.figure(figsize=(12, 10), constrained_layout=False)
+    fig = plt.figure(figsize=(13, 12), constrained_layout=False)
     gs = GridSpec(
-        nrows=3, ncols=4, figure=fig,
-        height_ratios=[1.0, 1.0, 1.65],
-        width_ratios=[1, 1, 1, 1],
-        left=0.05, right=0.97, top=0.93, bottom=0.04,
-        wspace=0.32, hspace=0.50,
+        nrows=4, ncols=3, figure=fig,
+        height_ratios=[1.0, 1.0, 0.95, 0.85],
+        width_ratios=[1, 1, 1],
+        left=0.05, right=0.97, top=0.94, bottom=0.04,
+        wspace=0.32, hspace=0.46,
     )
 
+    # Row 1: A | B | C
     ax_A = fig.add_subplot(gs[0, 0])
     ax_B = fig.add_subplot(gs[0, 1])
-    ax_C = fig.add_subplot(gs[0, 2:])
+    ax_C = fig.add_subplot(gs[0, 2])
+    # Row 2: D spans the row
     ax_D = fig.add_subplot(gs[1, :])
-    ax_E = fig.add_subplot(gs[2, 0])
-    ax_F = fig.add_subplot(gs[2, 1])
-    ax_G = fig.add_subplot(gs[2, 2])
-    ax_H = fig.add_subplot(gs[2, 3])
+    # Row 3: E spans the row (six enhancement thumbnails)
+    ax_E = fig.add_subplot(gs[2, :])
+    # Row 4: F spans the row (three workflow branches)
+    ax_F = fig.add_subplot(gs[3, :])
 
     mask_A = panel_A_ground_truth(ax_A, rng)
     fc, sites = panel_B_per_subject_fc(ax_B, rng, planted_mask=mask_A)
     panel_C_combat(ax_C, fc, sites, rng)
     panel_D_glm(ax_D)
-    panel_E_NBS(ax_E, rng)
-    panel_F_TFNBS(ax_F, rng)
-    panel_G_block_methods(ax_G)
-    panel_H_inference(ax_H, rng)
+    panel_E_enhancement_row(ax_E, rng)
+    panel_F_workflow(ax_F, rng)
 
-    # Panel-letter titles via fig.text(). y-coords computed from
-    # top=0.93, bottom=0.04, height_ratios=[1.0, 1.0, 1.65], hspace=0.50:
-    #   Row 1 top ≈ 0.93, Row 2 top ≈ 0.66, Row 3 top ≈ 0.39
-    fig.text(0.05, 0.952, "A.  Ground truth",
+    # Panel-letter titles via fig.text(). y-coords are approximate
+    # for top=0.94, bottom=0.04, height_ratios=[1.0, 1.0, 0.95, 0.85],
+    # hspace=0.46.
+    fig.text(0.05, 0.962, "A.  Ground truth",
              fontsize=10, fontweight="bold")
-    fig.text(0.275, 0.952, "B.  Per-subject FC",
+    fig.text(0.37, 0.962, "B.  Per-subject FC",
              fontsize=10, fontweight="bold")
-    fig.text(0.50, 0.952, "C.  ComBat harmonization",
+    fig.text(0.68, 0.962, "C.  ComBat harmonization",
              fontsize=10, fontweight="bold")
-    fig.text(0.05, 0.665, "D.  Edge-wise GLM with Freedman–Lane permutation",
+    fig.text(0.05, 0.715, "D.  Edge-wise GLM with Freedman–Lane permutation",
              fontsize=10, fontweight="bold")
-    fig.text(0.05, 0.392, "E.  NBS (fixed $\\tau$)",
+    fig.text(0.05, 0.470,
+             "E.  Enhancement operators  (NBS · TFNBS · cNBS · NI-TFNBS · FBC-TFNBS)",
              fontsize=10, fontweight="bold")
-    fig.text(0.275, 0.392, "F.  TFNBS (threshold-free)",
-             fontsize=10, fontweight="bold")
-    fig.text(0.50, 0.392, "G.  Block-prior methods",
-             fontsize=10, fontweight="bold")
-    fig.text(0.74, 0.392, "H.  Inference layer",
+    fig.text(0.05, 0.232,
+             "F.  Group-wise comparisons — what you can compute",
              fontsize=10, fontweight="bold")
 
     def fig_new_badge(x, y):
         fig.text(x, y, "NEW", fontsize=7, color="white", fontweight="bold",
                  bbox=dict(boxstyle="round,pad=0.20", fc="#c0392b", ec="none"))
-    fig_new_badge(0.69, 0.953)    # C — to the right of "ComBat harmonization"
-    fig_new_badge(0.55, 0.666)    # D
-    # H has its own NEW badges inside the sub-panels (GPD adaptation,
-    # NI/FBC-TFNBS thumbnails) — no fig-level badge needed; this gives
-    # "H. Inference layer" the full column width.
+    fig_new_badge(0.87, 0.963)    # C — ComBat in-process is a NEW feature
+    fig_new_badge(0.55, 0.716)    # D — multi-contrast Freedman-Lane is NEW
 
-    fig.savefig(OUT_PDF, bbox_inches="tight")
     fig.savefig(OUT_PNG, bbox_inches="tight", dpi=300)
-    fig.savefig(OUT_SVG, bbox_inches="tight")
-    if DOCS_PDF.parent.exists():
-        fig.savefig(DOCS_PDF, bbox_inches="tight")
+    if DOCS_PNG.parent.exists():
         fig.savefig(DOCS_PNG, bbox_inches="tight", dpi=300)
-        fig.savefig(DOCS_SVG, bbox_inches="tight")
-        print(f"Wrote {DOCS_PDF}")
         print(f"Wrote {DOCS_PNG}")
-        print(f"Wrote {DOCS_SVG}")
-    print(f"Wrote {OUT_PDF}")
     print(f"Wrote {OUT_PNG}")
-    print(f"Wrote {OUT_SVG}")
 
 
 if __name__ == "__main__":
