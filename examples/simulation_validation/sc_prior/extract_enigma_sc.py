@@ -1,3 +1,4 @@
+
 """Extract ENIGMA group-mean structural-connectivity matrices into the
 repository for the pseudo-real validation pipeline (see
 [[pseudo_real_validation]] in the wiki).
@@ -10,7 +11,7 @@ downstream validation does not require enigmatoolbox at runtime.
 Usage
 -----
     conda activate fmri-fitting
-    python examples/sc_validation/extract_enigma_sc.py
+    python examples/simulation_validation/sc_prior/extract_enigma_sc.py
 
 Outputs (under ``datasets/sc/``):
     sc_schaefer100_hcp.npy        # (100, 100) cortical SC, symmetric
