@@ -212,6 +212,7 @@ datasets/open_close/
 # Regeneratable experiment outputs
 examples/**/results/*
 !examples/abide_validation/results/plots/
+!examples/openclose_validation/results/plots/
 examples/results/
 # Benchmark outputs: ignore generated CSVs and PNG plots but keep the README
 examples/benchmarks/res_benchmarks/*.csv
