@@ -26,7 +26,7 @@ DATA_DIR = os.path.expanduser(
     "~/Yandex.Disk.localized/IHB/ABIDE_TS_Schaefer100"
 )
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "abide_prepared.npz")
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "results", "abide_prepared.npz")
 
 TS_FILE = os.path.join(DATA_DIR, "abide_ts.npy")
 PHENO_FILE = os.path.join(DATA_DIR,

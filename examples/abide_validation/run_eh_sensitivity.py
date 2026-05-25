@@ -27,7 +27,7 @@ so the decay (if any) outside the published envelope is visible.
 
 Output
 ------
-results/combat/age/eh_sensitivity/
+results/age_development/sensitivity/eh/
   pmaps/E{e}_H{h}.npz                 # per-cell {'positive', 'negative'}
   grid_summary.csv                    # per-cell n_sig + min_p
   jaccard_matrix.csv  / _neg.csv      # 36×36 pairwise Jaccard at α=0.05
@@ -51,10 +51,11 @@ from scipy import stats as scistats
 from conninfpy import compute_p_val_glm
 
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(HERE, "abide_harmonized.npz")
-OUT_DIR = os.path.join(HERE, "results", "combat", "age", "eh_sensitivity")
-PMAPS_DIR = os.path.join(OUT_DIR, "pmaps")
+from pathlib import Path
+HERE = Path(__file__).resolve().parent
+DATA_FILE = HERE / "results" / "abide_prepared.npz"
+OUT_DIR = HERE / "results" / "age_development" / "sensitivity" / "eh"
+PMAPS_DIR = OUT_DIR / "pmaps"
 
 E_GRID = (0.20, 0.40, 0.50, 0.75, 1.00, 1.30)
 H_GRID = (1.00, 2.00, 3.00, 5.00, 7.00, 10.00)
@@ -69,10 +70,25 @@ PUBLISHED_DEFAULTS = {
 def _load():
     if not os.path.exists(DATA_FILE):
         raise FileNotFoundError(
-            f"{DATA_FILE} not found — run `python harmonize.py` first."
+            f"{DATA_FILE} not found — run prepare_data.py first."
         )
     d = np.load(DATA_FILE, allow_pickle=True)
-    return {k: d[k] for k in d.files}
+    data = {k: d[k] for k in d.files}
+    
+    # Perform ComBat Strategy D on the fly (Nuisance-only preservation)
+    from conninfpy.harmonize import combat_harmonize
+    Y = data["connectivity_z"]
+    sites = data["site"]
+    # Preserving Age, Sex, Mean FD (the nuisance confounds for the Age effect of interest)
+    # Wait, for Age sweep, Age is the interest. Strategy D preserves nuisance.
+    confounds = np.column_stack([
+        data["sex"].astype(float),
+        data["mean_fd"].astype(float)
+    ])
+    print("Harmonizing ABIDE for sensitivity sweep (Strategy D)...")
+    combat_out = combat_harmonize(Y, sites, preserve=confounds)
+    data["connectivity_z_harm"] = combat_out.Y_adjusted
+    return data
 
 
 def _label(e: float, h: float) -> str:
@@ -108,10 +124,12 @@ def _make_eh_panels(
     spr_neg_df: pd.DataFrame,
     out_path: str,
 ):
-    """5-panel (E, H) sensitivity figure.
+    """6-panel (E, H) sensitivity figure.
 
-    Layout: row 1 — n_sig pos / n_sig neg / mean Spearman pos;
-    row 2 — Spearman to Hao 2024 pos / Spearman to Hao 2024 neg.
+    Layout (2x3):
+      Col 1: Detection counts (Pos / Neg)
+      Col 2: Mean Spearman to grid (Pos / Neg)
+      Col 3: Spearman to Hao 2024 (Pos / Neg)
     """
     import matplotlib.pyplot as plt
 
@@ -146,23 +164,27 @@ def _make_eh_panels(
         return pd.DataFrame(out, index=E_GRID, columns=H_GRID)
 
     mean_spr_pos_grid = _series_to_grid(mean_spr_pos)
+    mean_spr_neg_grid = _series_to_grid(mean_spr_neg)
     spr_to_hao_pos_grid = _series_to_grid(spr_to_hao_pos)
     spr_to_hao_neg_grid = _series_to_grid(spr_to_hao_neg)
 
-    fig = plt.figure(figsize=(15, 9))
+    fig = plt.figure(figsize=(18, 10))
     panels = [
         (n_sig_pos, "viridis", None, None,
-         "Detection count\npositive tail", "#"),
-        (n_sig_neg, "viridis", None, None,
-         "Detection count\nnegative tail", "#"),
+         "Detection count (+)", "#"),
         (mean_spr_pos_grid, "magma", 0.7, 1.0,
-         "Mean Spearman to all other cells\npositive tail", r"$\rho$"),
+         "Mean Spearman to all other cells (+)", r"$\rho$"),
         (spr_to_hao_pos_grid, "magma", 0.7, 1.0,
-         "Spearman to Hao 2024 (E=0.4, H=3.0)\npositive tail", r"$\rho$"),
+         "Spearman to Hao 2024 (E=0.4, H=3.0) (+)", r"$\rho$"),
+        
+        (n_sig_neg, "viridis", None, None,
+         "Detection count (-)", "#"),
+        (mean_spr_neg_grid, "magma", 0.7, 1.0,
+         "Mean Spearman to all other cells (-)", r"$\rho$"),
         (spr_to_hao_neg_grid, "magma", 0.7, 1.0,
-         "Spearman to Hao 2024 (E=0.4, H=3.0)\nnegative tail", r"$\rho$"),
+         "Spearman to Hao 2024 (E=0.4, H=3.0) (-)", r"$\rho$"),
     ]
-    layout = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]
+    layout = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
 
     for (gi, gj), (data, cmap, vmin, vmax, title, label) in zip(layout, panels):
         ax = plt.subplot2grid((2, 3), (gi, gj))
@@ -343,7 +365,8 @@ def main():
         print(f"  {tail}: n_sig range=[{int(nz.min())}, {int(nz.max())}],"
               f" max/min ratio = {ratio:.1f}×")
 
-    plot_path = os.path.join(OUT_DIR, "eh_sensitivity.png")
+    plot_path = os.path.join(HERE, "results", "plots", "plot5_tfnbs_grid_sensitivity.png")
+    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
     _make_eh_panels(grid_summary, spr_pos_df, spr_neg_df, plot_path)
     print(f"\nFig saved: {plot_path}")
     print(f"All outputs: {OUT_DIR}")
