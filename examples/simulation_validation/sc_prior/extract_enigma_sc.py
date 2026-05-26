@@ -13,7 +13,7 @@ Usage
     conda activate fmri-fitting
     python examples/simulation_validation/sc_prior/extract_enigma_sc.py
 
-Outputs (under ``datasets/sc/``):
+Outputs (under ``datasets/atlases/sc/``):
     sc_schaefer100_hcp.npy        # (100, 100) cortical SC, symmetric
     sc_schaefer100_hcp.labels.txt # (100,) ROI labels, one per line
     sc_schaefer100_hcp.json       # provenance sidecar
@@ -34,11 +34,11 @@ import numpy as np
 
 
 def _root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 def _out_dir() -> Path:
-    return _root() / "datasets" / "sc"
+    return _root() / "datasets" / "atlases" / "sc"
 
 
 def _symmetrize_zero_diag(M: np.ndarray) -> np.ndarray:

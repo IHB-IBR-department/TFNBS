@@ -9,8 +9,8 @@
   "edge_density_nonzero": 0.12075376884422111,
   "isolated_nodes": 0,
   "files": {
-    "matrix": "datasets/sc/sc_schaefer200_hcp.npy",
-    "labels": "datasets/sc/sc_schaefer200_hcp.labels.txt",
-    "sidecar": "datasets/sc/sc_schaefer200_hcp.json"
+    "matrix": "datasets/atlases/sc/sc_schaefer200_hcp.npy",
+    "labels": "datasets/atlases/sc/sc_schaefer200_hcp.labels.txt",
+    "sidecar": "datasets/atlases/sc/sc_schaefer200_hcp.json"
   }
 }
