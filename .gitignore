@@ -205,12 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-datasets/data_tmfc/
-datasets/ABIDE_TS_Schaefer100/
-datasets/open_close/
 
 # Regeneratable experiment outputs
-examples/**/results/*
+examples/**/results/
 !examples/abide_validation/results/plots/
 !examples/openclose_validation/results/plots/
 examples/results/
@@ -226,9 +223,7 @@ examples/benchmarks/res_benchmarks/*.png
 
 # Heavy preprocessing outputs (regenerable from raw data)
 examples/abide_validation/results/abide_prepared.npz
-
-# Synthetic dataset workspaces
-datasets/02_BLOCK_VAR_HRF_SNR05_CORRDIFF/
+datasets/ABIDE_TS_Schaefer100/abide_ts.npy
 
 # Sphinx local build
 docs/_build/

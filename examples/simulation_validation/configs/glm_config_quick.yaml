@@ -1,0 +1,67 @@
+# GLM Validation - Quick Smoke Configuration
+#
+# Runs both GLM validation arms on a small grid:
+#   1. Null FWER calibration for a continuous tested regressor.
+#   2. Power for a continuous covariate with known topological effects.
+#
+# Usage:
+#   python examples/simulation_validation/glm/glm_validation.py \
+#     --config examples/simulation_validation/configs/glm_config_quick.yaml
+
+mode: all
+
+methods:
+  - tstat
+  - tfnbs
+  - ni_tfnbs
+  - fbc_tfnbs
+  - nbs_extent_2.0
+  - nbs_intensity_2.0
+  - nbs_extent_3.0
+  - nbs_intensity_3.0
+  - cnbs
+  - bonferroni
+  - bh_fdr
+
+# Null FWER calibration
+n_null: 5
+sample_sizes: [24]
+
+# Continuous-covariate power
+n_repeats: 3
+n_subjects: 40
+effect_sizes: [0.10, 0.20]
+scenarios:
+  - within_module_dense
+  - hub
+
+# Inference
+n_permutations: 100
+alpha: 0.05
+n_jobs: 1
+use_mp: false
+seed: 42
+
+# Network/data generation
+n_nodes: 60
+n_modules: 4
+time_points: 30
+intra_corr: 0.3
+inter_corr: 0.05
+uniform_corr: 0.15
+noise_level: 0.05
+
+# GLM covariates
+interest_confound_corr: 0.3
+confound_effect_size: 0.15
+confound_scenario: between_modules_dense
+
+# Method parameters
+tfnbs_e: 0.4
+tfnbs_h: 3.0
+tfnbs_n: 30
+tfnbs_start_thres: 1.65
+nbs_threshold: 2.0
+fbc_min_cluster: 3
+
+output_dir: examples/simulation_validation/results/glm/glm_validation_quick
