@@ -1,14 +1,22 @@
+# Core Package Dependencies
+# -------------------------
 numpy
-scikit-learn
 scipy
-matplotlib
-numba
-pyyaml
-pandas
-networkx
 statsmodels
-nibabel
-nilearn
-mne
-neuroCombat
-neuroHarmonize
+matplotlib
+scikit-learn
+networkx
+pandas
+pyyaml
+
+# Validation, Benchmarking & External Tools (testing against, downloading)
+# -----------------------------------------------------------------------
+pytest            # Development and unit testing
+numba             # Optional: performance acceleration
+seaborn           # Advanced statistical plotting
+nibabel           # Reading NIfTI/GIFTI neuroimaging data
+nilearn           # Comparative validation and neuroimaging utils
+mne               # EEG data handling and analysis
+neuroCombat       # Validation against reference Combat implementation
+neuroHarmonize    # Validation of advanced harmonization strategies
+# enigmatoolbox   # Optional: for downloading ENIGMA SC matrices
