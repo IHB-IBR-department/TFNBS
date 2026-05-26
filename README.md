@@ -207,8 +207,8 @@ p_vals = compute_p_val(
     test_type="two-sample",
     method="tfnbs",
     n_permutations=1000,
-    e=0.4, h=3.0, n=10,
-    use_mp=True,
+    e=0.3, h=3.0, n=10,
+    use_mp=True, rng=42,
 )
 # → {'positive': (N, N), 'negative': (N, N)}
 ```
@@ -222,6 +222,8 @@ Y = fisher_r_to_z(connectivity_matrices)     # (n_subjects, N, N)
 p_vals = compute_p_val_glm(
     Y, interest=age, confounds=motion,
     method="tfnbs", n_permutations=5000,
+    e=0.3, h=3.0, n=10,
+    rng=42,
 )
 # → {'positive': (N, N), 'negative': (N, N)}
 ```
@@ -236,6 +238,7 @@ p_vals = compute_p_val_paired_glm(
     Y_A, Y_B,
     confounds_A=fd_A, confounds_B=fd_B,  # None to skip → delegates to paired t-test
     method="tfnbs", n_permutations=5000,
+    e=0.3, h=3.0, n=10,
 )
 # Tests A vs B within-subject, partialling out Δmotion = fd_A − fd_B.
 ```
@@ -330,17 +333,9 @@ p_vals = compute_p_val_glm(
 |---|---|
 | [examples/notebooks/](examples/notebooks/) | Interactive tutorial series: quickstart, enhancement methods, GLM, acceleration, parameter sweeps, topology gallery, EEG, results export, and ABIDE |
 | [examples/benchmarks/](examples/benchmarks/) | Timing / GLM / acceleration / precompsum benchmarks with CSV output and `plot_results.py` |
-| [examples/miccai_paper_reproducing/](examples/miccai_paper_reproducing/) | Simulation validation (FPR + power) backing the MICCAI 2026 submission |
+| [examples/simulation_validation/](examples/simulation_validation/) | Simulation validation (FPR + power) backing the validation paper |
 | [examples/abide_validation/](examples/abide_validation/) | Real-data validation on ABIDE (age, diagnosis, motion, within-site replication) |
-| [examples/ml_transfer/](examples/ml_transfer/) | Open-Close bidirectional ML transfer (IHB ↔ China) |
-| [examples/sim_method_comparisons/](examples/sim_method_comparisons/) | Side-by-side method comparison on synthetic data |
-
-Single-command method-comparison example:
-
-```bash
-python examples/sim_method_comparisons/sim_method_comparisons.py \
-    --all-scenarios --effect-size 0.25 --time-points 50 --n-permutations 50
-```
+| [examples/openclose_validation/](examples/openclose_validation/) | Open-Close bidirectional ML transfer (IHB ↔ China) |
 
 ---
 
