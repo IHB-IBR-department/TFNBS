@@ -78,12 +78,19 @@ network-level GPD tail acceleration (H).
 conda create -n conninfpy python=3.11 -y
 conda activate conninfpy
 
-# Install the package (includes core speedups)
+# Default installation (includes JIT speedup)
 pip install conninfpy
 
 # For development (unit tests, docs, notebook tools)
 pip install "conninfpy[dev]"
 ```
+
+> **Installation Troubleshooting:** If the default installation fails (usually due to `numba` or `llvmlite` compilation issues on legacy systems), you can perform a **Safe Install** without JIT acceleration:
+> ```bash
+> pip install conninfpy --no-deps
+> pip install numpy scipy statsmodels pandas matplotlib
+> ```
+> The library will automatically detect the missing `numba` and fall back to the SciPy backend.
 
 ## Running the tests
 

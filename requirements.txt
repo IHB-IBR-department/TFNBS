@@ -1,10 +1,11 @@
-# Core Package Dependencies (Inference + Export + Basic Plotting)
-# -----------------------------------------------------------
+# Core Package Dependencies (Inference + Export + Basic Plotting + JIT Speedup)
+# -------------------------------------------------------------------------
 numpy
 scipy
 statsmodels
 pandas
 matplotlib
+numba             # Default: 8-30x JIT speedup for TFNBS scoring
 
 # Optional Validation & Comparison Tools (pip install conninfpy[full])
 # ------------------------------------------------------------------
@@ -15,8 +16,8 @@ networkx          # Optional: legacy TFNBS comparison only
 # Development & Benchmarking (pip install conninfpy[dev])
 # ------------------------------------------------------
 pytest            # Unit testing
-numba             # Optional: performance acceleration
 seaborn           # Advanced statistical plotting
+mypy              # Type checking
 nibabel           # Reading NIfTI/GIFTI neuroimaging data
 nilearn           # Comparative validation and neuroimaging utils
 mne               # EEG data handling and analysis
