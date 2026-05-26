@@ -65,8 +65,8 @@ class TestNBSScore(TestCase):
 
     def test_real_matrix_30N(self):
         t_stat = self.fc_sim_30["t_stat"]
-        score_pos = get_nbs_score(t_stat["g2>g1"], threshold=1.7, stat_type="extent")
-        score_neg = get_nbs_score(t_stat["g1>g2"], threshold=1.7, stat_type="extent")
+        score_pos = get_nbs_score(t_stat["positive"], threshold=1.7, stat_type="extent")
+        score_neg = get_nbs_score(t_stat["negative"], threshold=1.7, stat_type="extent")
 
         self.assertEqual(score_pos.shape, (30, 30))
         self.assertEqual(score_neg.shape, (30, 30))
@@ -92,7 +92,7 @@ class TestNBSBCT(TestCase):
         p_vals, adj, null = nbs_bct(
             self.group1, self.group2,
             threshold=2.1, n_permutations=100,
-            test_type='two-sample', random_state=2, use_mp=False,
+            test_type='two-sample', rng=2, use_mp=False,
         )
 
         for key in ("positive", "negative"):
@@ -110,7 +110,7 @@ class TestNBSBCT(TestCase):
         _, adj, _ = nbs_bct(
             self.group1, self.group2,
             threshold=2.0, n_permutations=50,
-            test_type='two-sample', random_state=123, use_mp=False,
+            test_type='two-sample', rng=123, use_mp=False,
         )
         for key in adj:
             np.testing.assert_array_equal(adj[key], adj[key].T)
@@ -127,6 +127,28 @@ class TestNBSBCT(TestCase):
         )
         self.assertIsInstance(p_vals, dict)
         self.assertIn("negative", p_vals)
+
+    def test_rng_matches_legacy_random_state(self):
+        """The modern rng= seed reproduces the legacy random_state= seed."""
+        kwargs = dict(
+            threshold=2.0,
+            n_permutations=10,
+            test_type="two-sample",
+            use_mp=False,
+        )
+        p_rng, _, null_rng = nbs_bct(self.group1, self.group2, rng=7, **kwargs)
+
+        with self.assertWarns(DeprecationWarning):
+            p_legacy, _, null_legacy = nbs_bct(
+                self.group1,
+                self.group2,
+                random_state=7,
+                **kwargs,
+            )
+
+        for key in ("positive", "negative"):
+            np.testing.assert_allclose(p_rng[key], p_legacy[key])
+            np.testing.assert_allclose(null_rng[key], null_legacy[key])
 
 
 if __name__ == "__main__":

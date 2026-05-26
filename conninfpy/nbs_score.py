@@ -14,6 +14,8 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 
+from ._rng import RngLike, resolve_seed, warn_legacy_random_state
+
 
 __all__ = [
     "DEFAULT_NBS_THRESHOLD",
@@ -260,7 +262,8 @@ def nbs_bct(
     n_permutations: int = 100,
     test_type: str = "paired",
     use_mp: bool = True,
-    random_state: Optional[int] = None,
+    random_state: Optional[int] = None,  # deprecated alias for `rng`
+    rng: RngLike = None,
     n_processes: Optional[int] = None,
     **kwargs,
 ) -> Tuple[
@@ -276,6 +279,10 @@ def nbs_bct(
     Phipson-Smyth +1 correction, matching the main ``compute_p_val`` path.
     """
     from .pairwise_stats import compute_null_dist, compute_t_stat, compute_t_stat_diff
+
+    if random_state is not None and rng is None:
+        warn_legacy_random_state("random_state")
+    random_state = resolve_seed(rng, legacy_random_state=random_state)
 
     if test_type == "paired":
         diffs = group2 - group1
