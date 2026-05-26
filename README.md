@@ -28,11 +28,10 @@ What you get out of one `pip install`:
   empirical FWER p-values on real data to within $|\Delta(-\log_{10}p)| \le 0.001$
   on >99% of edges (≈25× wall-clock saving), with Anderson–Darling
   goodness-of-fit guard and empirical fallback.
-- **Optional JIT backend** — installing `pip install conninfpy[fast]`
-  pulls in `numba` and switches the TFNBS connected-components inner
-  loop to a JIT-compiled union-find, giving ≈12× speedup on
+- **Default JIT acceleration** — the TFNBS connected-components inner
+  loop uses a JIT-compiled union-find (via `numba`), giving ≈12× speedup on
   per-call scoring and ≈15× end-to-end on the 60×60 / 200-perm
-  benchmark. Auto-detected; no API changes.
+  benchmark. Graceful fallback to SciPy if JIT is unsupported.
 - **In-package multi-site harmonization** — parametric empirical-Bayes
   ComBat (Johnson 2007; Fortin 2017/2018) reimplemented in NumPy, with
   separate `combat_fit`/`combat_apply` for cross-site ML transfer and a
@@ -56,7 +55,7 @@ a distinct stage of the inference pipeline:
 | **C** | Harmonization (NEW) | ComBat before/after — between-site mean FC visibly homogenised while age/sex/diagnosis are preserved | `combat_harmonize`, `combat_fit`/`combat_apply`, `design_diagnostics` |
 | **D** | GLM + Freedman–Lane (NEW) | Design matrix $X$ → reduced-model residual permutation → reconstructed $y^{\pi}$ → per-edge $t$ / $\beta$ / $F$. **Multi-contrast support**: several contrasts of interest (e.g. age, sex, motion) are evaluated under one shared nuisance model in a single permutation pass — $\hat\beta^\pi$ is reused across all $K$ contrasts. | `compute_p_val_glm`, `compute_p_val_glm_multi` (NEW), `compute_p_val_paired_glm`, `build_design_matrix` |
 | **E** | NBS | Fixed cluster-defining threshold $\tau$ + connected-components labelling — illustrates the parameter that TFNBS eliminates | `nbs_bct`, `compute_p_val(method="nbs")` |
-| **F** | TFNBS | Threshold-free integration $S_e = \sum_h [\eta_h(e)]^E h^H \Delta h$ across $\mathcal{H}$; FDR-calibrated regime $(E, H) = (0.4, 3.0)$ | `get_tfnbs_score`, `apply_tfnbs`, `compute_p_val(method="tfnbs")` |
+| **F** | TFNBS | Threshold-free integration $S_e = \sum_h [\eta_h(e)]^E h^H \Delta h$ across $\mathcal{H}$; FDR-calibrated regime $(E, H) = (0.3, 3.0)$ | `get_tfnbs_score`, `apply_tfnbs`, `compute_p_val(method="tfnbs")` |
 | **G** | Block-prior methods (NEW) | cNBS (Yeo-7 block aggregation) · **NI-TFNBS** (block-density soft prior, $\omega_B(h) = k_B(h)/\sqrt{|B|}$) · **FBC-TFNBS** (atomic blocks with $m_{\min}$ threshold) | `apply_cnbs`, `apply_ni_tfnbs`, `apply_fbc_tfnbs` |
 | **H** | Inference layer | Max-stat permutation null + GPD tail fit (200-perm reproduces 5{,}000-perm empirical $p$ to $\|\Delta(-\log_{10} p)\| \le 0.001$ on $>99\,\%$ of edges) + per-tail FWER $p$-maps (positive/negative directional split) | `fit_gpd_tail`, `compute_p_values_accelerated`, `acceleration="gpd"` |
 
@@ -79,14 +78,11 @@ network-level GPD tail acceleration (H).
 conda create -n conninfpy python=3.11 -y
 conda activate conninfpy
 
-# Install the package in development mode
-pip install -e .
+# Install the package (includes core speedups)
+pip install conninfpy
 
-# With development dependencies (sphinx, notebook tools, mypy, numba)
-pip install -e ".[dev]"
-
-# Or only the JIT-acceleration extra (numba) if you want speed without dev deps
-pip install -e ".[fast]"
+# For development (unit tests, docs, notebook tools)
+pip install "conninfpy[dev]"
 ```
 
 ## Running the tests
@@ -207,7 +203,7 @@ p_vals = compute_p_val(
     e=0.4, h=3.0, n=10,
     use_mp=True,
 )
-# → {'g2>g1': (N, N), 'g1>g2': (N, N)}
+# → {'positive': (N, N), 'negative': (N, N)}
 ```
 
 ### GLM with continuous predictor and confounds
@@ -325,7 +321,7 @@ p_vals = compute_p_val_glm(
 
 | Path | What |
 |---|---|
-| [examples/notebooks/](examples/notebooks/) | 8-notebook tutorial series: quickstart, enhancement methods, GLM, acceleration, multi-param sweep, topology gallery, two-task example, EEG |
+| [examples/notebooks/](examples/notebooks/) | Interactive tutorial series: quickstart, enhancement methods, GLM, acceleration, parameter sweeps, topology gallery, EEG, results export, and ABIDE |
 | [examples/benchmarks/](examples/benchmarks/) | Timing / GLM / acceleration / precompsum benchmarks with CSV output and `plot_results.py` |
 | [examples/miccai_paper_reproducing/](examples/miccai_paper_reproducing/) | Simulation validation (FPR + power) backing the MICCAI 2026 submission |
 | [examples/abide_validation/](examples/abide_validation/) | Real-data validation on ABIDE (age, diagnosis, motion, within-site replication) |
