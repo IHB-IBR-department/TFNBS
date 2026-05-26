@@ -23,7 +23,12 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
+
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .atlas import AtlasInfo
@@ -164,6 +169,11 @@ def build_tailed_dataframe(
     top_k: Optional[int] = None,
 ) -> pd.DataFrame:
     """Build the significant-edges table for a t / β inference result."""
+    if not HAS_PANDAS:
+        raise ImportError(
+            "pandas is required for build_tailed_dataframe(). "
+            "Install it with `pip install conninfpy[full]`."
+        )
     if tail not in _VALID_TAILS:
         raise ValueError(
             f"tail must be one of {_VALID_TAILS}; got {tail!r}."
@@ -250,6 +260,11 @@ def build_omnibus_dataframe(
     top_k: Optional[int] = None,
 ) -> pd.DataFrame:
     """Build the significant-edges table for an F-stat omnibus result."""
+    if not HAS_PANDAS:
+        raise ImportError(
+            "pandas is required for build_omnibus_dataframe(). "
+            "Install it with `pip install conninfpy[full]`."
+        )
     if sort not in _VALID_SORTS:
         raise ValueError(
             f"sort must be one of {_VALID_SORTS}; got {sort!r}."

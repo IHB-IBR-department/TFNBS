@@ -3,7 +3,12 @@ import numpy as np
 from enum import Enum
 from typing import List, Tuple, Union, Optional
 from itertools import combinations
-import pandas as pd
+
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
 
 
 __all__ = [
@@ -215,6 +220,12 @@ def read_from_eeg_dataframe(path_to_df,
     (177, 171, 7)
 
     """
+    if not HAS_PANDAS:
+        raise ImportError(
+            "pandas is required for read_from_eeg_dataframe(). "
+            "Install it with `pip install conninfpy[full]`."
+        )
+
     if band_list is None:
         band_list = [1, 2, 3, 4, 5, 6, 7]        
         bands = Bands
