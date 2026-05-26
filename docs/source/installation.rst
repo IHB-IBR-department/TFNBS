@@ -4,7 +4,15 @@ Installation
 To install **ConnInfPy**, use one of the approaches below.
 
 
-1. Clone this repository and install in development mode:
+1. Install the latest stable version (includes JIT speedup):
+
+.. code-block:: bash
+
+    pip install conninfpy
+
+---------------
+
+2. Clone this repository and install in development mode:
 
 .. code-block:: bash
 
@@ -14,7 +22,7 @@ To install **ConnInfPy**, use one of the approaches below.
 
 ---------------
 
-2. Install with development dependencies:
+3. Install with development dependencies:
 
 .. code-block:: bash
 
@@ -22,21 +30,21 @@ To install **ConnInfPy**, use one of the approaches below.
 
 ---------------
 
-3. Install with optional fast backend:
-
-.. code-block:: bash
-
-    pip install -e ".[fast]"          # adds numba (8–31× JIT speedup on TFNBS scoring)
-
----------------
-
 Requirements:
 ---------------
 - Python **>=3.8** (tested on 3.11)
-- Required: ``numpy``, ``scipy``, ``statsmodels``, ``matplotlib``,
-  ``scikit-learn``, ``networkx``, ``pandas``, ``pyyaml``
-- Optional ``[fast]`` extra: ``numba`` (8–31× JIT enhancement backend)
+- Required: ``numpy``, ``scipy``, ``statsmodels``, ``pandas``, ``matplotlib``, ``numba``
+- Optional ``[full]`` extra: ``scikit-learn``, ``pyyaml``, ``networkx``
 - Optional ``[dev]`` extra: ``pytest``, ``sphinx``, ``sphinx-rtd-theme``,
-  ``myst-parser``, ``seaborn``
-- Optional ``[notebooks]`` extra: ``jupyter``, ``ipykernel``,
-  ``matplotlib``, ``seaborn``
+  ``myst-parser``, ``seaborn``, ``mypy``
+
+.. note::
+   **Safe Install:** If the default installation fails (usually due to ``numba`` or ``llvmlite``
+   compilation issues on legacy systems), you can install without dependencies:
+
+   .. code-block:: bash
+
+       pip install conninfpy --no-deps
+       pip install numpy scipy statsmodels pandas matplotlib
+
+   The library will automatically detect the missing ``numba`` and fall back to the SciPy backend.

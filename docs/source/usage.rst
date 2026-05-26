@@ -57,11 +57,11 @@ Phipson–Smyth correction.
        test_type='two-sample',             # or 'paired', 'one-sample'
        method='tfnbs',
        n_permutations=1000,
-       e=0.4, h=3.0, n=10,                 # Hao 2024 FDR-calibrated regime
-       use_mp=True, random_state=42,
+       e=0.3, h=3.0, n=10,                 # FDR-calibrated regime
+       use_mp=True, rng=42,
    )
-   # p['g2>g1'] : (N, N) p-map for group2 > group1
-   # p['g1>g2'] : (N, N) p-map for group1 > group2
+   # p['positive'] : (N, N) p-map for group2 > group1
+   # p['negative'] : (N, N) p-map for group1 > group2
 
 GLM pipeline — :func:`compute_p_val_glm`
 ----------------------------------------
@@ -86,8 +86,8 @@ Convenience API (recommended):
        stat_type='tstat',                                 # or 'beta', 'fstat'
        method='tfnbs',
        n_permutations=1000,
-       e=0.4, h=3.0, n=10,
-       use_mp=True, random_state=42,
+       e=0.3, h=3.0, n=10,
+       use_mp=True, rng=42,
    )
    # p['positive'] : edges where age ↑ → connectivity ↑
    # p['negative'] : edges where age ↑ → connectivity ↓
@@ -153,7 +153,7 @@ multi-contrast wrapper does it in one pass.
    results["age"].n_significant(0.05)
 
 For ``K`` contrasts the wall-time is roughly that of a single
-:func:`compute_p_val_glm` call rather than ``K`` calls — typically a
+:func:`compute_p_val_glm`` call rather than ``K`` calls — typically a
 3× speedup for the canonical age + sex + motion design.
 
 By default the reduced model excludes any column touched by *any*
@@ -178,7 +178,7 @@ that differ between conditions (e.g. condition-level motion):
        confounds_A=np.column_stack([motion_A, drowsiness_A]),
        confounds_B=np.column_stack([motion_B, drowsiness_B]),
        method='tfnbs', n_permutations=1000,
-       e=0.4, h=3.0, n=10,
+       e=0.3, h=3.0, n=10,
    )
 
 With no confounds, this delegates to ``compute_p_val(test_type='paired')``
@@ -244,9 +244,9 @@ End-to-end with confound-aware GLM:
        Y, interest=age,
        confounds=np.column_stack([sex, mean_fd]),
        stat_type='tstat', method='tfnbs',
-       e=0.4, h=3.0, n=10,
+       e=0.3, h=3.0, n=10,
        n_permutations=200, acceleration='gpd',
-       use_mp=True, random_state=42,
+       use_mp=True, rng=42,
    )
 
 For cross-site machine-learning transfer (fit ComBat on training
