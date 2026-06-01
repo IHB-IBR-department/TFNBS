@@ -21,7 +21,11 @@ import numpy.typing as npt
 
 from ._result import InferenceResult, OmnibusInferenceResult
 from ._rng import RngLike
-from .glm_stats import compute_p_val_glm
+from .glm_stats import (
+    compute_p_val_glm,
+    compute_p_val_glm_multi,
+    compute_p_val_paired_glm,
+)
 from .harmonize import combat_harmonize
 from .pairwise_stats import StatMethod, compute_p_val
 from .utils import fisher_r_to_z
@@ -104,6 +108,38 @@ def _as_2d(a: Any) -> np.ndarray:
     return arr
 
 
+def _build_multi_design(
+    interest: Dict[str, Any],
+    confounds: Optional[npt.NDArray[np.float64]],
+) -> "tuple[np.ndarray, Dict[str, np.ndarray]]":
+    """Assemble ``X = [intercept, confounds, *interest_columns]`` and one
+    unit contrast per named predictor for the multi-contrast GLM.
+
+    The intercept and every confound column are nuisance; each interest
+    column gets a ``[0, ..., 0, 1, 0, ..., 0]`` contrast targeting it. The
+    returned ``contrasts`` dict is keyed by the same names as ``interest``,
+    ready for :func:`~conninfpy.compute_p_val_glm_multi`.
+    """
+    names = list(interest.keys())
+    n = len(np.asarray(interest[names[0]]))
+    blocks = [np.ones((n, 1), dtype=np.float64)]
+    if confounds is not None:
+        blocks.append(_as_2d(confounds).astype(np.float64))
+    n_nuisance_cols = sum(b.shape[1] for b in blocks)
+
+    interest_cols = [np.asarray(interest[nm], dtype=np.float64)[:, None]
+                     for nm in names]
+    X = np.hstack(blocks + interest_cols)
+    p = X.shape[1]
+
+    contrasts: Dict[str, np.ndarray] = {}
+    for j, nm in enumerate(names):
+        c = np.zeros(p, dtype=np.float64)
+        c[n_nuisance_cols + j] = 1.0
+        contrasts[nm] = c
+    return X, contrasts
+
+
 def _site_dummies(
     site_id: Any, drop_first: bool = True
 ) -> npt.NDArray[np.float64]:
@@ -166,10 +202,14 @@ def _resolve_strategy(
 def analyze(
     Y: Optional[npt.NDArray[np.float64]] = None,
     *,
-    interest: Optional[npt.NDArray[np.float64]] = None,
+    interest: Optional[
+        Union[npt.NDArray[np.float64], Dict[str, npt.NDArray[np.float64]]]
+    ] = None,
     confounds: Optional[npt.NDArray[np.float64]] = None,
     group1: Optional[npt.NDArray[np.float64]] = None,
     group2: Optional[npt.NDArray[np.float64]] = None,
+    confounds_group1: Optional[npt.NDArray[np.float64]] = None,
+    confounds_group2: Optional[npt.NDArray[np.float64]] = None,
     test_type: str = "two-sample",
     sites: Optional[Sequence[Any]] = None,
     preserve: Optional[npt.NDArray[np.float64]] = None,
@@ -185,7 +225,7 @@ def analyze(
     verbose: bool = False,
     use_mp: bool = True,
     **method_kwargs: Any,
-) -> AnalyzeResult:
+) -> Union[AnalyzeResult, Dict[str, AnalyzeResult]]:
     """Run the standard prepare → harmonize → GLM/two-sample → infer recipe.
 
     Parameters
@@ -194,17 +234,54 @@ def analyze(
         Per-subject connectivity matrices for the GLM path. Pass this
         with ``interest``/``confounds``. Leave as ``None`` (or simply
         omit) when using the two-sample path via ``group1``/``group2``.
-    interest : ndarray, optional
-        GLM regressor of interest (e.g. ``age`` or a 0/1 group dummy).
-        Triggers the GLM pipeline.
+    interest : ndarray or dict of ndarray, optional
+        GLM regressor(s) of interest. Triggers the GLM pipeline.
+
+        * **Single predictor** — a 1D array of shape ``(n_subjects,)``
+          (or ``(n_subjects, 1)``), e.g. ``age`` or a 0/1 group dummy.
+          ``analyze()`` returns one :class:`AnalyzeResult`.
+        * **Several predictors** — a dict ``{name: vector}`` (e.g.
+          ``{'age': age, 'sex': sex}``). Each predictor is tested under a
+          shared nuisance model (intercept + ``confounds`` + the other
+          predictors) in one Freedman–Lane permutation pass, via
+          :func:`~conninfpy.compute_p_val_glm_multi`. ``analyze()`` then
+          returns a ``dict`` mapping each name to its own
+          :class:`AnalyzeResult`.
+
+        A bare multi-column array or a Python list of regressors is
+        rejected (it cannot carry predictor names and would silently test
+        only the last column) — pass a dict instead. For a *joint*
+        omnibus test of several predictors use a multi-row F-contrast via
+        :func:`~conninfpy.compute_p_val_glm` (``stat_type='fstat'``).
     confounds : ndarray, optional
         Nuisance regressors for the GLM pipeline.
     group1, group2 : ndarray, optional
         Two-sample inputs of shape ``(n_i, N, N)``. Triggers the t-test
-        pipeline. Mutually exclusive with ``interest``.
+        pipeline. Mutually exclusive with ``interest``. For
+        ``test_type='paired'`` they are the two within-subject
+        conditions and must be row-aligned (``group1[s]`` and
+        ``group2[s]`` are the same subject).
+    confounds_group1, confounds_group2 : ndarray, optional
+        Condition-varying confounds for the **repeated-measures GLM**
+        path, shape ``(n_subjects,)`` or ``(n_subjects, k)``, aligned to
+        ``group1`` / ``group2`` respectively. Only valid with
+        ``test_type='paired'``; pass both or neither. When given, the
+        paired difference ``group1 - group2`` is tested while the
+        per-subject confound difference is partialled out
+        (Freedman–Lane on the differences, via
+        :func:`~conninfpy.compute_p_val_paired_glm`). Use these for a
+        confound whose value differs between conditions for the same
+        subject (e.g. condition-level motion, arousal, reaction time).
+        Subject-constant nuisances (and additive site effects) cancel in
+        the difference and do not need to be supplied. With no
+        condition-varying confounds the paired path stays on the
+        sign-flip t-test (exact non-asymptotic null). Either way the
+        result keeps the ``positive = group2 > group1`` orientation.
     test_type : str, default ``'two-sample'``
         Test type for the t-test pipeline (also accepts ``'paired'`` and
-        ``'one-sample'``).
+        ``'one-sample'``). ``'paired'`` combined with
+        ``confounds_group1`` / ``confounds_group2`` selects the
+        repeated-measures GLM.
     sites : sequence, optional
         Per-subject site labels. If provided, the permutation engine is
         auto-stratified on ``sites`` (within-block exchangeability —
@@ -287,15 +364,20 @@ def analyze(
 
     Returns
     -------
-    AnalyzeResult
-        Wrapper carrying ``.inference`` (the
+    AnalyzeResult or dict of AnalyzeResult
+        For a single predictor / two-sample / paired call, one
+        :class:`AnalyzeResult` carrying ``.inference`` (the
         :class:`~conninfpy.InferenceResult`) plus optional ComBat /
-        design diagnostics and any plain-English warning flags.
+        design diagnostics and any plain-English warning flags. For a
+        dict ``interest`` (several predictors), a ``dict`` mapping each
+        predictor name to its own :class:`AnalyzeResult`; the shared
+        ComBat diagnostics and flags are attached to every entry.
     """
     flags: list = []
     combat_diag: Optional[Dict[str, Any]] = None
 
     glm_mode = interest is not None
+    multi_mode = glm_mode and isinstance(interest, dict)
     ttest_mode = group1 is not None or group2 is not None
     if glm_mode and ttest_mode:
         raise ValueError(
@@ -310,6 +392,73 @@ def analyze(
         raise ValueError(
             "analyze() requires Y when using the GLM path (interest=, "
             "[confounds=]). Pass Y as the first positional argument."
+        )
+    if multi_mode:
+        # Several predictors → compute_p_val_glm_multi. Each value must be a
+        # single 1D regressor; the dict key names the per-predictor result.
+        if len(interest) == 0:
+            raise ValueError(
+                "interest={} is empty. Pass a non-empty dict {name: vector}, "
+                "or a single array for one predictor."
+            )
+        for nm, vec in interest.items():
+            v = np.asarray(vec)
+            if v.ndim != 1:
+                raise ValueError(
+                    f"interest[{nm!r}] must be a 1D predictor of shape "
+                    f"(n_subjects,); got shape {v.shape}. Each dict entry is "
+                    "one regressor of interest."
+                )
+    elif glm_mode:
+        # `interest` is a SINGLE predictor. A (n, k>1) array or a Python list
+        # of regressors would be tested by build_design_matrix's contrast on
+        # the *last* column only (silently demoting the rest to nuisance), and
+        # a list like [age, sex] is read as shape (k, n) and crashes
+        # downstream. Reject both with a pointer to the dict (multi) API.
+        _interest_arr = np.asarray(interest)
+        if _interest_arr.ndim >= 2 and not (
+            _interest_arr.ndim == 2 and _interest_arr.shape[1] == 1
+        ):
+            raise ValueError(
+                "interest= must be a single predictor of shape (n_subjects,) "
+                f"or (n_subjects, 1); got array of shape {_interest_arr.shape}. "
+                "To test several predictors, pass a dict "
+                "interest={'name': vector, ...} (analyze() returns one result "
+                "per predictor via compute_p_val_glm_multi), or build a "
+                "multi-row contrast with compute_p_val_glm(..., "
+                "stat_type='fstat') for a joint omnibus F-test."
+            )
+
+    # Repeated-measures GLM: paired conditions + condition-varying confounds.
+    has_cg1 = confounds_group1 is not None
+    has_cg2 = confounds_group2 is not None
+    paired_glm_mode = has_cg1 or has_cg2
+    if paired_glm_mode:
+        if has_cg1 != has_cg2:
+            raise ValueError(
+                "Pass both confounds_group1 and confounds_group2, or neither — "
+                "the repeated-measures GLM needs the confound in both conditions "
+                "to form the per-subject difference."
+            )
+        if not ttest_mode:
+            raise ValueError(
+                "confounds_group1/confounds_group2 require the paired t-test "
+                "inputs (group1=, group2=). For a between-subject continuous "
+                "predictor with confounds use Y=, interest=, confounds=."
+            )
+        if test_type != "paired":
+            raise ValueError(
+                "confounds_group1/confounds_group2 are only valid with "
+                f"test_type='paired'; got test_type={test_type!r}. Condition-"
+                "varying confounds are differenced within subject, which only "
+                "makes sense for a repeated-measures design."
+            )
+    if ttest_mode and confounds is not None:
+        raise ValueError(
+            "confounds= is the GLM-path nuisance design (used with interest=). "
+            "For a paired design with condition-varying confounds use "
+            "confounds_group1=/confounds_group2=; for a two-sample contrast with "
+            "nuisance covariates promote to GLM with a binary interest= column."
         )
 
     strategy = _resolve_strategy(
@@ -340,11 +489,30 @@ def analyze(
             )
     # Two-sample + sites resolves to no-ComBat (no defensible preserve).
     # Flag so the demotion is visible and the caller can promote to GLM.
-    if ttest_mode and sites is not None and harmonize in ("auto", None):
+    if (
+        ttest_mode
+        and test_type != "paired"
+        and sites is not None
+        and harmonize in ("auto", None)
+    ):
         flags.append(
             "two-sample + sites: ComBat skipped (no interest column to "
             "preserve). For Strategy D, promote to GLM with a binary "
             "interest indicator."
+        )
+    # Paired + sites: additive site effects are subject-constant across the
+    # two conditions and cancel in the within-subject difference, so ComBat
+    # is unnecessary. sites= still auto-stratifies the permutation below.
+    if (
+        ttest_mode
+        and test_type == "paired"
+        and sites is not None
+        and harmonize in ("auto", None)
+    ):
+        flags.append(
+            "paired + sites: ComBat skipped — additive site effects cancel in "
+            "the within-subject difference; sites= still stratifies the "
+            "permutation."
         )
 
     # ---- Fisher r→z ----
@@ -431,9 +599,50 @@ def analyze(
                 "(or strata=None) to override."
             )
 
+    if multi_mode:
+        # Several predictors under a shared nuisance model in one pass.
+        # Build X = [intercept, confounds(+site dummies), *interest cols]
+        # and a unit contrast per predictor. ComBat (Strategy D) already
+        # ran above with preserve=confounds, excluding *all* tested columns.
+        assert isinstance(interest, dict)
+        X, contrasts = _build_multi_design(interest, confounds)
+        results = compute_p_val_glm_multi(
+            Y, design_matrix=X, contrasts=contrasts,
+            method=method, n_permutations=n_permutations,
+            acceleration=acceleration,
+            e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
+            strata=auto_strata,
+            **method_kwargs,
+        )
+        out: Dict[str, AnalyzeResult] = {}
+        for nm, res in results.items():
+            res.harmonized = strategy == "d" and sites is not None
+            res.preserve_provided = preserve is not None
+            res.combat_diagnostics = combat_diag
+            out[nm] = AnalyzeResult(
+                inference=res,
+                combat_diagnostics=combat_diag,
+                flags=list(flags),
+            )
+        return out
+
     if glm_mode:
         result = compute_p_val_glm(
             Y, interest=interest, confounds=confounds,
+            method=method, n_permutations=n_permutations,
+            acceleration=acceleration,
+            e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
+            strata=auto_strata,
+            **method_kwargs,
+        )
+    elif paired_glm_mode:
+        # Repeated-measures GLM. Pass the conditions swapped (A=group2,
+        # B=group1) so the tested intercept of Δ = A − B = group2 − group1
+        # keeps analyze()'s `positive = group2 > group1` orientation, matching
+        # the no-confound paired path (compute_p_val(group1, group2, paired)).
+        result = compute_p_val_paired_glm(
+            group2, group1,
+            confounds_A=confounds_group2, confounds_B=confounds_group1,
             method=method, n_permutations=n_permutations,
             acceleration=acceleration,
             e=e, h=h, n=n, rng=rng, verbose=verbose, use_mp=use_mp,
@@ -457,7 +666,7 @@ def analyze(
     # exporters) can report what preprocessing applied. With harmonize=None
     # (Strategy E) ComBat is skipped even when sites= is passed; harmonized
     # reflects whether the matrix was actually adjusted.
-    result.harmonized = strategy in ("b", "d") and sites is not None
+    result.harmonized = strategy == "d" and sites is not None
     result.preserve_provided = preserve is not None
     result.combat_diagnostics = combat_diag
     # strata_provided was set inside compute_p_val{,_glm} from the strata=
