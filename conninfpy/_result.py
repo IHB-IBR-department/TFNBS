@@ -370,6 +370,22 @@ class InferenceResult(TailResult):
         )
         df.to_csv(path, index=index, **to_csv_kwargs)
 
+    def decoded_edges(self, atlas: Any, *, top_n: int = 5, **kwargs: Any) -> pd.DataFrame:
+        """Decode significant edges using Neurosynth/NiMARE meta-analytic decoding.
+        
+        Convenience wrapper that calls ``significant_edges`` first, and then annotates
+        it with decoded terms using ``annotate_edge_table``.
+        """
+        from .decode import annotate_edge_table
+        
+        # Split kwargs between significant_edges and annotate_edge_table
+        sig_keys = {'alpha', 'tail', 'sort', 'include_nonsig', 'top_k', 'param_idx'}
+        sig_kwargs = {k: v for k, v in kwargs.items() if k in sig_keys}
+        decode_kwargs = {k: v for k, v in kwargs.items() if k not in sig_keys}
+        
+        edges = self.significant_edges(atlas=atlas, **sig_kwargs)
+        return annotate_edge_table(edges, atlas, top_n=top_n, **decode_kwargs)
+
     def __repr__(self) -> str:  # pragma: no cover (cosmetic)
         nsig = self.n_significant(0.05)
         wall = (
