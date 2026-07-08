@@ -173,33 +173,51 @@ with tab1:
                 st.success("Synthetic dataset generated successfully!")
                 
         else:
-            conn_file = st.file_uploader("Upload Connectivity Tensor Y (.npy) or Timeseries (.npy)", type=["npy"])
-            is_timeseries = st.checkbox("Is this a timeseries array? (shape: subjects x timepoints x nodes)")
+            input_mode = st.radio("Connectivity Input Method", ["Upload File", "Local Path"], horizontal=True)
+            is_timeseries = st.checkbox("Is this a timeseries array? (shape: subjects x timepoints x nodes)", key="is_ts")
             
-            if conn_file:
-                try:
-                    arr = np.load(conn_file)
-                    if is_timeseries:
-                        # Convert to correlations
-                        if arr.ndim != 3:
-                            st.error(f"Timeseries array must be 3D. Got shape {arr.shape}")
-                        else:
-                            corrs = []
-                            for s in range(arr.shape[0]):
-                                c = np.corrcoef(arr[s].T)
-                                # Fill NaNs
-                                c = np.nan_to_num(c)
-                                corrs.append(c)
-                            st.session_state.connectivity_data = np.array(corrs)
-                            st.success(f"Loaded timeseries. Calculated correlations of shape {st.session_state.connectivity_data.shape}")
+            arr = None
+            if input_mode == "Upload File":
+                conn_file = st.file_uploader("Upload Connectivity Tensor Y (.npy) or Timeseries (.npy)", type=["npy"], key="conn_upload")
+                if conn_file:
+                    try:
+                        arr = np.load(conn_file)
+                    except Exception as e:
+                        st.error(f"Error loading numpy file: {e}")
+            else:
+                conn_path = st.text_input("Enter local absolute path to connectivity/timeseries (.npy or .npz)", value="", key="conn_path")
+                if conn_path:
+                    if os.path.exists(conn_path):
+                        try:
+                            if conn_path.endswith('.npz'):
+                                npz = np.load(conn_path)
+                                key = list(npz.keys())[0]
+                                arr = npz[key]
+                            else:
+                                arr = np.load(conn_path)
+                        except Exception as e:
+                            st.error(f"Error loading local path: {e}")
                     else:
-                        if arr.ndim != 3:
-                            st.error(f"Connectivity tensor must be 3D (shape: subjects x nodes x nodes). Got shape {arr.shape}")
-                        else:
-                            st.session_state.connectivity_data = arr
-                            st.success(f"Loaded connectivity tensor of shape {st.session_state.connectivity_data.shape}")
-                except Exception as e:
-                    st.error(f"Error loading numpy file: {e}")
+                        st.error(f"Local path does not exist: {conn_path}")
+                        
+            if arr is not None:
+                if is_timeseries:
+                    if arr.ndim != 3:
+                        st.error(f"Timeseries array must be 3D. Got shape {arr.shape}")
+                    else:
+                        corrs = []
+                        for s in range(arr.shape[0]):
+                            c = np.corrcoef(arr[s].T)
+                            c = np.nan_to_num(c)
+                            corrs.append(c)
+                        st.session_state.connectivity_data = np.array(corrs)
+                        st.success(f"Loaded timeseries. Calculated correlations of shape {st.session_state.connectivity_data.shape}")
+                else:
+                    if arr.ndim != 3:
+                        st.error(f"Connectivity tensor must be 3D (shape: subjects x nodes x nodes). Got shape {arr.shape}")
+                    else:
+                        st.session_state.connectivity_data = arr
+                        st.success(f"Loaded connectivity tensor of shape {st.session_state.connectivity_data.shape}")
                     
         # Optional: Subnetwork selection
         st.markdown("**2. Optional: Subnetwork Node Selection**")
@@ -234,13 +252,30 @@ with tab1:
             
     with col2:
         st.markdown("**3. Phenotypic/Design Data**")
-        pheno_file = st.file_uploader("Upload Phenotypic CSV", type=["csv"])
-        if pheno_file:
-            try:
-                st.session_state.pheno_df = pd.read_csv(pheno_file)
-                st.success("Phenotypic CSV loaded successfully!")
-            except Exception as e:
-                st.error(f"Error loading CSV: {e}")
+        pheno_mode = st.radio("Phenotypic Input Method", ["Upload File", "Local Path"], horizontal=True)
+        
+        pheno_df = None
+        if pheno_mode == "Upload File":
+            pheno_file = st.file_uploader("Upload Phenotypic CSV", type=["csv"], key="pheno_upload")
+            if pheno_file:
+                try:
+                    pheno_df = pd.read_csv(pheno_file)
+                except Exception as e:
+                    st.error(f"Error reading uploaded CSV: {e}")
+        else:
+            pheno_path = st.text_input("Enter local absolute path to Phenotypic CSV (.csv)", value="", key="pheno_path")
+            if pheno_path:
+                if os.path.exists(pheno_path):
+                    try:
+                        pheno_df = pd.read_csv(pheno_path)
+                    except Exception as e:
+                        st.error(f"Error reading CSV at path: {e}")
+                else:
+                    st.error(f"Local path does not exist: {pheno_path}")
+                    
+        if pheno_df is not None:
+            st.session_state.pheno_df = pheno_df
+            st.success(f"Phenotypic CSV loaded successfully! Shape: {pheno_df.shape}")
                 
         # Display data summary
         if st.session_state.connectivity_data is not None:
