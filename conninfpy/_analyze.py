@@ -31,6 +31,11 @@ from .pairwise_stats import StatMethod, compute_p_val
 from .utils import fisher_r_to_z
 
 
+COMBAT_ONLY = "combat_only"
+COMBAT_SITE_DUMMIES_GLM = "combat_site_dummies_glm"
+SITE_DUMMIES_GLM = "site_dummies_glm"
+
+
 @dataclass
 class AnalyzeResult:
     """Bundle of inference + harmonization diagnostics from :func:`analyze`."""
@@ -172,30 +177,63 @@ def _resolve_strategy(
 ) -> Optional[str]:
     """Resolve the user-facing ``harmonize=`` to a canonical strategy.
 
-    Returns one of ``{'d', 'e', None}``:
+    Returns one of:
 
-    * ``'d'`` — preserve confounds only through ComBat, site in GLM.
-      Primary recipe.
-    * ``'e'`` — skip ComBat, site in GLM. Sensitivity arm.
-    * ``None`` — no ComBat, no site adjustment (no ``sites`` passed,
+    * ``'combat_only'`` -- fit ComBat, then test on the harmonized matrix
+      without adding site dummies to the GLM.
+    * ``'combat_site_dummies_glm'`` -- fit ComBat, then add site dummies to the
+      inferential GLM.
+    * ``'site_dummies_glm'`` -- skip ComBat and model site directly in the
+      inferential GLM.
+    * ``None`` -- no ComBat, no site adjustment (no ``sites`` passed,
       or two-sample call where ComBat has no defensible recipe).
+
+    The old ``'d'`` and ``'e'`` values are accepted as compatibility aliases
+    for the historical table labels in ``[[protocol_combat_implementation]]``.
     """
-    if harmonize in ("nuisance_only", "d"):
-        return "d"
-    if harmonize in ("e", None):
-        return "e" if (glm_mode and sites_provided) else None
+    if harmonize in (
+        COMBAT_SITE_DUMMIES_GLM,
+        "combat_site_glm",
+        "combat_plus_site_dummies_glm",
+        "combat_plus_site_glm",
+        "interest_orthogonal_combat",
+        "interest_orthogonal",
+        "nuisance_only",
+        "d",
+    ):
+        return COMBAT_SITE_DUMMIES_GLM
+    if harmonize in (
+        COMBAT_ONLY,
+        "combat",
+        "combat_no_site_glm",
+        "combat_no_site_dummies_glm",
+    ):
+        return COMBAT_ONLY
+    if harmonize in (
+        SITE_DUMMIES_GLM,
+        "site_glm",
+        "single_stage_site_glm",
+        "single_stage_site_dummies_glm",
+        "no_combat",
+        "e",
+        None,
+    ):
+        return SITE_DUMMIES_GLM if (glm_mode and sites_provided) else None
     if harmonize == "auto":
         if not sites_provided:
             return None
         if glm_mode:
-            return "d" if confounds_provided else "e"
+            if confounds_provided:
+                return COMBAT_SITE_DUMMIES_GLM
+            return SITE_DUMMIES_GLM
         # two-sample + sites has no defensible ComBat recipe without
         # an interest column to preserve. Skip harmonization; the
         # caller is flagged in analyze() so the demotion isn't silent.
         return None
-    valid = {"auto", "nuisance_only", "d", "e", None}
     raise ValueError(
-        f"harmonize= must be one of {valid}, got {harmonize!r}."
+        "harmonize= must be one of 'auto', 'combat_only', "
+        "'combat_site_dummies_glm', 'site_dummies_glm', or None "
+        f"(legacy aliases are accepted); got {harmonize!r}."
     )
 
 
@@ -285,47 +323,53 @@ def analyze(
     sites : sequence, optional
         Per-subject site labels. If provided, the permutation engine is
         auto-stratified on ``sites`` (within-block exchangeability —
-        equivalent to PALM's ``-eb`` option). ComBat itself runs only
-        when ``harmonize`` resolves to Strategy D. In GLM mode with
-        sites but no confounds, ``'auto'`` resolves to Strategy E
-        (site dummies in the GLM, no ComBat). In two-sample mode with
-        sites, ComBat is skipped and a flag asks the caller to promote
-        the analysis to GLM with a binary ``interest``.
+        equivalent to PALM's ``-eb`` option). ComBat runs when
+        ``harmonize`` resolves to ``'combat_only'`` or
+        ``'combat_site_dummies_glm'``. In GLM mode with sites but no confounds,
+        ``'auto'`` resolves to ``'site_dummies_glm'`` (site dummies in the GLM,
+        no ComBat). In two-sample mode with sites, ComBat is skipped and
+        a flag asks the caller to promote the analysis to GLM with a
+        binary ``interest``.
     preserve : ndarray, optional
         Covariates whose effect should be preserved through ComBat.
-        Under Strategy D this is set automatically to ``confounds``;
-        passing ``preserve`` explicitly is overridden and emits a flag
-        because the tested variable must remain outside the ComBat
-        design. Strategy E does not run ComBat, so ``preserve`` is
-        ignored.
+        Under ``'combat_only'`` and ``'combat_site_dummies_glm'`` this is set
+        automatically to ``confounds``; passing ``preserve`` explicitly is
+        overridden and emits a flag because the tested variable must remain
+        outside the ComBat design. ``'site_dummies_glm'`` does not run ComBat, so
+        ``preserve`` is ignored.
     harmonize : str or ``None``, default ``'auto'``
-        Selects the ComBat / site-handling strategy. See
-        [[paper_combat_resolution_strategies]] for derivations and
-        the calibration evidence behind the choice of D and E. Two
-        strategies are supported:
+        Selects the ComBat / site-handling strategy. Three named multi-site
+        strategies are supported, matching the paper comparison:
 
-        * ``'nuisance_only'`` / ``'d'`` (Strategy D, primary
-          recipe) — ComBat fits with ``preserve = confounds`` only;
-          the tested variable is deliberately omitted from the
-          preserve design. Site dummies are appended to the
-          downstream GLM nuisance design. Removes the Nygaard 2016
-          label leak; mild signal attenuation when site and
-          interest are correlated. Requires ``sites=`` and
-          ``confounds=``; GLM mode only.
-        * ``None`` / ``'e'`` (Strategy E, sensitivity arm) — skip
-          ComBat entirely. Site dummies are appended to the GLM
-          nuisance design. Calibrated by construction; gives up
-          ComBat's multiplicative site shrinkage. Pair with
-          Strategy D and report both.
+        * ``'combat_only'`` (aliases ``'combat'`` and
+          ``'combat_no_site_glm'``) — fit ComBat with
+          ``preserve = confounds`` only, then test on the harmonized matrix
+          without adding site dummies to the downstream GLM. Use this to
+          isolate what the ComBat transform itself contributes.
+        * ``'combat_site_dummies_glm'`` (aliases ``'combat_site_glm'``,
+          ``'combat_plus_site_glm'``, ``'nuisance_only'``, and legacy alias
+          ``'d'`` from ``[[protocol_combat_implementation]]``) —
+          primary site-aware recipe. Fit ComBat with ``preserve = confounds``
+          only, deliberately excluding the tested variable, then append site
+          dummies to the downstream GLM nuisance design. Use this when the
+          analysis needs both a harmonized matrix and residual site control
+          during inference.
+        * ``'site_dummies_glm'`` (aliases ``'site_glm'``,
+          ``'single_stage_site_glm'``, ``'no_combat'`` and ``None``; legacy
+          alias ``'e'`` from ``[[protocol_combat_implementation]]``) — skip
+          ComBat entirely and model site as fixed-effect nuisance dummies in
+          the same GLM that tests the variable of interest. Use this when the
+          only deliverable is the inference result, when ComBat assumptions
+          are questionable, or as the no-ComBat site-aware sensitivity arm.
 
         ``'auto'`` (default) dispatches based on the call shape:
 
-        - GLM + ``sites`` + ``confounds`` → ``'d'`` (primary).
-        - GLM + ``sites``, no ``confounds`` → ``'e'``.
+        - GLM + ``sites`` + ``confounds`` → ``'combat_site_dummies_glm'``.
+        - GLM + ``sites``, no ``confounds`` → ``'site_dummies_glm'``.
         - GLM + no ``sites`` → no harmonization.
         - Two-sample + ``sites`` → skip ComBat with a flag asking
           the caller to promote to GLM with binary ``interest`` for
-          the Strategy D recipe.
+          the ``'combat_site_dummies_glm'`` recipe.
     fisher_z : bool, default ``True``
         Apply Fisher r→z to ``Y`` (or ``group1``/``group2``) first.
     method : str, default ``'tfnbs'``
@@ -469,23 +513,37 @@ def analyze(
         confounds_provided=confounds is not None,
     )
 
-    # Explicit Strategy-D guards (only fire for explicit 'nuisance_only' / 'd';
-    # 'auto' resolves to 'd' only when these guards are already satisfied).
-    if harmonize in ("nuisance_only", "d"):
+    # Explicit ComBat guards (only fire for explicit requests; 'auto'
+    # resolves to combat_site_dummies_glm only when these guards are satisfied).
+    if harmonize in (
+        COMBAT_ONLY,
+        "combat",
+        "combat_no_site_glm",
+        "combat_no_site_dummies_glm",
+        COMBAT_SITE_DUMMIES_GLM,
+        "combat_site_glm",
+        "combat_plus_site_glm",
+        "combat_plus_site_dummies_glm",
+        "interest_orthogonal_combat",
+        "interest_orthogonal",
+        "nuisance_only",
+        "d",
+    ):
         if sites is None:
             raise ValueError(
-                "Strategy D requires sites=... — otherwise there is no "
-                "ComBat step to control."
+                f"{strategy} requires sites=...; otherwise "
+                "there is no ComBat step to control."
             )
         if confounds is None:
             raise ValueError(
-                "Strategy D requires confounds= — otherwise the ComBat "
-                "preserve design would be empty."
+                f"{strategy} requires confounds=; otherwise "
+                "the ComBat preserve design would be empty."
             )
         if not glm_mode:
             raise ValueError(
-                "Strategy D is GLM-only (interest=, confounds=). For "
-                "two-sample / paired designs use harmonize='auto' or None."
+                f"{strategy} is GLM-only (interest=, confounds=). For "
+                "two-sample / paired designs use "
+                "harmonize='auto' or None."
             )
     # Two-sample + sites resolves to no-ComBat (no defensible preserve).
     # Flag so the demotion is visible and the caller can promote to GLM.
@@ -497,8 +555,8 @@ def analyze(
     ):
         flags.append(
             "two-sample + sites: ComBat skipped (no interest column to "
-            "preserve). For Strategy D, promote to GLM with a binary "
-            "interest indicator."
+            "preserve). For combat_site_dummies_glm, promote to GLM "
+            "with a binary interest indicator."
         )
     # Paired + sites: additive site effects are subject-constant across the
     # two conditions and cancel in the within-subject difference, so ComBat
@@ -514,6 +572,12 @@ def analyze(
             "the within-subject difference; sites= still stratifies the "
             "permutation."
         )
+    if strategy is None and preserve is not None:
+        flags.append(
+            "preserve= ignored because no ComBat harmonization strategy is "
+            "active."
+        )
+        preserve = None
 
     # ---- Fisher r→z ----
     if fisher_z:
@@ -525,30 +589,31 @@ def analyze(
             if group2 is not None:
                 group2 = fisher_r_to_z(group2)
 
-    # ---- Strategy D: ComBat preserve = confounds only ----
+    # ---- ComBat strategies: preserve = confounds only ----
     # The tested variable is deliberately omitted from ComBat so the
     # harmonization fit never sees the labels that the permutation will
     # reshuffle (Nygaard 2016 label-leak avoidance). Mild attenuation
     # when corr(site, interest) > 0; that's the accepted trade-off.
-    if strategy == "d":
+    if strategy in (COMBAT_ONLY, COMBAT_SITE_DUMMIES_GLM):
         if preserve is not None:
             flags.append(
-                "preserve= overridden by Strategy D: ComBat preserve "
-                "is set to confounds only."
+                f"preserve= overridden by {strategy}: "
+                "ComBat preserve is set to confounds only."
             )
         preserve = _as_2d(confounds)
         flags.append(
-            "preserve excludes interest (Strategy D); "
-            "site dummies appended to GLM nuisance."
+            f"{strategy}: preserve excludes interest."
         )
 
-    # ---- ComBat (only runs for Strategy D) ----
-    if strategy == "d" and sites is not None:
+    # ---- ComBat (runs for combat_only and combat_site_dummies_glm) ----
+    if strategy in (COMBAT_ONLY, COMBAT_SITE_DUMMIES_GLM) and sites is not None:
         assert Y is not None
         res = combat_harmonize(Y, sites=np.asarray(sites), preserve=preserve)
         Y = res.Y_adjusted
         combat_diag = dict(res.diagnostics)
-        combat_diag["strategy"] = "D"
+        combat_diag["strategy"] = strategy
+        if strategy == COMBAT_SITE_DUMMIES_GLM:
+            combat_diag["legacy_strategy"] = "D"
         combat_diag["preserve_columns"] = "confounds_only"
         ratio = combat_diag.get("between_site_variance_ratio_after_over_before")
         if ratio is not None and ratio > 0.5:
@@ -557,15 +622,15 @@ def analyze(
                 f"(ratio after/before = {ratio:.3f})."
             )
 
-    # ---- Site dummies → GLM nuisance for Strategy D and Strategy E ----
-    # Strategy D: ComBat harmonized the matrix but did not see interest;
+    # ---- Site dummies → GLM nuisance for the site-GLM strategies ----
+    # combat_site_dummies_glm: ComBat harmonized the matrix but did not see interest;
     # site dummies in the GLM still help in case any site-correlated noise
-    # survives. Strategy E: no ComBat ran at all; site dummies are the
-    # only site adjustment.
+    # survives. site_dummies_glm: no ComBat ran at all; site dummies are the only site
+    # adjustment.
     if (
         glm_mode
         and sites is not None
-        and strategy in ("d", "e")
+        and strategy in (COMBAT_SITE_DUMMIES_GLM, SITE_DUMMIES_GLM)
     ):
         site_dum = _site_dummies(np.asarray(sites))
         if site_dum.shape[1] > 0:
@@ -573,12 +638,25 @@ def analyze(
                 confounds = site_dum
             else:
                 confounds = np.column_stack([_as_2d(confounds), site_dum])
-        if strategy == "e":
+        if strategy == COMBAT_SITE_DUMMIES_GLM:
             flags.append(
-                "no ComBat; site dummies appended to GLM nuisance "
-                "(Strategy E)."
+                "combat_site_dummies_glm: site dummies appended to GLM nuisance."
             )
-            combat_diag = {"strategy": "E", "preserve_columns": None}
+        if strategy == SITE_DUMMIES_GLM:
+            if preserve is not None:
+                flags.append(
+                    "preserve= ignored by site_dummies_glm because "
+                    "ComBat does not run."
+                )
+                preserve = None
+            flags.append(
+                "site_dummies_glm: no ComBat; site dummies appended to GLM nuisance."
+            )
+            combat_diag = {
+                "strategy": SITE_DUMMIES_GLM,
+                "legacy_strategy": "E",
+                "preserve_columns": None,
+            }
 
     # ---- Inference ----
     # Auto-stratify the permutation engine on sites when present (PALM -eb
@@ -602,8 +680,8 @@ def analyze(
     if multi_mode:
         # Several predictors under a shared nuisance model in one pass.
         # Build X = [intercept, confounds(+site dummies), *interest cols]
-        # and a unit contrast per predictor. ComBat (Strategy D) already
-        # ran above with preserve=confounds, excluding *all* tested columns.
+        # and a unit contrast per predictor. ComBat strategies already ran
+        # above with preserve=confounds, excluding *all* tested columns.
         assert isinstance(interest, dict)
         X, contrasts = _build_multi_design(interest, confounds)
         results = compute_p_val_glm_multi(
@@ -616,7 +694,10 @@ def analyze(
         )
         out: Dict[str, AnalyzeResult] = {}
         for nm, res in results.items():
-            res.harmonized = strategy == "d" and sites is not None
+            res.harmonized = (
+                strategy in (COMBAT_ONLY, COMBAT_SITE_DUMMIES_GLM)
+                and sites is not None
+            )
             res.preserve_provided = preserve is not None
             res.combat_diagnostics = combat_diag
             out[nm] = AnalyzeResult(
@@ -663,10 +744,12 @@ def analyze(
     # The lower-level compute_p_val* entry-points don't know that
     # analyze() ran ComBat upstream; thread that information onto the
     # result so downstream consumers (significant_edges, summary_figure,
-    # exporters) can report what preprocessing applied. With harmonize=None
-    # (Strategy E) ComBat is skipped even when sites= is passed; harmonized
-    # reflects whether the matrix was actually adjusted.
-    result.harmonized = strategy == "d" and sites is not None
+    # exporters) can report what preprocessing applied. With site_dummies_glm, ComBat
+    # is skipped even when sites= is passed; harmonized reflects whether the
+    # matrix was actually adjusted.
+    result.harmonized = (
+        strategy in (COMBAT_ONLY, COMBAT_SITE_DUMMIES_GLM) and sites is not None
+    )
     result.preserve_provided = preserve is not None
     result.combat_diagnostics = combat_diag
     # strata_provided was set inside compute_p_val{,_glm} from the strata=

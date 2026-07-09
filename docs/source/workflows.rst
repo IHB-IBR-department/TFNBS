@@ -178,7 +178,7 @@ predictor.
        interest={'age': age, 'sex': sex, 'mean_fd': mean_fd},
        confounds=motion,          # extra nuisance, shared by all predictors
        sites=site,                # ComBat + site-stratified permutation
-       harmonize='nuisance_only',
+       harmonize='combat_site_dummies_glm',
        method='tfnbs', e=0.4, h=3.0, n=10,
        n_permutations=5000, acceleration='gpd', rng=42,
    )
@@ -196,9 +196,9 @@ Notes:
 - Each dict **value** is a single 1-D regressor of shape ``(n_subjects,)``;
   the **key** names that predictor's result. An empty dict, or a value that
   is not 1-D, raises.
-- Under Strategy D, ComBat preserves only ``confounds`` and excludes **all**
-  tested predictors — the same label-leak avoidance as the single-predictor
-  case.
+- Under the ComBat arms (``combat_only`` and ``combat_site_dummies_glm``), ComBat
+  preserves only ``confounds`` and excludes **all** tested predictors — the
+  same label-leak avoidance as the single-predictor case.
 - The ``(E, H)`` grid sweep (:ref:`wf-eh-stability`) composes: pass sequences
   for ``e`` / ``h`` and every predictor's result carries the parameter axis.
 - This path is for **separate** per-predictor tests. For a **joint**
@@ -223,12 +223,12 @@ permutation (PALM ``-eb`` semantics, auto-set via ``strata=sites``).
 
    confounds = np.column_stack([age, sex, mean_fd])
 
-   out_D = analyze(
+   out_primary = analyze(
        Y,
        interest=diagnosis,           # 0 = control, 1 = patient
        confounds=confounds,
        sites=site,                   # per-subject scanner / site label
-       harmonize='nuisance_only',    # Strategy D — primary recipe
+       harmonize='combat_site_dummies_glm',  # primary paper recipe
        method='tfnbs',
        e=0.4, h=3.0, n=10,
        n_permutations=200,
@@ -236,9 +236,9 @@ permutation (PALM ``-eb`` semantics, auto-set via ``strata=sites``).
        rng=42,
    )
 
-   print(out_D.inference)
-   print(out_D.flags)                # plain-English provenance warnings
-   print(out_D.combat_diagnostics)   # includes 'strategy': 'D'
+   print(out_primary.inference)
+   print(out_primary.flags)                # plain-English provenance warnings
+   print(out_primary.combat_diagnostics)   # includes 'strategy': 'combat_site_dummies_glm'
 
 **What the call does, step by step:**
 
@@ -255,9 +255,11 @@ permutation (PALM ``-eb`` semantics, auto-set via ``strata=sites``).
 Choosing a harmonization strategy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``analyze()`` ships two strategies. **Report both** for paper-grade work: D
-as the headline, E as a sensitivity arm showing the harmonization was not
-load-bearing.
+``analyze()`` ships the three multi-site strategies used in the paper:
+ComBat-only, ComBat plus site dummies in the GLM, and site dummies in the GLM
+without ComBat. For paper-grade work, report the primary
+``combat_site_dummies_glm`` result with ``combat_only`` and/or ``site_dummies_glm`` as
+sensitivity arms, depending on the question.
 
 .. list-table::
    :header-rows: 1
@@ -268,31 +270,41 @@ load-bearing.
      - What ComBat does
      - GLM nuisance design
      - When to use
-   * - ``'nuisance_only'`` / ``'d'``
-     - **D — primary**
+   * - ``'combat_only'`` / ``'combat'``
+     - ComBat only
+     - Fits with ``preserve = confounds``; tested variable excluded
+     - ``confounds``
+     - Isolates what the ComBat transform contributes, without residual
+       site fixed effects in the inferential GLM.
+   * - ``'combat_site_dummies_glm'`` / ``'nuisance_only'`` / ``'d'``
+     - ComBat + site GLM
      - Fits with ``preserve = confounds``; tested variable excluded
      - ``confounds + site dummies``
-     - Headline result. Removes the Nygaard 2016 label leak. Requires
-       ``sites=`` and ``confounds=``; GLM mode only.
-   * - ``None`` / ``'e'``
-     - **E — sensitivity**
+     - Primary recipe. Removes the Nygaard 2016 label leak and keeps residual
+       site control in the inferential GLM. Requires ``sites=`` and
+       ``confounds=``; GLM mode only.
+   * - ``'site_dummies_glm'`` / ``None`` / ``'e'``
+     - Site GLM
      - Skipped
      - ``confounds + site dummies``
-     - Calibrated-by-construction reference; pair with D.
+     - No-ComBat sensitivity arm; useful when the inference result is the only
+       deliverable or ComBat assumptions are questionable.
    * - ``'auto'`` (default)
      - dispatcher
-     - D if ``sites + confounds``; E if only ``sites``; none otherwise
-     - (whichever D / E uses)
+     - ``combat_site_dummies_glm`` if ``sites + confounds``; ``site_dummies_glm`` if only
+       ``sites``; none otherwise
+     - (whichever selected strategy uses)
      - When the call shape unambiguously implies the recipe. Prefer
-       explicit ``'nuisance_only'`` / ``None`` in paper scripts.
+       explicit strategy names in paper scripts.
 
 .. code-block:: python
 
-   # Primary + sensitivity pair — run both, report both.
+   # Primary + sensitivity arms.
    common = dict(Y=Y, interest=diagnosis, confounds=confounds, sites=site,
                  method='tfnbs', e=0.4, h=3.0, n=10, rng=42)
-   out_D = analyze(**common, harmonize='nuisance_only')   # Strategy D
-   out_E = analyze(**common, harmonize=None)              # Strategy E
+   out_combat = analyze(**common, harmonize='combat_only')
+   out_primary = analyze(**common, harmonize='combat_site_dummies_glm')
+   out_site = analyze(**common, harmonize='site_dummies_glm')
 
 .. note::
 
@@ -431,7 +443,7 @@ a point estimate into a stability assessment at little extra cost.
 
    out = analyze(
        Y, interest=diagnosis, confounds=confounds, sites=site,
-       harmonize='nuisance_only',
+       harmonize='combat_site_dummies_glm',
        method='tfnbs', e=e_grid, h=h_grid, n=10,
        n_permutations=5000, acceleration=None, rng=42,
    )

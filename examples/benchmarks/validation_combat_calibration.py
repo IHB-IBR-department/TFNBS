@@ -1,6 +1,6 @@
-"""Tier-2 quick — Strategy E calibration smoke at minimal configuration.
+"""Tier-2 quick — site_dummies_glm calibration smoke at minimal configuration.
 
-One pipeline (Strategy E: single-stage GLM with site as nuisance,
+One pipeline (site_dummies_glm: single-stage GLM with site as nuisance,
 no ComBat) exercised end-to-end at a small-but-realistic cell:
 
 - ``N = 100`` subjects, ``K = 4`` sites, Schaefer-100 (4 950 edges)
@@ -17,14 +17,13 @@ What this test does NOT do:
 - It does **not** make a tight calibration claim. At 50 reps the
   binomial 2σ around α=0.05 is ~0.06; the assertion is the loose
   bound FWER < 0.20, which only rules out catastrophic regressions.
-  The full PR-cal 4-strategy overnight in
-  [[protocol_combat_implementation]] §PR-cal is where the calibrated
-  number for the toolbox-paper figure lives.
-- It does **not** cover Strategies B or D. Add parallel test files
-  ``test_combat_pipeline_quick_b.py`` / ``..._d.py`` later if the
+  The full multi-site calibration driver is where the calibrated number
+  for the toolbox-paper figure lives.
+- It does **not** cover the ComBat arms. Add parallel test files
+  for ``combat_only`` / ``combat_site_dummies_glm`` later if the
   PR-cal driver wants a per-strategy timing assertion.
 
-Why Strategy E and not Strategy D for the quick test: E has no ComBat
+Why site_dummies_glm and not a ComBat arm for the quick test: it has no ComBat
 step, so its wall time is the lower bound and a wall-time regression
 caught here is a regression in the GLM/permutation core, not in the
 harmonization layer.
@@ -77,7 +76,7 @@ def _h0_cell(seed: int):
     )
 
 
-def _strategy_e_min_pos_p(data, rng_seed: int) -> tuple[float, float]:
+def _site_dummies_glm_min_pos_p(data, rng_seed: int) -> tuple[float, float]:
     """Run one Strategy-E ``analyze`` call; return (min_pos_p, wall_s)."""
     # Independent RNG stream for confounds — generator uses
     # default_rng(seed) internally, so picking 10_000 + seed avoids
@@ -92,7 +91,7 @@ def _strategy_e_min_pos_p(data, rng_seed: int) -> tuple[float, float]:
         out = analyze(
             data["Y"], interest=data["interest"], sites=data["sites"],
             confounds=confounds,
-            harmonize=None,                    # Strategy E
+            harmonize="site_dummies_glm",      # site dummies in GLM; no ComBat
             fisher_z=False, method="tfnbs",
             n_permutations=N_PERM, acceleration=ACCEL,
             use_mp=False, rng=rng_seed,
@@ -103,16 +102,16 @@ def _strategy_e_min_pos_p(data, rng_seed: int) -> tuple[float, float]:
 
 
 @unittest.skipIf(SKIP_SLOW, SKIP_SLOW_MSG)
-class TestStrategyEQuickCalibration(unittest.TestCase):
+class TestSiteDummiesGlmQuickCalibration(unittest.TestCase):
     """Single-strategy, minimal-configuration H₀ calibration smoke."""
 
-    def test_strategy_e_h0_fwer_loose_bound(self):
+    def test_site_dummies_glm_h0_fwer_loose_bound(self):
         p_min = np.empty(N_REPS, dtype=np.float64)
         wall = np.empty(N_REPS, dtype=np.float64)
 
         for rep in range(N_REPS):
             data = _h0_cell(seed=2_000 + rep)
-            p_min[rep], wall[rep] = _strategy_e_min_pos_p(data, rng_seed=rep)
+            p_min[rep], wall[rep] = _site_dummies_glm_min_pos_p(data, rng_seed=rep)
 
         # Empirical FWER point estimate + binomial 95 % CI.
         fwer = float(np.mean(p_min <= ALPHA))
@@ -122,7 +121,7 @@ class TestStrategyEQuickCalibration(unittest.TestCase):
         # Diagnostic line — printed even on pass so the operator sees
         # the actual number before running the full PR-cal overnight.
         msg = (
-            f"\n[Strategy E quick calibration]\n"
+            f"\n[site_dummies_glm quick calibration]\n"
             f"  Cell: N={N_SUBJECTS}, K={N_SITES}, Schaefer-{N_ROIS}, "
             f"σ_site={SIGMA_SITE}, corr(site,dx)={CORR_SITE_INTEREST}\n"
             f"  Permutations: {N_PERM} ({ACCEL}); H₀ reps: {N_REPS}\n"
@@ -150,9 +149,9 @@ class TestStrategyEQuickCalibration(unittest.TestCase):
         self.assertLess(
             fwer, FWER_LOOSE_BOUND,
             msg=(
-                f"Strategy E empirical FWER ({fwer:.3f}) exceeds the loose "
+                f"site_dummies_glm empirical FWER ({fwer:.3f}) exceeds the loose "
                 f"bound ({FWER_LOOSE_BOUND}). This is a serious regression "
-                f"in the GLM/permutation core — Strategy E should be "
+                f"in the GLM/permutation core — site_dummies_glm should be "
                 f"approximately calibrated under H₀. The PR-cal overnight "
                 f"will report the tighter number; this test exists to "
                 f"catch catastrophic regressions only."
@@ -163,7 +162,7 @@ class TestStrategyEQuickCalibration(unittest.TestCase):
         self.assertLess(
             wall.max(), PER_REP_WALL_BUDGET_S,
             msg=(
-                f"Strategy E per-rep wall ({wall.max():.2f} s) exceeds the "
+                f"site_dummies_glm per-rep wall ({wall.max():.2f} s) exceeds the "
                 f"budget ({PER_REP_WALL_BUDGET_S} s). Likely a regression "
                 f"in the GLM precompute or the permutation pool."
             ),

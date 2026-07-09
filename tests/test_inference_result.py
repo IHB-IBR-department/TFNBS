@@ -207,11 +207,16 @@ class TestAnalyzeProvenanceThreading(unittest.TestCase):
             fisher_z=False, n_permutations=20, use_mp=False,
             acceleration=None, rng=6,
         )
-        # GLM + sites + confounds resolves to Strategy D: ComBat runs
-        # with preserve=confounds (set automatically), strata=sites.
+        # GLM + sites + confounds resolves to combat_site_dummies_glm: ComBat runs
+        # with preserve=confounds (set automatically), site dummies in the
+        # GLM, and strata=sites.
         self.assertTrue(out.inference.harmonized)
         self.assertIsNotNone(out.inference.combat_diagnostics)
-        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "combat_site_dummies_glm",
+        )
+        self.assertEqual(out.inference.combat_diagnostics["legacy_strategy"], "D")
         self.assertTrue(out.inference.strata_provided)
 
     def test_no_sites_means_not_harmonized(self):

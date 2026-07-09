@@ -364,7 +364,7 @@ permutation included:
        interest=diagnosis,                  # step 1: a t at each edge
        confounds=np.column_stack([age, sex, mean_fd]),
        sites=site,                          # ComBat + within-site permutation
-       harmonize='nuisance_only',
+       harmonize='combat_site_dummies_glm',
        method='tfnbs',                      # step 2: threshold-free enhancement
        n_permutations=5000, acceleration=None,   # steps 3–4: empirical null
        rng=42,

@@ -51,11 +51,11 @@ def _make_twosample(n_per_group=10, N=5, n_sites=2, seed=0):
 # =============================================================================
 
 class TestAutoDispatchGLM(unittest.TestCase):
-    """`harmonize='auto'` dispatches to Strategy D when GLM+sites+confounds
-    are all present, to E when GLM+sites without confounds, to no
-    harmonization when sites is absent."""
+    """`harmonize='auto'` dispatches to combat_site_dummies_glm when
+    GLM+sites+confounds are all present, to site_dummies_glm when GLM+sites without
+    confounds, and to no harmonization when sites is absent."""
 
-    def test_auto_with_sites_and_confounds_resolves_to_d(self):
+    def test_auto_with_sites_and_confounds_resolves_to_combat_site_dummies_glm(self):
         Y, age, motion, sites = _make_glm(seed=2)
         out = analyze(
             Y, interest=age, confounds=motion, sites=sites,
@@ -63,42 +63,73 @@ class TestAutoDispatchGLM(unittest.TestCase):
             acceleration=None, rng=2,
         )
         self.assertTrue(out.inference.harmonized)
-        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "combat_site_dummies_glm",
+        )
+        self.assertEqual(out.inference.combat_diagnostics["legacy_strategy"], "D")
         self.assertIn(
             "between_site_variance_ratio_after_over_before",
             out.inference.combat_diagnostics,
         )
         self.assertTrue(
-            any("preserve excludes interest (Strategy D)" in f
+            any("combat_site_dummies_glm: preserve excludes interest" in f
                 for f in out.flags),
-            f"expected Strategy D preserve flag, got {out.flags}",
+            f"expected combat_site_dummies_glm preserve flag, got {out.flags}",
         )
 
-    def test_auto_with_sites_no_confounds_resolves_to_e(self):
+    def test_auto_with_sites_no_confounds_resolves_to_site_dummies_glm(self):
         Y, age, _, sites = _make_glm(seed=1)
         out = analyze(
             Y, interest=age, sites=sites, fisher_z=False,
             n_permutations=20, use_mp=False, acceleration=None, rng=1,
         )
-        # No confounds → no ComBat (Strategy E); site dummies in GLM.
+        # No confounds → no ComBat; site dummies in GLM.
         self.assertFalse(out.inference.harmonized)
-        self.assertEqual(out.inference.combat_diagnostics["strategy"], "E")
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "site_dummies_glm",
+        )
+        self.assertEqual(out.inference.combat_diagnostics["legacy_strategy"], "E")
         self.assertTrue(out.inference.strata_provided)
 
-    def test_explicit_preserve_overridden_under_strategy_d(self):
+    def test_explicit_preserve_overridden_under_combat_site_dummies_glm(self):
         Y, age, motion, sites = _make_glm(seed=3)
-        # Under D, an explicit preserve= is replaced by `confounds`
-        # (the recipe sets it deliberately to exclude interest).
+        # Under ComBat strategies, an explicit preserve= is replaced by
+        # `confounds` (the recipe deliberately excludes interest).
         out = analyze(
             Y, interest=age, confounds=motion, sites=sites,
             preserve=age[:, np.newaxis],
             fisher_z=False, n_permutations=20, use_mp=False,
             acceleration=None, rng=3,
         )
-        self.assertEqual(out.inference.combat_diagnostics["strategy"], "D")
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "combat_site_dummies_glm",
+        )
         self.assertTrue(
-            any("preserve= overridden by Strategy D" in f for f in out.flags),
-            f"expected D override flag, got {out.flags}",
+            any("preserve= overridden by combat_site_dummies_glm" in f
+                for f in out.flags),
+            f"expected combat_site_dummies_glm override flag, got {out.flags}",
+        )
+
+    def test_explicit_combat_only_runs_without_site_dummies(self):
+        Y, age, motion, sites = _make_glm(seed=5)
+        out = analyze(
+            Y, interest=age, confounds=motion, sites=sites,
+            harmonize="combat_only",
+            fisher_z=False, n_permutations=20, use_mp=False,
+            acceleration=None, rng=5,
+        )
+        self.assertTrue(out.inference.harmonized)
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "combat_only",
+        )
+        self.assertNotIn("legacy_strategy", out.inference.combat_diagnostics)
+        self.assertFalse(
+            any("site dummies appended" in f for f in out.flags),
+            f"combat_only should not append site dummies, got {out.flags}",
         )
 
     def test_no_sites_means_no_combat(self):
@@ -250,13 +281,17 @@ class TestMultiPredictorGLM(unittest.TestCase):
         Y, age, sex, motion, site = self._data()
         out = analyze(
             Y, interest={'age': age, 'sex': sex}, confounds=motion,
-            sites=site, harmonize='nuisance_only',
+            sites=site, harmonize='combat_site_dummies_glm',
             method='tstat', n_permutations=50,
             use_mp=False, acceleration=None, rng=2,
         )
         for k in out:
             self.assertTrue(out[k].inference.harmonized)
-            self.assertEqual(out[k].combat_diagnostics.get('strategy'), 'D')
+            self.assertEqual(
+                out[k].combat_diagnostics.get('strategy'),
+                'combat_site_dummies_glm',
+            )
+            self.assertEqual(out[k].combat_diagnostics.get('legacy_strategy'), 'D')
             self.assertTrue(out[k].flags)        # shared flags copied to each
 
     def test_dict_interest_supports_eh_grid(self):

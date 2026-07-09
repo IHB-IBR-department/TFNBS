@@ -525,8 +525,10 @@ def combat_harmonize(
         avoids the Nygaard 2016 label leak in which the harmonization
         fit absorbs label-aligned variance the permutation null cannot
         recover. See :func:`~conninfpy.analyze`, which sets
-        ``preserve = confounds`` automatically under Strategy D, and
-        [[paper_combat_resolution_strategies]] for the full derivation.
+        ``preserve = confounds`` automatically under the ``combat_only`` and
+        ``combat_site_dummies_glm`` strategies, and
+        [[paper_03_functionality]] / [[paper_04_use_cases]] for the
+        software-paper strategy description and ABIDE comparison.
     eb : bool, default=True
         Apply empirical-Bayes shrinkage on site effects (recommended).
     return_diagnostics : bool, default=True

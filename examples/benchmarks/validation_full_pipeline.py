@@ -122,22 +122,26 @@ class TestRecipeSmoke(unittest.TestCase):
         self.assertTrue(np.isfinite(signed).all())
 
         # `sites=` without confounds resolves the `auto` dispatcher to
-        # Strategy E: no ComBat, site dummies in the GLM nuisance, strata
+        # site_dummies_glm: no ComBat, site dummies in the GLM nuisance, strata
         # auto-set to sites.
         self.assertFalse(out.inference.harmonized)
         self.assertTrue(out.inference.strata_provided)
         self.assertIsNotNone(out.inference.combat_diagnostics)
-        self.assertEqual(out.inference.combat_diagnostics["strategy"], "E")
+        self.assertEqual(
+            out.inference.combat_diagnostics["strategy"],
+            "site_dummies_glm",
+        )
+        self.assertEqual(out.inference.combat_diagnostics["legacy_strategy"], "E")
 
         joined = "\n".join(out.flags)
         self.assertIn("strata= auto-set", joined,
                       f"missing auto-strata flag in {out.flags}")
         self.assertIn("no ComBat", joined,
-                      f"missing Strategy E flag in {out.flags}")
+                      f"missing site_dummies_glm flag in {out.flags}")
 
-        # Strategy E does not run ComBat — no between-site ratio in the
-        # diagnostics blob. The path completing cleanly is the contract
-        # being smoke-tested here.
+        # site_dummies_glm does not run ComBat -- no between-site ratio in the
+        # diagnostics blob. The path completing cleanly is the contract being
+        # smoke-tested here.
 
 
 @unittest.skipIf(SKIP_SLOW, SKIP_SLOW_MSG)
