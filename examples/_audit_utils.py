@@ -2,10 +2,8 @@
 
 The four audit scripts under ``abide_validation/`` and
 ``openclose_validation/`` each used to re-implement the same
-agreement quartet from
-[[Projects/NetworkStatistics/paper/paper_validation_plan|paper_validation_plan]]
-§2.5 with minor formatting variations. This module collects the
-canonical implementations so the audits stay consistent.
+agreement quartet with minor formatting variations. This module collects
+the canonical implementations so the audits stay consistent.
 
 Functions
 ---------

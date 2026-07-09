@@ -1,5 +1,4 @@
-"""End-to-end smoke tests for the v2.1 ``analyze()`` recipe (PR-5
-lightweight variant of [[implementation_plan_2026-05-19]]).
+"""End-to-end smoke tests for the v2.1 ``analyze()`` recipe.
 
 Four tests using ``generate_multisite_glm_dataset(N=100, ...)`` to
 mimic Schaefer-100 scale:
@@ -17,9 +16,7 @@ mimic Schaefer-100 scale:
    (ComBat fits on observed (Y, interest, sites) jointly; permutation
    reshuffles Y but ComBat-derived structure stays put) is a known
    research-grade limitation — assertable calibration requires
-   permutation-inside-ComBat or a different recipe and is scoped for
-   phase 1 of the pseudo-real validation work (see
-   [[pseudo_real_validation]]).
+   permutation-inside-ComBat or a different recipe.
 4. **Strata relative protection under confound** (50 reps, ~30 s) —
    under ``corr(site, interest)=0.6``, ``strata=site`` should not
    produce *higher* FWER than ``strata=None``. Regression guard for
@@ -153,7 +150,7 @@ class TestVanillaGLMFWERCalibration(unittest.TestCase):
 
     Isolates the PR-2 / PR-3 wiring from the ComBat-then-permutation
     interaction. The ``sites=`` path has its own known calibration
-    issue (research-grade — see [[pseudo_real_validation]]) and is
+    issue in this compact synthetic generator and is
     covered by the smoke + strata-protection tests below."""
 
     def test_vanilla_glm_fwer_under_h0(self):

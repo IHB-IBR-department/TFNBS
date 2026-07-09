@@ -27,8 +27,7 @@ extensions = [
 autosummary_generate = True
 
 # Tolerate missing docstring sections under a methods paper deadline.
-# Re-enable once the API reference pass lands (toolbox_api.md is the
-# canonical surface; rst is the auto-generated one).
+# Re-enable once the public API reference pass lands.
 autodoc_default_options = {
     'members': True,
     'undoc-members': True,

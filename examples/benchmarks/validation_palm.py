@@ -16,8 +16,6 @@ matching (quantiles, FWER-corrected p-values) is the standard
 cross-implementation protocol; tolerances are set to Monte Carlo noise
 budget at n_perm=5000.
 
-Plan / scope / paper-paragraph template: see
-``Projects/NetworkStatistics/palm_validation.md`` in the Obsidian vault.
 """
 from __future__ import annotations
 
@@ -116,7 +114,7 @@ def _make_paired_data(n=25, N=8, effect=0.7, n_signal_edges=5, seed=42):
 
 
 # ---------------------------------------------------------------------------
-# Tolerances — see palm_validation.md §2 for derivation
+# Tolerances derived from Monte Carlo noise in the PALM comparison
 # ---------------------------------------------------------------------------
 
 # Per-edge t-stat: PALM saves with %g (~4 decimals); tol = 1.5e-3
@@ -336,7 +334,7 @@ class TestPalmEquivalenceOneSample(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Test E from palm_validation.md: within-block exchangeability
+# Within-block exchangeability parity check
 # ---------------------------------------------------------------------------
 
 def _make_blocked_twosample(
@@ -373,7 +371,7 @@ def _make_blocked_twosample(
 
 @unittest.skipUnless(_matlab_available(), SKIP_MSG)
 class TestPalmEbParity(unittest.TestCase):
-    """Test E from [[palm_validation]]: distributional parity of
+    """Distributional parity of
     conninfpy's ``strata=`` vs PALM's ``-eb`` (within-block exchangeability)
     on a blocked two-sample GLM design.
 

@@ -29,10 +29,8 @@ def generate_multisite_glm_dataset(
 ) -> dict:
     """Multi-site GLM connectivity dataset, sized to mimic a Schaefer-100 study.
 
-    Built for the v2.1 full-pipeline calibration tests
-    (`tests/test_full_pipeline.py`) and for the matrix-level phase of the
-    SC-prior validation work in
-    `Projects/NetworkStatistics/_wiki/pseudo_real_validation.md`.
+    Built for compact full-pipeline calibration tests and matrix-level
+    structural-prior validation experiments.
 
     Output is in **Fisher-z** units already (so callers should pass
     ``fisher_z=False`` to ``analyze()``). Site effects are additive on

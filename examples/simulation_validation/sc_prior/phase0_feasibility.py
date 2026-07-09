@@ -1,5 +1,4 @@
-"""Phase-0 feasibility check for the pseudo-real SC-prior validation
-pipeline ([[pseudo_real_validation]]).
+"""Phase-0 feasibility check for the structural-prior validation pipeline.
 
 Derisks the rest of the validation in <2 minutes wallclock. Runs four
 checks against the extracted ENIGMA Schaefer-100 SC matrix:

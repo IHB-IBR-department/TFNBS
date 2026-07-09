@@ -28,10 +28,6 @@ is δ² (variance); conninfpy's ``model.delta_star`` is δ (sd, i.e.
 sqrt of neuroCombat's). The tests below take ``sqrt`` of neuroCombat's
 ``delta.star`` before comparing.
 
-Plan / scope / paper-paragraph template: see
-``Projects/NetworkStatistics/paper/paper_validation_combat_equivalence.md``
-in the Obsidian vault.
-
 Tests skip cleanly if neuroCombat is not installed.
 """
 from __future__ import annotations

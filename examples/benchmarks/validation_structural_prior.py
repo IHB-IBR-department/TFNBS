@@ -1,5 +1,4 @@
-"""Unit tests for the SC-prior validation building blocks (see
-[[pseudo_real_validation]] in the wiki).
+"""Unit tests for the SC-prior validation building blocks.
 
 These tests use a tiny synthetic block-SC matrix only — they do NOT
 load any ENIGMA / HCP data, so they run in CI without external
@@ -10,9 +9,9 @@ What they cover:
 - The Louvain-on-SC prior recovers a planted block partition on a
   block-structured synthetic SC matrix.
 - The Louvain labels drop into the existing ``apply_ni_tfnbs`` API
-  with no code changes (the "option A" path in the wiki note).
+  with no code changes.
 - Thresholded connected components is a valid alternative cluster
-  source on a tractable SC density (Option A2 in the wiki note).
+  source on a tractable SC density.
 """
 from __future__ import annotations
 

@@ -1,7 +1,6 @@
 
 """Extract ENIGMA group-mean structural-connectivity matrices into the
-repository for the pseudo-real validation pipeline (see
-[[pseudo_real_validation]] in the wiki).
+repository for the structural-prior validation pipeline.
 
 Run this script ONCE under an environment with `enigmatoolbox` installed
 (e.g. the `fmri-fitting` conda env on this machine); the resulting

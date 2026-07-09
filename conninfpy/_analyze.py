@@ -189,7 +189,7 @@ def _resolve_strategy(
       or two-sample call where ComBat has no defensible recipe).
 
     The old ``'d'`` and ``'e'`` values are accepted as compatibility aliases
-    for the historical table labels in ``[[protocol_combat_implementation]]``.
+    for the historical table labels used during early development.
     """
     if harmonize in (
         COMBAT_SITE_DUMMIES_GLM,
@@ -348,7 +348,7 @@ def analyze(
           isolate what the ComBat transform itself contributes.
         * ``'combat_site_dummies_glm'`` (aliases ``'combat_site_glm'``,
           ``'combat_plus_site_glm'``, ``'nuisance_only'``, and legacy alias
-          ``'d'`` from ``[[protocol_combat_implementation]]``) —
+          ``'d'``) —
           primary site-aware recipe. Fit ComBat with ``preserve = confounds``
           only, deliberately excluding the tested variable, then append site
           dummies to the downstream GLM nuisance design. Use this when the
@@ -356,7 +356,7 @@ def analyze(
           during inference.
         * ``'site_dummies_glm'`` (aliases ``'site_glm'``,
           ``'single_stage_site_glm'``, ``'no_combat'`` and ``None``; legacy
-          alias ``'e'`` from ``[[protocol_combat_implementation]]``) — skip
+          alias ``'e'``) — skip
           ComBat entirely and model site as fixed-effect nuisance dummies in
           the same GLM that tests the variable of interest. Use this when the
           only deliverable is the inference result, when ComBat assumptions

@@ -76,7 +76,7 @@ class InferenceResult(TailResult):
         :func:`conninfpy.analyze` for residual-site flags.
         ``strategy='site_dummies_glm'`` records provenance but does not run ComBat.
         ``legacy_strategy`` may contain the old ``'D'`` / ``'E'`` label from
-        ``[[protocol_combat_implementation]]`` for compatibility.
+        early development versions for compatibility.
     """
 
     method: str
