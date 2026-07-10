@@ -44,7 +44,14 @@ LOADER_CLASSES = {
     "ChinaCloseCloseLoader": ChinaCloseCloseLoader
 }
 
+def local_dataset_templates_enabled():
+    """Whether local-only custom/beta built-in templates should be exposed."""
+    return os.getenv("CONNINFPY_ENABLE_LOCAL_TEMPLATES", "").lower() in {"1", "true", "yes"}
+
+
 def load_custom_datasets():
+    if not local_dataset_templates_enabled():
+        return {}
     path = os.path.expanduser("~/.conninfpy/custom_datasets.json")
     if os.path.exists(path):
         try:
@@ -65,6 +72,64 @@ def current_contrast_name():
     question = plan.get("question_type") or "connectivity_analysis"
     method = plan.get("method")
     return f"{question}_{method}" if method else question
+
+def clear_downstream_results():
+    """Clear outputs that become invalid after data or model changes."""
+    for key in (
+        "inference_result",
+        "edges_df",
+        "companion_inference_result",
+        "companion_edges_df",
+        "companion_method",
+        "decoded_df",
+        "decoding_summary",
+        "decoding_score",
+        "evidence_packet",
+        "narrative_text",
+        "narrative_results",
+    ):
+        st.session_state[key] = None
+
+
+def active_analysis_atlas(base_atlas=None):
+    """Prefer ROI/dataset-specific atlas metadata over sidebar metadata."""
+    if st.session_state.get("sub_atlas") is not None:
+        return st.session_state.sub_atlas
+    if st.session_state.get("dataset_atlas") is not None:
+        return st.session_state.dataset_atlas
+    return base_atlas
+
+
+def atlas_for_annotation(atlas, n_nodes, *, warn=True):
+    """Return atlas only when it matches the result dimensionality."""
+    if atlas is None or len(atlas) == n_nodes:
+        return atlas
+    if warn:
+        st.warning(
+            f"Atlas metadata has {len(atlas)} ROIs, but the inference result has {n_nodes} nodes. "
+            "The significant-edge table will be shown without atlas annotations."
+        )
+    return None
+
+
+def data_is_fisher_z():
+    """Use explicit ingestion metadata instead of value-range heuristics."""
+    return st.session_state.get("connectivity_data_kind") == "fisher_z"
+
+
+def result_is_stale(run_plan=None):
+    """True when current loaded data/sidebar atlas no longer match a result."""
+    plan = run_plan if run_plan is not None else st.session_state.get("run_plan")
+    if not plan:
+        return False
+    current_hash = st.session_state.get("current_settings_hash")
+    if plan.get("loaded_settings_hash") != current_hash:
+        return True
+    current_atlas_sig = st.session_state.get("active_atlas_signature")
+    if plan.get("active_atlas_signature") != current_atlas_sig:
+        return True
+    return False
+
 
 def effect_direction_labels(run_plan=None):
     """Return reader-facing labels for positive/negative statistical tails."""
@@ -238,8 +303,7 @@ HELP_TEXT = {
 **Built-in Demo Datasets**
 - **ABIDE-mini**: Curated 5-site subset of ABIDE (204 subjects) preserving complete phenotypic columns and group balances.
 - **OpenClose**: Paired Eyes-Open vs. Eyes-Closed resting-state dataset using a 182-ROI unified Schaefer-200 mask.
-- **China-CloseClose**: Eyes-Closed Run 1 vs. Run 2 test-retest cohort to validate the statistical absence of changes.
-*Note: Demo datasets are for trying out workflow features and diagnostic tests, not definitive scientific analysis.*
+*Note: Demo datasets are for trying out workflow features and diagnostic tests, not definitive scientific analysis. Full ABIDE, stress, and local/private datasets should be imported from a manifest.*
 """,
     "manifest_import": """
 **Manifest Ingestion**
@@ -332,3 +396,29 @@ def list_manifest_files() -> list[str]:
         except Exception:
             rel_yamls.append(str(y))
     return sorted(rel_yamls)
+
+
+def align_atlas_coordinates(target_atlas, reference_atlas):
+    """Align and copy coordinates from reference_atlas to target_atlas by matching ROI names."""
+    if target_atlas is None or reference_atlas is None:
+        return target_atlas
+    if getattr(reference_atlas, "coords", None) is None:
+        return target_atlas
+        
+    ref_coords_map = {}
+    for label, coord in zip(reference_atlas.labels, reference_atlas.coords):
+        ref_coords_map[label.strip().lower()] = coord
+        
+    new_coords = []
+    has_any = False
+    for label in target_atlas.labels:
+        clean = label.strip().lower()
+        if clean in ref_coords_map:
+            new_coords.append(ref_coords_map[clean])
+            has_any = True
+        else:
+            new_coords.append([np.nan, np.nan, np.nan])
+            
+    if has_any:
+        target_atlas.coords = np.array(new_coords)
+    return target_atlas

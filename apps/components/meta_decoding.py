@@ -3,7 +3,7 @@ import streamlit as st
 from conninfpy.decode import decode_rois
 from conninfpy._decode_cache import fetch_neurosynth_dataset
 from conninfpy.interpret.evidence import build_decoding_evidence
-from apps.utils.helpers import atlas_has_coords, current_contrast_name, render_help
+from apps.utils.helpers import active_analysis_atlas, atlas_has_coords, current_contrast_name, render_help, result_is_stale
 
 def render_meta_decoding_view(base_atlas):
     col_t, col_h = st.columns([0.8, 0.2])
@@ -12,13 +12,7 @@ def render_meta_decoding_view(base_atlas):
     with col_h:
         render_help("meta_analytic_decoding")
     
-    # Check if results are stale
-    run_plan = st.session_state.get("run_plan")
-    is_stale = False
-    if run_plan is not None:
-        current_hash = st.session_state.get("current_settings_hash")
-        if run_plan.get("loaded_settings_hash") != current_hash:
-            is_stale = True
+    is_stale = result_is_stale()
 
     if is_stale:
         st.error("❌ **Stale Results:** The dataset configuration has changed. You must re-run inference in Tab 2 before running decoding.")
@@ -28,7 +22,7 @@ def render_meta_decoding_view(base_atlas):
         st.markdown("Run coordinate-based Neurosynth meta-analytic decoding on coordinates associated with significant edges.")
         
         # Check coordinates presence in current atlas
-        atlas = base_atlas if st.session_state.sub_atlas is None else st.session_state.sub_atlas
+        atlas = active_analysis_atlas(base_atlas)
         
         if atlas is None:
             st.info("Atlas metadata is disabled. NiMARE decoding requires ROI coordinates from a bundled or custom atlas.")

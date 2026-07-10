@@ -3,7 +3,14 @@ import pandas as pd
 import streamlit as st
 from conninfpy.atlas import AtlasInfo
 from conninfpy import analyze
-from apps.utils.helpers import atlas_has_networks, render_help
+from apps.utils.helpers import (
+    active_analysis_atlas,
+    atlas_for_annotation,
+    atlas_has_networks,
+    clear_downstream_results,
+    data_is_fisher_z,
+    render_help,
+)
 
 
 ABIDE_DEFAULT_CONFOUNDS = ("Age", "Sex", "Motion_FD")
@@ -565,10 +572,7 @@ def render_design_inference_view(base_atlas, tabs_list):
         with col_right:
             st.markdown("#### 📋 Review & Execute")
             
-            is_fisher_z = False
-            if st.session_state.connectivity_data is not None:
-                if np.any(np.abs(st.session_state.connectivity_data) > 1.0001):
-                    is_fisher_z = True
+            is_fisher_z = data_is_fisher_z()
                     
             with st.container(border=True):
                 if is_fisher_z:
@@ -578,6 +582,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                     if st.button("⚡ Apply Fisher-z now", key="apply_fisher_z_btn"):
                         Y_clipped = np.clip(st.session_state.connectivity_data, -0.9999, 0.9999)
                         st.session_state.connectivity_data = np.arctanh(Y_clipped)
+                        st.session_state.connectivity_data_kind = "fisher_z"
+                        clear_downstream_results()
                         st.success("Fisher r-to-z transform applied to dataset in-memory!")
                         st.rerun()
                         
@@ -603,7 +609,7 @@ def render_design_inference_view(base_atlas, tabs_list):
                     f"• **Question:** {question_choice}",
                     f"• **Statistical Path:** {test_type.upper() if not (question_choice == 'Group Difference' and adjust_covariates) else 'GLM (Promoted)'}",
                     f"• **Method Profile:** {profile_choice.split(' ')[0]} ({operator_choice})",
-                    f"• **Atlas Metadata:** {'none' if base_atlas is None else len(base_atlas)}",
+                    f"• **Atlas Metadata:** {'none' if active_analysis_atlas(base_atlas) is None else len(active_analysis_atlas(base_atlas))}",
                     f"• **Site Strategy:** {effective_recipe_choice}",
                     f"• **Permutations:** {n_perms}",
                     f"• **Rough Runtime:** `{est_str}`",
@@ -622,7 +628,7 @@ def render_design_inference_view(base_atlas, tabs_list):
                     st.error("❌ **Subject Column Required:** A subject ID column must be selected for paired condition contrasts.")
                     has_blocking_errors = True
                     
-                atlas = base_atlas if st.session_state.sub_atlas is None else st.session_state.sub_atlas
+                atlas = active_analysis_atlas(base_atlas)
                 if atlas is not None and st.session_state.connectivity_data is not None:
                     data_nodes = st.session_state.connectivity_data.shape[1]
                     analysis_nodes = len(st.session_state.roi_indices) if st.session_state.roi_indices is not None else data_nodes
@@ -673,7 +679,7 @@ def render_design_inference_view(base_atlas, tabs_list):
                 if st.button(btn_label, type="primary", disabled=not run_enabled, key="run_inference_btn"):
                     try:
                         Y = st.session_state.connectivity_data.copy()
-                        atlas = base_atlas
+                        atlas = active_analysis_atlas(base_atlas)
                         if st.session_state.roi_indices is not None:
                             roi_idx = st.session_state.roi_indices
                             Y = Y[:, roi_idx][:, :, roi_idx]
@@ -705,8 +711,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                             num_dropped = len(pheno_df) - valid_mask.sum()
                             if num_dropped > 0:
                                 st.warning(f"⚠️ **Missing Data Excluded:** Automatically dropped {num_dropped} subject(s) due to missing (`NaN`) values in selected model variables.")
-                            pheno_df = pheno_df[valid_mask]
-                            Y = Y[valid_mask]
+                            Y = Y[valid_mask.to_numpy()]
+                            pheno_df = pheno_df.loc[valid_mask].reset_index(drop=True)
                         
                         interest = None
                         confounds = None
@@ -720,8 +726,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                         if test_type == "glm":
                             if question_choice == "Group Difference":
                                 group_mask = pheno_df[group_col].isin([ref_group, target_group])
-                                pheno_df_filtered = pheno_df[group_mask]
-                                Y = Y[group_mask]
+                                Y = Y[group_mask.to_numpy()]
+                                pheno_df_filtered = pheno_df.loc[group_mask].reset_index(drop=True)
                                 if site_col:
                                     sites = list(pheno_df_filtered[site_col].values)
                                 interest = (pheno_df_filtered[group_col] == target_group).values.astype(np.float64)
@@ -746,8 +752,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                         elif test_type == "two-sample":
                             g1_mask = (pheno_df[group_col] == ref_group)
                             g2_mask = (pheno_df[group_col] == target_group)
-                            group1 = Y[g1_mask]
-                            group2 = Y[g2_mask]
+                            group1 = Y[g1_mask.to_numpy()]
+                            group2 = Y[g2_mask.to_numpy()]
                             
                         if operator_choice in ("ni_tfnbs", "fbc_tfnbs", "cnbs"):
                             if use_sc_prior:
@@ -777,22 +783,23 @@ def render_design_inference_view(base_atlas, tabs_list):
                             
                         st.session_state.inference_result = res
                         alpha = 0.05
-                        edges = res.significant_edges(atlas=atlas, alpha=alpha)
+                        annotation_atlas = atlas_for_annotation(atlas, Y.shape[1])
+                        edges = res.significant_edges(atlas=annotation_atlas, alpha=alpha)
                         st.session_state.edges_df = edges
                         
                         if run_sensitivity and comp_method:
-                            comp_kwargs = {}
+                            comp_run_kwargs = dict(comp_kwargs)
                             if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                                comp_kwargs["e"] = 0.4
-                                comp_kwargs["h"] = 3.0
-                                comp_kwargs["n"] = 10
+                                comp_run_kwargs.setdefault("e", 0.4)
+                                comp_run_kwargs.setdefault("h", 3.0)
+                                comp_run_kwargs.setdefault("n", 10)
                                 if comp_method in ("ni_tfnbs", "fbc_tfnbs"):
-                                    comp_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
+                                    comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
                             elif comp_method == "cnbs":
-                                comp_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
+                                comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
                             elif comp_method == "nbs":
-                                comp_kwargs["start_thres"] = 3.0
-                                comp_kwargs["nbs_stat"] = "extent"
+                                comp_run_kwargs.setdefault("start_thres", 3.0)
+                                comp_run_kwargs.setdefault("nbs_stat", "extent")
                                     
                             with st.spinner(f"Executing sensitivity companion ({comp_method.upper()}) permutation loops..."):
                                 comp_res = analyze(
@@ -811,10 +818,10 @@ def render_design_inference_view(base_atlas, tabs_list):
                                     verbose=False,
                                     use_mp=use_mp,
                                     acceleration=None if acceleration_choice == "none" else acceleration_choice,
-                                    **comp_kwargs
+                                    **comp_run_kwargs
                                 )
                             st.session_state.companion_inference_result = comp_res
-                            comp_edges = comp_res.significant_edges(atlas=atlas, alpha=alpha)
+                            comp_edges = comp_res.significant_edges(atlas=annotation_atlas, alpha=alpha)
                             st.session_state.companion_edges_df = comp_edges
                             st.session_state.companion_method = comp_method
                         else:
@@ -841,6 +848,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                             "target_condition": target_val,
                             "confound_vars": confound_vars,
                             "site_col": site_col,
+                            "active_atlas_signature": st.session_state.get("active_atlas_signature"),
+                            "data_kind": st.session_state.get("connectivity_data_kind"),
                             "seed": seed_val
                         }
                         

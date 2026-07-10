@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from conninfpy.interpret.evidence import validate_evidence
 from conninfpy.interpret.llm_narrative import LLMNarrator, check_narrative_terms
-from apps.utils.helpers import current_contrast_name, safe_filename_part, render_help
+from apps.utils.helpers import current_contrast_name, safe_filename_part, render_help, result_is_stale
 
 def render_narrative_report_view():
     col_t, col_h = st.columns([0.8, 0.2])
@@ -56,13 +56,7 @@ def render_narrative_report_view():
         st.session_state.llm_model = model_val
         st.session_state.llm_api_key = api_key
 
-    # Check if results are stale
-    run_plan = st.session_state.get("run_plan")
-    is_stale = False
-    if run_plan is not None:
-        current_hash = st.session_state.get("current_settings_hash")
-        if run_plan.get("loaded_settings_hash") != current_hash:
-            is_stale = True
+    is_stale = result_is_stale()
 
     if is_stale:
         st.error("❌ **Stale Results:** The dataset configuration has changed. You must re-run inference in Tab 2 before generating the narrative report.")

@@ -23,11 +23,14 @@ from conninfpy.interpret.llm_narrative import LLMNarrator
 from apps.utils.helpers import (
     LOADER_CLASSES,
     atlas_has_networks,
+    clear_downstream_results,
     load_custom_datasets,
+    local_dataset_templates_enabled,
     make_sub_atlas,
     resolve_project_path,
     render_help,
     list_manifest_files,
+    align_atlas_coordinates,
 )
 
 def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
@@ -92,12 +95,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                     confound_scenario = st.selectbox("Confound Topology Scenario", scenarios, index=scenarios.index("between_modules_dense") if "between_modules_dense" in scenarios else 0)
                 
                 if st.button("Generate Synthetic Dataset", type="primary"):
-                    # Clear previous state
-                    st.session_state.inference_result = None
-                    st.session_state.edges_df = None
-                    st.session_state.decoded_df = None
-                    st.session_state.evidence_packet = None
-                    st.session_state.narrative_text = None
+                    clear_downstream_results()
                     
                     # Use atlas dimensions when metadata is active; otherwise use explicit synthetic controls.
                     n_nodes = int(manual_n_nodes)
@@ -228,6 +226,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                             empirical_corr = np.corrcoef(interest, confound)[0, 1]
                         
                         st.session_state.connectivity_data = Y_z
+                        st.session_state.connectivity_data_kind = "fisher_z"
                         st.session_state.pheno_df = pheno
                         st.session_state["loaded_settings_hash"] = st.session_state.get("current_settings_hash")
                         st.session_state["_just_loaded_data"] = True
@@ -412,7 +411,6 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                 with col_sh:
                     render_help("built_in_demo")
                 
-                # Load custom personal datasets from ~/.conninfpy/custom_datasets.json
                 custom_ds = load_custom_datasets()
                 builtin_templates = ["ABIDE-mini", "OpenClose", "China-CloseClose"]
                 template_options = builtin_templates + list(custom_ds.keys())
@@ -748,23 +746,21 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                                 st.error(f"Inference validation failed: {final_report.errors}")
                             else:
                                 st.session_state.connectivity_data = loaded.data
+                                st.session_state.connectivity_data_kind = loaded.data_kind
                                 st.session_state.pheno_df = loaded.pheno
                                 st.session_state["loaded_settings_hash"] = st.session_state.get("current_settings_hash")
                                 st.session_state["_just_loaded_data"] = True
                                 
                                 if loaded.atlas is not None:
+                                    if base_atlas is not None:
+                                        loaded.atlas = align_atlas_coordinates(loaded.atlas, base_atlas)
                                     st.session_state.dataset_atlas = loaded.atlas
                                     st.session_state.sub_atlas = loaded.atlas
                                 else:
                                     st.session_state.dataset_atlas = None
                                     st.session_state.sub_atlas = None
                                     
-                                # Clear downstream states
-                                st.session_state.inference_result = None
-                                st.session_state.edges_df = None
-                                st.session_state.decoded_df = None
-                                st.session_state.evidence_packet = None
-                                st.session_state.narrative_text = None
+                                clear_downstream_results()
                                 
                                 # Clear synthetic dataset state
                                 st.session_state["_synthetic_scenario_name"] = None
@@ -965,12 +961,9 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
         st.session_state["loaded_settings_hash"] = current_settings_hash
     elif "loaded_settings_hash" in st.session_state and st.session_state["loaded_settings_hash"] != current_settings_hash:
         st.session_state.connectivity_data = None
+        st.session_state.connectivity_data_kind = None
         st.session_state.pheno_df = None
-        st.session_state.inference_result = None
-        st.session_state.edges_df = None
-        st.session_state.decoded_df = None
-        st.session_state.evidence_packet = None
-        st.session_state.narrative_text = None
+        clear_downstream_results()
         st.session_state.roi_indices = None
         st.session_state.dataset_atlas = None
         st.session_state.sub_atlas = None

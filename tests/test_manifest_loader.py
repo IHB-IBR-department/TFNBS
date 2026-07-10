@@ -184,5 +184,28 @@ class TestManifestLoader(unittest.TestCase):
         dataset = m_loader.load()
         self.assertEqual(dataset.data.shape, (5, 3, 3))
 
+    def test_align_atlas_coordinates(self) -> None:
+        from conninfpy.atlas import AtlasInfo
+        from apps.utils.helpers import align_atlas_coordinates
+        
+        ref_atlas = AtlasInfo(
+            labels=["ROI_1", "ROI_2", "ROI_3"],
+            networks=["Vis", "Mot", "Aud"],
+            coords=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+        )
+        
+        target_atlas = AtlasInfo(
+            labels=["ROI_3", "ROI_1"],
+            networks=["Aud", "Vis"],
+            coords=None
+        )
+        
+        aligned = align_atlas_coordinates(target_atlas, ref_atlas)
+        self.assertIsNotNone(aligned.coords)
+        np.testing.assert_array_equal(
+            aligned.coords,
+            np.array([[7.0, 8.0, 9.0], [1.0, 2.0, 3.0]])
+        )
+
 if __name__ == "__main__":
     unittest.main()

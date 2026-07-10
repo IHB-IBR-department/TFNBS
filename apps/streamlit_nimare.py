@@ -191,18 +191,32 @@ if "active_tab" not in st.session_state:
 
 if 'connectivity_data' not in st.session_state:
     st.session_state.connectivity_data = None  # (n_subjects, N, N)
+if 'connectivity_data_kind' not in st.session_state:
+    st.session_state.connectivity_data_kind = None
 if 'pheno_df' not in st.session_state:
     st.session_state.pheno_df = None
 if 'inference_result' not in st.session_state:
     st.session_state.inference_result = None
 if 'edges_df' not in st.session_state:
     st.session_state.edges_df = None
+if 'companion_inference_result' not in st.session_state:
+    st.session_state.companion_inference_result = None
+if 'companion_edges_df' not in st.session_state:
+    st.session_state.companion_edges_df = None
+if 'companion_method' not in st.session_state:
+    st.session_state.companion_method = None
 if 'decoded_df' not in st.session_state:
     st.session_state.decoded_df = None
+if 'decoding_summary' not in st.session_state:
+    st.session_state.decoding_summary = None
+if 'decoding_score' not in st.session_state:
+    st.session_state.decoding_score = None
 if 'evidence_packet' not in st.session_state:
     st.session_state.evidence_packet = None
 if 'narrative_text' not in st.session_state:
     st.session_state.narrative_text = None
+if 'narrative_results' not in st.session_state:
+    st.session_state.narrative_results = None
 if 'sub_atlas' not in st.session_state:
     st.session_state.sub_atlas = None
 if 'dataset_atlas' not in st.session_state:

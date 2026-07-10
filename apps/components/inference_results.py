@@ -4,7 +4,16 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-from apps.utils.helpers import atlas_has_coords, atlas_has_networks, current_contrast_name, effect_direction_labels, safe_filename_part, render_help
+from apps.utils.helpers import (
+    active_analysis_atlas,
+    atlas_has_coords,
+    atlas_has_networks,
+    current_contrast_name,
+    effect_direction_labels,
+    result_is_stale,
+    safe_filename_part,
+    render_help,
+)
 
 def _render_summary_metrics(res, edges_df, method_name, direction_labels):
     st.markdown(f"##### 📊 {method_name} Summary")
@@ -91,7 +100,7 @@ def _render_heatmaps(res, base_atlas, method_name):
         plt.close(fig)
 
 def _active_atlas(base_atlas):
-    return st.session_state.sub_atlas if st.session_state.get("sub_atlas") is not None else base_atlas
+    return active_analysis_atlas(base_atlas)
 
 def _category_colors(values):
     categories = list(dict.fromkeys(str(v) for v in values))
@@ -399,13 +408,7 @@ def render_inference_results_view(base_atlas):
     with col_h:
         render_help("inference_results")
     
-    # Check if results are stale
-    run_plan = st.session_state.get("run_plan")
-    is_stale = False
-    if run_plan is not None:
-        current_hash = st.session_state.get("current_settings_hash")
-        if run_plan.get("loaded_settings_hash") != current_hash:
-            is_stale = True
+    is_stale = result_is_stale()
 
     if is_stale:
         st.warning("⚠️ **Stale Results Detected:** The dataset configuration, parcellation, or preprocessing settings have changed in Tab 1 since these inference results were generated. Please re-run the inference in Tab 2 to obtain up-to-date results.")
