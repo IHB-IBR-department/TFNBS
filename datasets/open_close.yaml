@@ -1,0 +1,32 @@
+schema_version: 1
+name: "Open-Close Schaefer-200"
+loader: "OpenCloseLoader"
+
+paths:
+  open_path: "demo/open_close/ihb_open_Schaefer200_strategy-4_GSR.npy"
+  close_path: "demo/open_close/ihb_close_Schaefer200_strategy-4_GSR.npy"
+  subject_list_path: "demo/open_close/subject_order_ihb.txt"
+  atlas: "demo/open_close/schaefer_labels.csv"
+
+metadata:
+  source_type: "timeseries"
+  dataset_role: "built_in_full_demo"
+  cohort: "OpenClose"
+  subject_id_column: "subject_id"
+  condition_column: "condition"
+  paired_subjects: true
+
+params:
+  drop_missing_rois: true
+
+preprocessing:
+  requested:
+    correlation: "pearson"
+    fisher_z: true
+
+checks:
+  expected_rois: 182
+  allowed_conditions:
+    condition:
+      - "open"
+      - "close"

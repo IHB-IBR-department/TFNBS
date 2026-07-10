@@ -23,7 +23,7 @@ __version__ = "2.0.0"
 from ._analyze import AnalyzeResult, analyze
 from ._compat import TailResult
 from ._result import InferenceResult, OmnibusInferenceResult
-from .atlas import AtlasInfo
+from .atlas import AtlasInfo, get_bna_246_nifti_path
 from .defaults import (
     DEFAULT_EXTENT_EXPONENT,
     DEFAULT_HEIGHT_EXPONENT,
@@ -118,6 +118,8 @@ from .acceleration import (
     compute_p_values_accelerated,
 )
 
+from . import loaders
+
 
 __all__ = [
     # version + result types
@@ -128,6 +130,7 @@ __all__ = [
     "AnalyzeResult",
     "analyze",
     "AtlasInfo",
+    "get_bna_246_nifti_path",
     # defaults
     "DEFAULT_EXTENT_EXPONENT",
     "DEFAULT_HEIGHT_EXPONENT",
@@ -201,4 +204,5 @@ __all__ = [
     "Electrodes",
     "Bands",
     "PairsElectrodes1020",
+    "loaders",
 ]

@@ -57,4 +57,4 @@ Multi-site harmonization
 - Nygaard, V., Rødland, E. A., & Hovig, E. (2016). Methods that remove batch
   effects while retaining group differences may lead to exaggerated confidence
   in downstream analyses. *Biostatistics*, 17(1), 29–39. (The label-leak
-  motivation for ComBat Strategy D.)
+  motivation for excluding the tested variable in the ComBat arms.)

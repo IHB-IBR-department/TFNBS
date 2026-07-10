@@ -45,7 +45,8 @@ SAFE_STRUCTURAL_WORDS = {
     "sentence", "cautious", "publication", "methods", "result", "inconclusive", "weak", 
     "sparse", "contradictory", "generic", "consistent", "standard", "average", "paired", 
     "group", "univariate", "threshold", "thresholding", "significant", "significance",
-    "default", "control", "limitation", "limitations", "cognitive", "construct", "constructs"
+    "default", "control", "limitation", "limitations", "cognitive", "construct", "constructs",
+    "working", "span", "spans", "spanning"
 }
 
 def load_dotenv_manually() -> None:
@@ -98,6 +99,28 @@ def check_narrative_terms(narrative: str, evidence: Dict[str, Any]) -> List[str]
     # Add structure words
     allow_list.update(SAFE_STRUCTURAL_WORDS)
     
+    # 4. Expand common network and anatomical abbreviations to prevent false positives
+    expanded = set()
+    for w in allow_list:
+        w_lower = w.lower()
+        if "sommot" in w_lower or "motor" in w_lower:
+            expanded.update(["somatomotor", "motor", "somatosensory", "sensory"])
+        if "vis" in w_lower:
+            expanded.update(["visual", "vision"])
+        if "dorattn" in w_lower:
+            expanded.update(["dorsal", "attention"])
+        if "ventattn" in w_lower or "salventattn" in w_lower:
+            expanded.update(["ventral", "attention", "salience"])
+        if "frparietal" in w_lower:
+            expanded.update(["frontoparietal", "frontal", "parietal"])
+        if "aud" in w_lower:
+            expanded.update(["auditory", "hearing", "sound"])
+        if "lang" in w_lower:
+            expanded.update(["language", "linguistic", "speech", "verbal"])
+        if "mem" in w_lower or "memory" in w_lower:
+            expanded.update(["memory", "working", "recall", "retrieval"])
+    allow_list.update(expanded)
+    
     flagged = []
     for word in words:
         if word in COGNITIVE_TERMS_TO_GUARD and word not in allow_list:
@@ -126,6 +149,8 @@ class LLMNarrator:
                 self.api_key = os.getenv("OPENROUTER_API_KEY")
             elif self.provider in ("google", "gemini"):
                 self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        
+        self.last_usage = None
                 
     def generate(self, evidence: Dict[str, Any], *, style: str = "default") -> str:
         """Generate cautious interpretation text from the evidence packet."""
@@ -135,6 +160,12 @@ class LLMNarrator:
         user_content = USER_PROMPT_TEMPLATE.format(evidence_json=json.dumps(evidence, indent=2))
         
         if self.provider == "mock":
+            self.last_usage = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_usd": 0.0
+            }
             return self._mock_response(evidence)
             
         if self.provider == "openai" or self.provider == "openrouter":
@@ -167,6 +198,22 @@ class LLMNarrator:
                 temperature=0.0,
                 extra_headers=extra_headers
             )
+            
+            # Extract usage statistics
+            try:
+                prompt_tokens = response.usage.prompt_tokens
+                completion_tokens = response.usage.completion_tokens
+                total_tokens = response.usage.total_tokens
+                cost = self.estimate_cost(model, prompt_tokens, completion_tokens)
+                self.last_usage = {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                    "cost_usd": cost
+                }
+            except Exception:
+                self.last_usage = None
+                
             return response.choices[0].message.content
             
         elif self.provider in ("google", "gemini"):
@@ -187,10 +234,70 @@ class LLMNarrator:
                     "temperature": 0.0
                 }
             )
+            
+            # Extract usage statistics
+            try:
+                prompt_tokens = response.usage_metadata.prompt_token_count
+                completion_tokens = response.usage_metadata.candidates_token_count
+                total_tokens = response.usage_metadata.total_token_count
+                cost = self.estimate_cost(model, prompt_tokens, completion_tokens)
+                self.last_usage = {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                    "cost_usd": cost
+                }
+            except Exception:
+                self.last_usage = None
+                
             return response.text
             
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
+            
+    def estimate_cost(self, model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
+        # Default rates per 1,000 tokens (fallback: approximate at $0.0015 / 1K input, $0.002 / 1K output)
+        input_rate = 0.0015 / 1000
+        output_rate = 0.002 / 1000
+        
+        m_lower = model_name.lower() if model_name else ""
+        
+        # Custom rates for common models (per 1,000 tokens)
+        if "gpt-4o-mini" in m_lower:
+            input_rate = 0.15 / 1_000_000
+            output_rate = 0.60 / 1_000_000
+        elif "gpt-4o" in m_lower:
+            input_rate = 2.50 / 1_000_000
+            output_rate = 10.00 / 1_000_000
+        elif "gemini-3.5-flash" in m_lower:
+            input_rate = 0.075 / 1_000_000
+            output_rate = 0.30 / 1_000_000
+        elif "gemini-2.5-flash" in m_lower:
+            input_rate = 0.075 / 1_000_000
+            output_rate = 0.30 / 1_000_000
+        elif "gemini-2.5-pro" in m_lower:
+            input_rate = 1.25 / 1_000_000
+            output_rate = 5.00 / 1_000_000
+        elif "qwen3.7-max" in m_lower:
+            input_rate = 1.20 / 1_000_000
+            output_rate = 4.80 / 1_000_000
+        elif "minimax-m3" in m_lower:
+            input_rate = 0.55 / 1_000_000
+            output_rate = 2.19 / 1_000_000
+        elif "kimi-k2.6" in m_lower:
+            input_rate = 0.30 / 1_000_000
+            output_rate = 0.90 / 1_000_000
+        elif "glm-5.2" in m_lower:
+            input_rate = 0.30 / 1_000_000
+            output_rate = 0.90 / 1_000_000
+        elif "deepseek" in m_lower:
+            input_rate = 0.14 / 1_000_000
+            output_rate = 0.28 / 1_000_000
+        elif "llama-3-8b" in m_lower or "free" in m_lower:
+            input_rate = 0.0
+            output_rate = 0.0
+            
+        return (prompt_tokens * input_rate) + (completion_tokens * output_rate)
             
     def _mock_response(self, evidence: Dict[str, Any]) -> str:
         """Generate a deterministic mock narrative for testing and keyless fallback."""

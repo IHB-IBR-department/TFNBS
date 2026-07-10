@@ -1,0 +1,31 @@
+schema_version: 1
+name: "China Eyes-Closed Run 1 vs Run 2 (test-retest)"
+loader: "ChinaCloseCloseLoader"
+
+paths:
+  close_path: "open_close/china_close_Schaefer200_strategy-4_GSR.npy"
+  subject_list_path: "open_close/subject_order_china.txt"
+  atlas: "open_close/schaefer_labels.csv"
+
+metadata:
+  source_type: "timeseries"
+  dataset_role: "test_retest_validation"
+  cohort: "ChinaCloseClose"
+  subject_id_column: "subject_id"
+  condition_column: "condition"
+  paired_subjects: true
+
+params:
+  drop_missing_rois: true
+
+preprocessing:
+  requested:
+    correlation: "pearson"
+    fisher_z: true
+
+checks:
+  expected_rois: 182
+  allowed_conditions:
+    condition:
+      - "close_run1"
+      - "close_run2"

@@ -1,0 +1,39 @@
+schema_version: 1
+name: "Zerssen depression SPM preprocessed BNT-246"
+loader: "NiftiDirectoryLoader"
+paths:
+  subjects:
+    patients: "/Users/irina/Yandex.Disk.localized/IHB/Depression/Zerssen_rs_fMRI_for_IS/Subjects/Patients"
+    controls: "/Users/irina/Yandex.Disk.localized/IHB/Depression/Zerssen_rs_fMRI_for_IS/Subjects/HC"
+  pheno_path: "/Users/irina/Yandex.Disk.localized/IHB/Depression/Info_HC_Pat.xlsx"
+  atlas_metadata: "BUILTIN:bna246.csv"
+  atlas_image_path: "BUILTIN:bna_246_2mm"
+metadata:
+  source_type: "preprocessed_nii"
+  cohort: "Zerssen_depression"
+  subject_id_column: "subject_id"
+  group_column: "group"
+  image_preprocessing: "SPM preprocessed and denoised"
+  atlas_name: "BNA-246"
+  whole_brain: true
+params:
+  file_pattern: "dswau*_funct.nii"
+  subject_regex: "dswau(\\d+)_(PAT|HC)_funct\\.nii"
+  group_from_folder: true
+  extraction_strategy: "mean_signal"
+  standardize: "zscore_sample"
+  detrend: false
+preprocessing:
+  applied:
+    spatial_preprocessing: "SPM"
+    denoising: "already_applied"
+  requested:
+    extract_timeseries: true
+    correlation: "pearson"
+    fisher_z: true
+checks:
+  expected_subjects:
+    patients: 20
+    controls: 41
+  expected_rois: 246
+  min_timepoints: 120

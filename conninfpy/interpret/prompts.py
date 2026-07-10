@@ -6,6 +6,8 @@ Do not add outside facts, citations, diagnoses, mechanisms, or cognitive labels.
 Do not turn decoding associations into claims about neural mechanisms.
 
 Write in a consistent, publication-adjacent style:
+- start directly with the '1. Decoding summary' section without any introductory boilerplate or general descriptions of the Neurosynth database;
+- do not list example cognitive domains (e.g., do not mention motor, language, auditory, face, semantic, somatomotor, etc. as examples) unless they are explicitly present in the evidence packet;
 - concise;
 - cautious;
 - suitable for a methods/result note;

@@ -7,6 +7,10 @@ pandas
 matplotlib
 numba             # Default: 8-30x JIT speedup for TFNBS scoring
 
+# Optional Streamlit App (pip install conninfpy[app])
+# ---------------------------------------------------
+streamlit         # Interactive ConnInfPy dashboard in apps/streamlit_nimare.py
+
 # Optional Validation & Comparison Tools (pip install conninfpy[full])
 # ------------------------------------------------------------------
 scikit-learn      # Required for ML validation and synth_datasets

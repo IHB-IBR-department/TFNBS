@@ -54,14 +54,19 @@ def fetch_neurosynth_dataset(cache_dir: str | None = None, *, force: bool = Fals
         raise RuntimeError("Failed to fetch Neurosynth dataset from NiMARE.")
         
     files = db_files[0]
-    coords_file = files['coordinates']
-    features_file = files['features']
 
-    # Convert coordinates & features to NiMARE Dataset
-    dataset = convert_neurosynth_to_dataset(
-        text_file=features_file,
-        coordinate_file=coords_file
-    )
+    # Convert coordinates & features to NiMARE Dataset (with fallback for NiMARE version compatibility)
+    try:
+        dataset = convert_neurosynth_to_dataset(
+            coordinates_file=files['coordinates'],
+            metadata_file=files['metadata'],
+            annotations_files=files['features']
+        )
+    except TypeError:
+        dataset = convert_neurosynth_to_dataset(
+            text_file=files['features'],
+            coordinate_file=files['coordinates']
+        )
 
     # Write atomically
     temp_fd, temp_path = tempfile.mkstemp(dir=str(c_dir), suffix=".tmp")

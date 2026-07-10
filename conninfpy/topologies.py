@@ -846,7 +846,16 @@ def _scenario_mask_gradient_core_periphery_within_module(
         core_to_periphery_weight=float(core_to_periphery_weight),
         periphery_weight=float(periphery_weight),
     )
-
+def _scenario_mask_global_uniform(
+    labels: np.ndarray,
+    *,
+    rng: np.random.Generator,
+) -> ArrayF:
+    _ = rng
+    N = len(labels)
+    mask = np.ones((N, N), dtype=np.float64)
+    np.fill_diagonal(mask, 0.0)
+    return mask
 
 _SCENARIOS: List[TopologyScenario] = [
     TopologyScenario(
@@ -987,6 +996,13 @@ _SCENARIOS: List[TopologyScenario] = [
         mask_fn=_scenario_mask_within_module,
         mask_params={"module_idx": 0},
         labels_fn=_imbalanced_module_labels,
+    ),
+    TopologyScenario(
+        name="global_uniform",
+        base_kind="uniform",
+        mask_fn=_scenario_mask_global_uniform,
+        mask_params={},
+        labels_fn=_sorted_module_labels,
     ),
 ]
 

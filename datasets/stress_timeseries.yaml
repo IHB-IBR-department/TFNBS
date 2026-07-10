@@ -1,0 +1,32 @@
+schema_version: 1
+name: "IHB stress denoised BNA-246 time series"
+loader: "TimeseriesDirectoryLoader"
+paths:
+  dir_paths:
+    control: "/Users/irina/Yandex.Disk.localized/IHB/stress/control_ts"
+    stress: "/Users/irina/Yandex.Disk.localized/IHB/stress/stress_ts"
+  atlas: "BUILTIN:bna246.csv"
+metadata:
+  source_type: "timeseries"
+  cohort: "IHB_stress"
+  subject_id_column: "subject_id"
+  group_column: "group"
+  atlas_name: "BNA-246"
+params:
+  pattern: "*.csv"
+  sep: ","
+  header: false
+  subject_regex: "sub-([^_/]+)"
+preprocessing:
+  applied:
+    denoising_reference: "BenchmarkingEOEC/denoising/denoise.py"
+    denoising_strategy: 4
+    n_compcor: 5
+    strategy_profile: "readme_table"
+    use_GSR: false
+  requested:
+    correlation: "pearson"
+    fisher_z: true
+checks:
+  expected_rois: 246
+  min_timepoints: 100

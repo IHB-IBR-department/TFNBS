@@ -199,3 +199,124 @@ def validate_evidence(evidence: Dict[str, Any]) -> None:
     caveats = evidence["caveats"]
     if not isinstance(caveats, list):
         raise ValueError("Field 'caveats' must be a list of warning strings.")
+
+
+DEFAULT_STOP_WORDS = {
+    "task", "fmri", "subject", "brain", "cortex", "bold", "functional", "activation", 
+    "study", "magnetic resonance", "scanner", "magnetic", "image", "imaging", 
+    "stimulus", "response", "subjects", "patients", "healthy", "group", "studies",
+    "voxel", "roi", "positive", "negative", "significant", "associated", "effect",
+    "linked", "possible", "number", "indicated", "structure", "structures",
+    "results", "analysis", "parameter", "parameters"
+}
+
+def default_term_filter(term: str) -> bool:
+    t_clean = term.lower().strip()
+    for stop in DEFAULT_STOP_WORDS:
+        if stop == t_clean or stop in t_clean.split():
+            return False
+    return True
+
+def summarize_decoded_terms(
+    decoded_rois: pd.DataFrame,
+    edges: pd.DataFrame,
+    atlas: AtlasInfo,
+    *,
+    term_filter = None
+) -> Dict[str, Any]:
+    """Aggregate and filter decoded terms, weighting by ROI endpoint burden."""
+    if term_filter is None:
+        term_filter = default_term_filter
+        
+    # 1. Endpoint ROI burden
+    if not edges.empty:
+        endpoints = pd.concat([edges['roi_i'], edges['roi_j']]).astype(int)
+        burden = endpoints.value_counts().to_dict()
+    else:
+        burden = {int(r): 1 for r in decoded_rois['roi_id'].unique()}
+        
+    # Get top high-burden ROIs
+    top_burden_rois = sorted(burden.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_rois_list = []
+    for r_id, b_val in top_burden_rois:
+        top_rois_list.append({
+            "roi_id": int(r_id),
+            "roi_name": str(atlas.labels[r_id]) if atlas and r_id < len(atlas.labels) else f"ROI_{r_id}",
+            "network": str(atlas.networks[r_id]) if atlas and r_id < len(atlas.networks) else "unknown",
+            "burden": int(b_val)
+        })
+        
+    # 2. Filter and aggregate terms
+    term_stats = {}
+    for _, row in decoded_rois.iterrows():
+        term = str(row["term"])
+        if not term_filter(term):
+            continue
+            
+        roi_id = int(row["roi_id"])
+        roi_burden = burden.get(roi_id, 1)
+        rank = int(row["rank"])
+        score = float(row["score"])
+        network = str(row["network"])
+        
+        if term not in term_stats:
+            term_stats[term] = {
+                "term": term,
+                "weighted_count": 0.0,
+                "roi_count": 0,
+                "networks": set(),
+                "best_rank": 999,
+                "max_score": 0.0
+            }
+            
+        stats = term_stats[term]
+        stats["weighted_count"] += float(roi_burden)
+        stats["roi_count"] += 1
+        stats["networks"].add(network)
+        stats["best_rank"] = min(stats["best_rank"], rank)
+        stats["max_score"] = max(stats["max_score"], score)
+        
+    term_list = []
+    for term, stats in term_stats.items():
+        stats["networks"] = sorted(list(stats["networks"]))
+        term_list.append(stats)
+        
+    term_list = sorted(term_list, key=lambda x: x["weighted_count"], reverse=True)
+    
+    return {
+        "top_endpoint_rois": top_rois_list,
+        "aggregated_terms": term_list
+    }
+
+def score_decoding_evidence(summary: Dict[str, Any]) -> Dict[str, Any]:
+    """Score the evidence quality and suggest report-ready descriptions."""
+    terms = summary.get("aggregated_terms", [])
+    if not terms:
+        return {
+            "evidence_quality": "inconclusive",
+            "explanation": "No active terms remain after filtering out generic and methodological stop words.",
+            "report_sentence": "NiMARE/Neurosynth decoding of high-burden endpoint regions yielded inconclusive results after filtering."
+        }
+        
+    recurrence_count = sum(1 for t in terms if t["roi_count"] > 1)
+    max_weighted = terms[0]["weighted_count"]
+    
+    if recurrence_count >= 3 or (len(terms) >= 3 and max_weighted >= 4.0):
+        quality = "informative"
+        explanation = "Interpretable cognitive/clinical terms recur consistently across multiple high-burden endpoint regions and networks."
+        top_terms_str = ", ".join([f"'{t['term']}'" for t in terms[:3]])
+        report_sentence = f"NiMARE/Neurosynth decoding of high-burden endpoint regions showed recurring literature associations with {top_terms_str}."
+    elif len(terms) > 0 and max_weighted >= 2.0:
+        quality = "weak"
+        explanation = "Some interpretable terms were identified, but they show low recurrence across regions or network-level consistency."
+        report_sentence = "NiMARE/Neurosynth decoding of high-burden endpoint regions yielded weak literature associations after filtering."
+    else:
+        quality = "generic"
+        explanation = "Top terms are sparse and dominated by broad uninformative labels or method words."
+        report_sentence = "NiMARE/Neurosynth decoding of high-burden endpoint regions yielded primarily generic associations."
+        
+    return {
+        "evidence_quality": quality,
+        "explanation": explanation,
+        "report_sentence": report_sentence
+    }

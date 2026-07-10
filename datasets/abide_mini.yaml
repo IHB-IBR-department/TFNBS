@@ -1,0 +1,16 @@
+schema_version: 1
+name: "ABIDE-mini Schaefer-100"
+loader: "AbideSchaeferLoader"
+
+paths:
+  data_path: "demo/ABIDE_mini/abide_mini.npy"
+  pheno_csv_path: "demo/ABIDE_mini/ABIDE1_Phenotypic_mini.csv"
+
+metadata:
+  source_type: "pickled_dict"
+  cohort: "ABIDE-mini"
+  atlas_name: "Schaefer-100"
+
+checks:
+  expected_rois: 100
+  min_subjects: 200

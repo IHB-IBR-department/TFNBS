@@ -226,10 +226,17 @@ _SCHAEFER_SRC = (
 
 def _load_bundled(filename: str, *, source: str) -> AtlasInfo:
     """Load a packaged CSV via ``importlib.resources``."""
-    data_pkg = resources.files("conninfpy.data")
+    data_pkg = resources.files("conninfpy.atlas_data")
     csv_path = data_pkg / filename
     with resources.as_file(csv_path) as path:
         return AtlasInfo.from_csv(path, source=source)
+
+
+def get_bna_246_nifti_path(resolution_mm: int = 2) -> Path:
+    """Get the file system path of the bundled Brainnetome 246 NIfTI atlas image."""
+    filename = f"BN_Atlas_246_{resolution_mm}mm.nii.gz"
+    return Path(resources.files("conninfpy.atlas_data") / filename)
+
 
 
 __all__ = ["AtlasInfo"]

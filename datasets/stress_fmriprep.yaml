@@ -1,0 +1,38 @@
+schema_version: 1
+name: "IHB stress fMRIPrep derivatives"
+loader: "FmriprepDerivativesLoader"
+paths:
+  derivatives:
+    control: "/Users/irina/Yandex.Disk.localized/IHB/stress/derivatives/fmriprep/control"
+    stress: "/Users/irina/Yandex.Disk.localized/IHB/stress/derivatives/fmriprep/stress"
+  pheno_path: "/Users/irina/Yandex.Disk.localized/IHB/stress/pheno.csv"
+  atlas_image_path: "BUILTIN:bna_246_2mm"
+  atlas_metadata: "BUILTIN:bna246.csv"
+metadata:
+  source_type: "fmriprep_derivatives"
+  cohort: "IHB_stress"
+  subject_id_column: "subject_id"
+  group_column: "group"
+  atlas_name: "BNA-246"
+params:
+  bold_pattern: "sub-*/func/*desc-preproc_bold.nii.gz"
+  confounds_pattern: "sub-*/func/*desc-confounds_timeseries.tsv"
+  group_from_folder: true
+denoising:
+  engine: "fmriprep_load_confounds"
+  reference: "BenchmarkingEOEC/denoising/denoise.py"
+  strategy: 4
+  n_compcor: 5
+  strategy_profile: "readme_table"
+  use_GSR: false
+  smoothing: null
+preprocessing:
+  requested:
+    extract_timeseries: true
+    correlation: "pearson"
+    fisher_z: true
+checks:
+  expected_rois: 246
+  require_pheno_columns:
+    - "subject_id"
+    - "group"
