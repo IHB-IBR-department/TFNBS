@@ -76,10 +76,12 @@ def render_meta_decoding_view(base_atlas):
                     
                     # Compile evidence packet
                     contrast_name = current_contrast_name()
+                    from conninfpy.interpret.evidence import default_term_filter
+                    decoded_filtered = decoded[decoded["term"].apply(default_term_filter)]
                     evidence = build_decoding_evidence(
                         st.session_state.edges_df,
                         atlas,
-                        decoded,
+                        decoded_filtered,
                         contrast_name=contrast_name,
                         radius_mm=dec_radius,
                         scoring=dec_scoring,
