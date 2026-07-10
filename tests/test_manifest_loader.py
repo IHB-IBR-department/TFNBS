@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 from conninfpy.loaders.manifest import load_manifest, resolve_path, ManifestLoader, validate_manifest_dataset
 from conninfpy.loaders.base import LoadedDataset
@@ -206,6 +207,36 @@ class TestManifestLoader(unittest.TestCase):
             aligned.coords,
             np.array([[7.0, 8.0, 9.0], [1.0, 2.0, 3.0]])
         )
+
+    def test_plot_connectome_graph(self) -> None:
+        from conninfpy.atlas import AtlasInfo
+        from conninfpy.plot import plot_connectome_graph
+        import pandas as pd
+        import matplotlib
+        
+        # Avoid showing window during unit tests
+        matplotlib.use("Agg")
+        
+        atlas = AtlasInfo(
+            labels=["ROI_1", "ROI_2", "ROI_3"],
+            networks=["Vis", "Mot", "Aud"],
+            coords=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+        )
+        
+        edges_df = pd.DataFrame([
+            {"roi_i": 0, "roi_j": 1, "t_signed": 3.5, "p_positive": 0.01, "p_negative": 0.99},
+            {"roi_i": 1, "roi_j": 2, "t_signed": -2.1, "p_positive": 0.95, "p_negative": 0.02}
+        ])
+        
+        # Test positive connectome plot
+        fig_pos = plot_connectome_graph(edges_df, atlas, "positive", alpha=0.05)
+        self.assertIsNotNone(fig_pos)
+        plt.close(fig_pos)
+        
+        # Test negative connectome plot
+        fig_neg = plot_connectome_graph(edges_df, atlas, "negative", alpha=0.05)
+        self.assertIsNotNone(fig_neg)
+        plt.close(fig_neg)
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
+from conninfpy.plot import plot_connectome_graph
 from apps.utils.helpers import (
     active_analysis_atlas,
     atlas_has_coords,
@@ -102,31 +103,7 @@ def _render_heatmaps(res, base_atlas, method_name):
 def _active_atlas(base_atlas):
     return active_analysis_atlas(base_atlas)
 
-def _category_colors(values):
-    categories = list(dict.fromkeys(str(v) for v in values))
-    cmap = plt.get_cmap("tab20")
-    color_map = {
-        cat: cmap(i % cmap.N)
-        for i, cat in enumerate(categories)
-    }
-    return [color_map[str(v)] for v in values], color_map
 
-def _node_colors(atlas, color_by, degrees):
-    if color_by == "Degree":
-        if np.max(degrees) > 0:
-            normed = degrees / np.max(degrees)
-        else:
-            normed = degrees
-        cmap = plt.get_cmap("viridis")
-        return [cmap(float(v)) for v in normed], {}
-
-    if color_by == "Hemisphere" and getattr(atlas, "hemisphere", None) is not None:
-        return _category_colors(atlas.hemisphere)
-
-    if atlas_has_networks(atlas):
-        return _category_colors(atlas.networks)
-
-    return ["#9CA3AF"] * len(atlas), {"ROI": "#9CA3AF"}
 
 def _filter_edges_for_tail(edges_df, atlas, tail, alpha, top_n, rank_by, selected_networks, network_filter_mode):
     if edges_df is None or edges_df.empty:
@@ -157,76 +134,6 @@ def _filter_edges_for_tail(edges_df, atlas, tail, alpha, top_n, rank_by, selecte
         df = df.sort_values(p_col, ascending=True)
 
     return df.head(int(top_n)).drop(columns=[c for c in ["_rank_value"] if c in df.columns])
-
-def _adjacency_from_edges(edges_df, atlas, tail, weight_by):
-    n_nodes = len(atlas)
-    adj = np.zeros((n_nodes, n_nodes), dtype=float)
-    degrees = np.zeros(n_nodes, dtype=float)
-    if edges_df is None or edges_df.empty:
-        return adj, degrees
-
-    p_col = "p_positive" if tail == "positive" else "p_negative"
-    for _, row in edges_df.iterrows():
-        i = int(row["roi_i"])
-        j = int(row["roi_j"])
-        if i < 0 or j < 0 or i >= n_nodes or j >= n_nodes:
-            continue
-        if weight_by == "|t|":
-            value = abs(float(row.get("t_signed", 1.0)))
-        else:
-            value = -np.log10(max(float(row.get(p_col, 1.0)), 1e-12))
-        adj[i, j] = value
-        adj[j, i] = value
-        degrees[i] += 1
-        degrees[j] += 1
-    return adj, degrees
-
-def _render_connectome_plot(ax_edges, atlas, title, tail, display_mode, color_by, weight_by):
-    from nilearn import plotting
-
-    adj, degrees = _adjacency_from_edges(ax_edges, atlas, tail, weight_by)
-    node_colors, color_map = _node_colors(atlas, color_by, degrees)
-    node_sizes = 18 + 18 * np.sqrt(degrees)
-    edge_cmap = "Reds" if tail == "positive" else "Blues"
-
-    fig = plt.figure(figsize=(8, 6), facecolor="white")
-    plotting.plot_connectome(
-        adj,
-        atlas.coords,
-        node_color=node_colors,
-        node_size=node_sizes,
-        edge_cmap=edge_cmap,
-        edge_threshold=None,
-        display_mode=display_mode,
-        figure=fig,
-        title=title,
-        colorbar=False,
-    )
-
-    if color_map and color_by != "Degree":
-        legend_items = []
-        for name, color in color_map.items():
-            legend_items.append(
-                plt.Line2D(
-                    [0], [0],
-                    marker="o",
-                    linestyle="",
-                    markerfacecolor=color,
-                    markeredgecolor="white",
-                    markersize=7,
-                    label=name,
-                )
-            )
-        if legend_items:
-            fig.legend(
-                handles=legend_items[:14],
-                loc="lower center",
-                ncol=min(4, len(legend_items)),
-                fontsize=7,
-                frameon=False,
-                bbox_to_anchor=(0.5, -0.02),
-            )
-    return fig
 
 def _download_figure_button(fig, label, filename, key):
     buffer = BytesIO()
@@ -285,7 +192,20 @@ def _render_brain_connectome_graphs(edges_df, base_atlas, method_name, direction
         if pos_edges.empty:
             st.info(f"No edges for {direction_labels['positive']} pass the current graph filters.")
         else:
-            fig_pos = _render_connectome_plot(pos_edges, atlas, direction_labels["positive_title"], "positive", display_mode, color_by, weight_by)
+            fig_pos = plot_connectome_graph(
+                edges_df=edges_df,
+                atlas=atlas,
+                tail="positive",
+                alpha=alpha,
+                top_n=top_n,
+                display_mode=display_mode,
+                color_by=color_by,
+                weight_by=weight_by,
+                rank_by=rank_by,
+                selected_networks=selected_networks,
+                network_filter_mode=network_filter_mode,
+                title=direction_labels["positive_title"]
+            )
             st.pyplot(fig_pos, use_container_width=True)
             _download_figure_button(fig_pos, f"Download {direction_labels['positive']} graph PNG", f"{safe_filename_part(direction_labels['positive'])}_connectome_{safe_filename_part(method_name)}.png", f"{method_name}_pos_graph_download")
             plt.close(fig_pos)
@@ -295,7 +215,20 @@ def _render_brain_connectome_graphs(edges_df, base_atlas, method_name, direction
         if neg_edges.empty:
             st.info(f"No edges for {direction_labels['negative']} pass the current graph filters.")
         else:
-            fig_neg = _render_connectome_plot(neg_edges, atlas, direction_labels["negative_title"], "negative", display_mode, color_by, weight_by)
+            fig_neg = plot_connectome_graph(
+                edges_df=edges_df,
+                atlas=atlas,
+                tail="negative",
+                alpha=alpha,
+                top_n=top_n,
+                display_mode=display_mode,
+                color_by=color_by,
+                weight_by=weight_by,
+                rank_by=rank_by,
+                selected_networks=selected_networks,
+                network_filter_mode=network_filter_mode,
+                title=direction_labels["negative_title"]
+            )
             st.pyplot(fig_neg, use_container_width=True)
             _download_figure_button(fig_neg, f"Download {direction_labels['negative']} graph PNG", f"{safe_filename_part(direction_labels['negative'])}_connectome_{safe_filename_part(method_name)}.png", f"{method_name}_neg_graph_download")
             plt.close(fig_neg)

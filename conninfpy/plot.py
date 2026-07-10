@@ -57,6 +57,7 @@ __all__ = [
     "plot_effect_matrix",
     "plot_network_summary",
     "summary_figure",
+    "plot_connectome_graph",
 ]
 
 
@@ -679,4 +680,148 @@ def summary_figure(
     if title:
         fig.suptitle(title, fontsize=11)
     fig.tight_layout()
+    return fig
+
+
+def plot_connectome_graph(
+    edges_df,
+    atlas: "AtlasInfo",
+    tail: str,
+    *,
+    alpha: float = 0.05,
+    top_n: int = 100,
+    display_mode: str = "z",
+    color_by: str = "Network",
+    weight_by: str = "-log10(p)",
+    rank_by: str = "p-value",
+    selected_networks: Optional[Sequence[str]] = None,
+    network_filter_mode: str = "Either endpoint",
+    title: Optional[str] = None,
+) -> Figure:
+    """Plot significant edges on a brain connectome model.
+
+    Requires `nilearn` and `pandas` packages to be installed.
+    """
+    import pandas as pd
+    try:
+        from nilearn import plotting
+    except ImportError as exc:
+        raise ImportError(
+            "plot_connectome_graph requires nilearn; install via `pip install nilearn`."
+        ) from exc
+
+    if getattr(atlas, "coords", None) is None:
+        raise ValueError("plot_connectome_graph requires an atlas with MNI coordinates.")
+
+    # 1. Filter edges for tail, significance, and top_n
+    p_col = "p_positive" if tail == "positive" else "p_negative"
+    if edges_df is None or edges_df.empty:
+        df = pd.DataFrame()
+    else:
+        df = edges_df.copy()
+        df = df[df[p_col] <= alpha]
+
+        if selected_networks and getattr(atlas, "networks", None) is not None:
+            networks = np.asarray(atlas.networks, dtype=object)
+            roi_i_net = df["roi_i"].astype(int).map(lambda idx: networks[idx] if idx < len(networks) else "Unknown")
+            roi_j_net = df["roi_j"].astype(int).map(lambda idx: networks[idx] if idx < len(networks) else "Unknown")
+            selected = set(selected_networks)
+            if network_filter_mode == "Both endpoints":
+                keep = roi_i_net.isin(selected) & roi_j_net.isin(selected)
+            else:
+                keep = roi_i_net.isin(selected) | roi_j_net.isin(selected)
+            df = df[keep]
+
+        if not df.empty:
+            if rank_by == "|t|":
+                df = df.assign(_rank_value=df["t_signed"].abs())
+                df = df.sort_values("_rank_value", ascending=False)
+            else:
+                df = df.sort_values(p_col, ascending=True)
+            df = df.head(int(top_n))
+
+    # 2. Build adjacency matrix and calculate degree
+    n_nodes = len(atlas)
+    adj = np.zeros((n_nodes, n_nodes), dtype=float)
+    degrees = np.zeros(n_nodes, dtype=float)
+
+    if not df.empty:
+        for _, row in df.iterrows():
+            i = int(row["roi_i"])
+            j = int(row["roi_j"])
+            if i < 0 or j < 0 or i >= n_nodes or j >= n_nodes:
+                continue
+            if weight_by == "|t|":
+                value = abs(float(row.get("t_signed", 1.0)))
+            else:
+                value = -np.log10(max(float(row.get(p_col, 1.0)), 1e-12))
+            adj[i, j] = value
+            adj[j, i] = value
+            degrees[i] += 1
+            degrees[j] += 1
+
+    # 3. Determine node colors
+    node_colors = []
+    color_map = {}
+    if color_by == "Degree":
+        if np.max(degrees) > 0:
+            normed = degrees / np.max(degrees)
+        else:
+            normed = degrees
+        cmap = plt.get_cmap("viridis")
+        node_colors = [cmap(float(v)) for v in normed]
+    elif color_by == "Hemisphere" and getattr(atlas, "hemisphere", None) is not None:
+        categories = list(dict.fromkeys(str(v) for v in atlas.hemisphere))
+        cmap = plt.get_cmap("tab20")
+        color_map = {cat: cmap(idx % cmap.N) for idx, cat in enumerate(categories)}
+        node_colors = [color_map[str(v)] for v in atlas.hemisphere]
+    elif getattr(atlas, "networks", None) is not None:
+        categories = list(dict.fromkeys(str(v) for v in atlas.networks))
+        cmap = plt.get_cmap("tab20")
+        color_map = {cat: cmap(idx % cmap.N) for idx, cat in enumerate(categories)}
+        node_colors = [color_map[str(v)] for v in atlas.networks]
+    else:
+        node_colors = ["#9CA3AF"] * n_nodes
+        color_map = {"ROI": "#9CA3AF"}
+
+    node_sizes = 18 + 18 * np.sqrt(degrees)
+    edge_cmap = "Reds" if tail == "positive" else "Blues"
+
+    fig = plt.figure(figsize=(8, 6), facecolor="white")
+    plotting.plot_connectome(
+        adj,
+        atlas.coords,
+        node_color=node_colors,
+        node_size=node_sizes,
+        edge_cmap=edge_cmap,
+        edge_threshold=None,
+        display_mode=display_mode,
+        figure=fig,
+        title=title,
+        colorbar=False,
+    )
+
+    if color_map and color_by != "Degree":
+        legend_items = []
+        for name, color in color_map.items():
+            legend_items.append(
+                plt.Line2D(
+                    [0], [0],
+                    marker="o",
+                    linestyle="",
+                    markerfacecolor=color,
+                    markeredgecolor="white",
+                    markersize=7,
+                    label=name,
+                )
+            )
+        if legend_items:
+            fig.legend(
+                handles=legend_items[:14],
+                loc="lower center",
+                ncol=min(4, len(legend_items)),
+                fontsize=7,
+                frameon=False,
+                bbox_to_anchor=(0.5, -0.02),
+            )
     return fig
