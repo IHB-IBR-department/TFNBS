@@ -80,3 +80,60 @@ def fetch_neurosynth_dataset(cache_dir: str | None = None, *, force: bool = Fals
         raise e
 
     return dataset
+
+
+def fetch_neuroquery_dataset(cache_dir: str | None = None, *, force: bool = False):
+    """One-shot fetch + Coordinate -> Dataset conversion for NeuroQuery database."""
+    try:
+        import nimare
+        from nimare.extract import fetch_neuroquery
+        from nimare.io import convert_neurosynth_to_dataset
+    except ImportError:
+        raise ImportError("conninfpy.decode requires 'pip install conninfpy[decode]'")
+
+    c_dir = get_cache_dir(cache_dir)
+    c_dir.mkdir(parents=True, exist_ok=True)
+    pkl_path = c_dir / "neuroquery_dataset.pkl"
+
+    if pkl_path.exists() and not force:
+        try:
+            with open(pkl_path, "rb") as f:
+                return pickle.load(f)
+        except (pickle.PickleError, EOFError):
+            pass
+
+    # Fetch raw files
+    raw_dir = c_dir / "raw_nq"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    
+    db_files = fetch_neuroquery(data_dir=str(raw_dir), version="1")
+    if not db_files:
+        raise RuntimeError("Failed to fetch NeuroQuery dataset from NiMARE.")
+        
+    files = db_files[0]
+
+    # Convert coordinates & features to NiMARE Dataset (with fallback for NiMARE version compatibility)
+    try:
+        dataset = convert_neurosynth_to_dataset(
+            coordinates_file=files['coordinates'],
+            metadata_file=files['metadata'],
+            annotations_files=files['features']
+        )
+    except TypeError:
+        dataset = convert_neurosynth_to_dataset(
+            text_file=files['features'],
+            coordinate_file=files['coordinates']
+        )
+
+    # Write atomically
+    temp_fd, temp_path = tempfile.mkstemp(dir=str(c_dir), suffix=".tmp")
+    try:
+        with os.fdopen(temp_fd, 'wb') as tmp:
+            pickle.dump(dataset, tmp)
+        os.replace(temp_path, pkl_path)
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
+
+    return dataset

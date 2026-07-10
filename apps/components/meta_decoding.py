@@ -33,9 +33,14 @@ def render_meta_decoding_view(base_atlas):
             
             with col1:
                 st.markdown("**Decoding Settings**")
+                dec_database = st.selectbox("Database / Source", ["Neurosynth", "NeuroQuery"], key="dec_database")
+                dec_strategy = st.selectbox("Strategy / Unit of Decoding", ["Combined Region Decoding", "Discrete ROI Overlap"], key="dec_strategy")
                 dec_radius = st.slider("Coordinate Sphere Radius (mm)", 4.0, 12.0, 6.0, 0.5, key="dec_radius")
                 dec_top_n = st.number_input("Top Terms to Retrieve", 3, 20, 10, 1, key="dec_top_n")
-                dec_scoring = st.selectbox("Association Metric", ["chi2", "lda"], key="dec_scoring")
+                
+                dec_scoring = "chi2"
+                if dec_strategy == "Discrete ROI Overlap" and dec_database == "Neurosynth":
+                    dec_scoring = st.selectbox("Association Metric", ["chi2", "lda"], key="dec_scoring")
                 
                 run_dec = st.button("🚀 Run NiMARE Decoding", key="run_dec_button")
                 
@@ -45,8 +50,15 @@ def render_meta_decoding_view(base_atlas):
                     roi_ids = sorted(list(pd.concat([st.session_state.edges_df['roi_i'], st.session_state.edges_df['roi_j']]).unique()))
                     roi_ids = [int(r) for r in roi_ids]
                     
-                    with st.spinner("⏳ Loading/Downloading Neurosynth Dataset... (First-time run downloads ~150MB of database files; this can take 2-5 minutes depending on network speed. Please wait.)"):
-                        dataset = fetch_neurosynth_dataset()
+                    # Fetch selected dataset
+                    if dec_database.lower() == "neuroquery":
+                        with st.spinner("⏳ Loading/Downloading NeuroQuery Dataset... (First-time run downloads database files; this can take 2-5 minutes depending on network speed. Please wait.)"):
+                            from conninfpy._decode_cache import fetch_neuroquery_dataset
+                            dataset = fetch_neuroquery_dataset()
+                    else:
+                        with st.spinner("⏳ Loading/Downloading Neurosynth Dataset... (First-time run downloads ~150MB of database files; this can take 2-5 minutes depending on network speed. Please wait.)"):
+                            from conninfpy._decode_cache import fetch_neurosynth_dataset
+                            dataset = fetch_neurosynth_dataset()
                     
                     # Stopwords filter
                     method_stop_words = {
@@ -61,16 +73,33 @@ def render_meta_decoding_view(base_atlas):
                                 return False
                         return True
                         
-                    with st.spinner("🧠 Performing Neurosynth decoding analysis... (This matches spatial coordinate spheres and scores literature associations; this takes about 1-2 minutes.)"):
-                        decoded = decode_rois(
-                            atlas,
-                            roi_ids,
-                            top_n=dec_top_n,
-                            radius_mm=dec_radius,
-                            scoring=dec_scoring,
-                            dataset=dataset,
-                            term_filter=term_filter
-                        )
+                    with st.spinner(f"🧠 Performing {dec_strategy} analysis on {dec_database}..."):
+                        if dec_strategy == "Combined Region Decoding":
+                            from conninfpy.decode import decode_combined_rois
+                            combined = decode_combined_rois(
+                                atlas,
+                                roi_ids,
+                                top_n=dec_top_n,
+                                radius_mm=dec_radius,
+                                dataset=dataset,
+                                dataset_name=dec_database.lower(),
+                                term_filter=term_filter
+                            )
+                            decoded = combined.assign(
+                                roi_id=-1,
+                                roi_name="Combined Pattern",
+                                network="All Networks"
+                            )
+                        else:
+                            decoded = decode_rois(
+                                atlas,
+                                roi_ids,
+                                top_n=dec_top_n,
+                                radius_mm=dec_radius,
+                                scoring=dec_scoring,
+                                dataset=dataset,
+                                term_filter=term_filter
+                            )
                         
                     st.session_state.decoded_df = decoded
                     
@@ -87,6 +116,9 @@ def render_meta_decoding_view(base_atlas):
                         scoring=dec_scoring,
                         top_n=dec_top_n,
                         source="conninfpy_edges",
+                        backend="NiMARE",
+                        dataset_name=dec_database,
+                        decoder_method="CombinedDecoder" if dec_strategy == "Combined Region Decoding" else "NeurosynthDecoder"
                     )
                     st.session_state.evidence_packet = evidence
                     st.session_state.narrative_text = None  # Reset narrative

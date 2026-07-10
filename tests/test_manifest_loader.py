@@ -238,5 +238,26 @@ class TestManifestLoader(unittest.TestCase):
         self.assertIsNotNone(fig_neg)
         plt.close(fig_neg)
 
+    def test_clean_term_name(self) -> None:
+        from conninfpy.interpret.evidence import clean_term_name
+        self.assertEqual(clean_term_name("terms_abstract_tfidf__somatosensory"), "somatosensory")
+        self.assertEqual(clean_term_name("LDA100_abstract_weight__42_social_cognition"), "social cognition")
+
+    def test_decode_combined_rois(self) -> None:
+        from conninfpy.atlas import AtlasInfo
+        from conninfpy.decode import decode_combined_rois
+        import pandas as pd
+        
+        # Test combined decoding mock dataset or dry run
+        atlas = AtlasInfo(
+            labels=["ROI_1", "ROI_2"],
+            networks=["Vis", "Mot"],
+            coords=np.array([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0]])
+        )
+        
+        # Should return empty df or not crash for empty roi list
+        df = decode_combined_rois(atlas, [])
+        self.assertTrue(df.empty)
+
 if __name__ == "__main__":
     unittest.main()

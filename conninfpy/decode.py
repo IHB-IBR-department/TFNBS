@@ -189,3 +189,124 @@ def annotate_edge_table(edges: pd.DataFrame,
     df['roi_j_top_term'] = df['roi_j'].map(roi_top_term).fillna("inconclusive")
     
     return df
+
+
+def decode_combined_rois(
+    atlas: AtlasInfo,
+    roi_ids: Sequence[int],
+    *,
+    top_n: int = 20,
+    radius_mm: float = 6.0,
+    dataset: Optional[Any] = None,
+    dataset_name: str = "neurosynth",
+    term_filter: Optional[Callable[[str], bool]] = None,
+) -> pd.DataFrame:
+    """Decode a combined set of ROIs as a single spatial pattern.
+
+    Finds all studies in the database that report coordinates within
+    `radius_mm` of *any* of the specified ROIs, and runs a single
+    chi-squared association test on the combined study list.
+
+    Parameters
+    ----------
+    atlas : AtlasInfo
+        Atlas metadata containing coordinates in `atlas.coords`.
+    roi_ids : sequence of int
+        ROI indices to combine and decode.
+    top_n : int, default 20
+        Number of top terms to return.
+    radius_mm : float, default 6.0
+        Sphere radius around centroids for study lookup.
+    dataset : nimare.Dataset, optional
+        Pre-loaded NiMARE dataset.
+    dataset_name : str, default 'neurosynth'
+        Dataset name to fetch if not pre-loaded ('neurosynth' or 'neuroquery').
+    term_filter : callable, optional
+        Function taking a term string and returning True to keep it.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: `rank`, `term`, `score`.
+    """
+    if atlas.coords is None:
+        raise ValueError("Atlas coordinates are None; cannot decode without spatial centroids.")
+    if not roi_ids:
+        return pd.DataFrame(columns=["rank", "term", "score"])
+
+    try:
+        from nimare.decode.discrete import NeurosynthDecoder
+    except ImportError:
+        raise ImportError("conninfpy.decode requires 'pip install conninfpy[decode]'")
+
+    if dataset is None:
+        if dataset_name.lower() == "neuroquery":
+            from ._decode_cache import fetch_neuroquery_dataset
+            dataset = fetch_neuroquery_dataset()
+        else:
+            from ._decode_cache import fetch_neurosynth_dataset
+            dataset = fetch_neurosynth_dataset()
+
+    # 1. Union study IDs near any of the requested ROIs
+    active_ids = set()
+    for roi_id in roi_ids:
+        coord = atlas.coords[roi_id]
+        x, y, z = coord
+        dists = np.sqrt(
+            (dataset.coordinates['x'] - x) ** 2 +
+            (dataset.coordinates['y'] - y) ** 2 +
+            (dataset.coordinates['z'] - z) ** 2
+        )
+        roi_study_ids = dataset.coordinates.loc[dists <= radius_mm, 'id'].unique().tolist()
+        active_ids.update(roi_study_ids)
+
+    active_ids = list(active_ids)
+
+    if not active_ids:
+        return pd.DataFrame([{
+            "rank": 1,
+            "term": "inconclusive",
+            "score": 0.0
+        }])
+
+    # 2. Fit and run NeurosynthDecoder
+    decoder = NeurosynthDecoder(frequency_threshold=0.001, prior=0.5)
+    decoder.fit(dataset)
+    decoded_df = decoder.transform(active_ids)
+
+    z_col = None
+    for candidate in ['z_assoc', 'z', 'z_association', 'est']:
+        if candidate in decoded_df.columns:
+            z_col = candidate
+            break
+    if z_col is None:
+        z_col = decoded_df.columns[0]
+
+    sorted_df = decoded_df.sort_values(by=z_col, ascending=False)
+
+    rows = []
+    rank = 1
+    for term, row_data in sorted_df.iterrows():
+        term_str = str(term)
+        score_val = float(row_data[z_col])
+
+        if term_filter is not None and not term_filter(term_str):
+            continue
+
+        rows.append({
+            "rank": rank,
+            "term": term_str,
+            "score": score_val
+        })
+        rank += 1
+        if rank > top_n:
+            break
+
+    if not rows:
+        rows.append({
+            "rank": 1,
+            "term": "inconclusive",
+            "score": 0.0
+        })
+
+    return pd.DataFrame(rows)

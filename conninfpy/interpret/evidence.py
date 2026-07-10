@@ -135,7 +135,7 @@ def build_decoding_evidence(
             "roi_name": str(row["roi_name"]),
             "network": str(row["network"]),
             "rank": int(row["rank"]),
-            "term": str(row["term"]),
+            "term": clean_term_name(str(row["term"])),
             "score": float(row["score"])
         })
 
@@ -201,13 +201,27 @@ def validate_evidence(evidence: Dict[str, Any]) -> None:
         raise ValueError("Field 'caveats' must be a list of warning strings.")
 
 
+def clean_term_name(term: str) -> str:
+    """Clean Neurosynth/NiMARE term name by stripping prefixes and converting underscores to spaces."""
+    import re
+    # Strip prefixes like terms_abstract_tfidf__ or terms_abstract_tfidf_
+    # Strip prefixes like LDA100_abstract_weight__82_
+    term = re.sub(r'^(terms_abstract_tfidf__|terms_abstract_tfidf_|LDA\d+_abstract_weight__\d+_|LDA\d+_abstract_weight__)', '', term)
+    # Replace underscores with spaces
+    term = term.replace('_', ' ').strip()
+    return term
+
+
 DEFAULT_STOP_WORDS = {
     "task", "fmri", "subject", "brain", "cortex", "bold", "functional", "activation", 
     "study", "magnetic resonance", "scanner", "magnetic", "image", "imaging", 
     "stimulus", "response", "subjects", "patients", "healthy", "group", "studies",
     "voxel", "roi", "positive", "negative", "significant", "associated", "effect",
     "linked", "possible", "number", "indicated", "structure", "structures",
-    "results", "analysis", "parameter", "parameters"
+    "results", "analysis", "parameter", "parameters",
+    # Expanded stop words (anatomical/structural fragments)
+    "structural", "matter", "white", "gray", "grey", "cortical", "tract", "volume", 
+    "thickness", "surface", "density", "lesion", "lesions", "patient", "controls"
 }
 
 def default_term_filter(term: str) -> bool:
@@ -232,6 +246,8 @@ def summarize_decoded_terms(
     if not edges.empty:
         endpoints = pd.concat([edges['roi_i'], edges['roi_j']]).astype(int)
         burden = endpoints.value_counts().to_dict()
+        if -1 in decoded_rois['roi_id'].values:
+            burden[-1] = sum(burden.values())
     else:
         burden = {int(r): 1 for r in decoded_rois['roi_id'].unique()}
         
@@ -249,7 +265,7 @@ def summarize_decoded_terms(
     # 2. Filter and aggregate terms
     term_stats = {}
     for _, row in decoded_rois.iterrows():
-        term = str(row["term"])
+        term = clean_term_name(str(row["term"]))
         if not term_filter(term):
             continue
             
