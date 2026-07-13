@@ -11,6 +11,7 @@ from conninfpy.loaders.builtins import (
     NiftiDirectoryLoader,
     AbideSchaeferLoader,
     OpenCloseLoader,
+    MultiSiteOpenCloseLoader,
     StressTimeseriesLoader,
     ZerssenNiftiLoader,
     FmriprepDerivativesLoader,
@@ -38,6 +39,7 @@ __all__ = [
     "NiftiDirectoryLoader",
     "AbideSchaeferLoader",
     "OpenCloseLoader",
+    "MultiSiteOpenCloseLoader",
     "StressTimeseriesLoader",
     "ZerssenNiftiLoader",
     "FmriprepDerivativesLoader",
@@ -51,4 +53,3 @@ __all__ = [
     "validate_manifest_dataset",
     "load_manifest"
 ]
-

@@ -11,58 +11,62 @@ def render_narrative_report_view():
     with col_h:
         render_help("narrative_report")
     
-    # Collapsible LLM Config
-    with st.expander("🤖 LLM Settings & API Keys", expanded=False):
-        provider = st.selectbox(
-            "Provider", 
-            ["mock", "openrouter", "gemini", "openai"], 
-            index=["mock", "openrouter", "gemini", "openai"].index(st.session_state.llm_provider)
-        )
-        
-        selected_models = []
-        if provider == "openrouter":
-            available_models = [
-                "deepseek/deepseek-v4-pro",
-                "google/gemini-3.5-flash",
-                "qwen/qwen3.7-max",
-                "z-ai/glm-5.2",
-                "minimax/minimax-m3",
-                "moonshotai/kimi-k2.6"
-            ]
-            default_selection = [st.session_state.llm_model] if st.session_state.llm_model in available_models else ["deepseek/deepseek-v4-pro"]
-            selected_models = st.multiselect(
-                "OpenRouter Model(s)",
-                available_models,
-                default=default_selection,
-                help="Select one or more models to query sequentially and compare outputs."
-            )
-            model_val = selected_models[0] if selected_models else "deepseek/deepseek-v4-pro"
-        else:
-            model_val = st.text_input(
-                "Model Name (Optional)", 
-                value=st.session_state.llm_model, 
-                placeholder="e.g. gpt-4o-mini"
-            )
-            selected_models = [model_val] if model_val else []
-            
-        api_key = st.text_input(
-            "API Key (Override)", 
-            value=st.session_state.llm_api_key, 
-            type="password"
-        )
-        
-        # Save back to session state
-        st.session_state.llm_provider = provider
-        st.session_state.llm_model = model_val
-        st.session_state.llm_api_key = api_key
-
     is_stale = result_is_stale()
 
     if is_stale:
         st.error("❌ **Stale Results:** The dataset configuration has changed. You must re-run inference in Tab 2 before generating the narrative report.")
     elif st.session_state.evidence_packet is None:
-        st.warning("Please run NiMARE decoding in Tab 4 first.")
+        st.warning("⚠️ **Narrative is waiting for decoding results.**")
+        st.info("Please run NiMARE decoding first to map literature associations.")
+        if st.button("Go to Decoding ➡️", key="go_to_decoding_btn", type="primary"):
+            st.session_state.active_tab = "4. Meta-Analytic Decoding"
+            st.rerun()
     else:
+        # Collapsible LLM Config
+        with st.expander("🤖 LLM Settings & API Keys", expanded=False):
+            provider = st.selectbox(
+                "Provider", 
+                ["mock", "openrouter", "gemini", "openai"], 
+                index=["mock", "openrouter", "gemini", "openai"].index(st.session_state.llm_provider)
+            )
+            
+            selected_models = []
+            if provider == "openrouter":
+                available_models = [
+                    "deepseek/deepseek-v4-pro",
+                    "google/gemini-3.5-flash",
+                    "qwen/qwen3.7-max",
+                    "z-ai/glm-5.2",
+                    "minimax/minimax-m3",
+                    "moonshotai/kimi-k2.6"
+                ]
+                default_selection = [st.session_state.llm_model] if st.session_state.llm_model in available_models else ["deepseek/deepseek-v4-pro"]
+                selected_models = st.multiselect(
+                    "OpenRouter Model(s)",
+                    available_models,
+                    default=default_selection,
+                    help="Select one or more models to query sequentially and compare outputs."
+                )
+                model_val = selected_models[0] if selected_models else "deepseek/deepseek-v4-pro"
+            else:
+                model_val = st.text_input(
+                    "Model Name (Optional)", 
+                    value=st.session_state.llm_model, 
+                    placeholder="e.g. gpt-4o-mini"
+                )
+                selected_models = [model_val] if model_val else []
+                
+            api_key = st.text_input(
+                "API Key (Override)", 
+                value=st.session_state.llm_api_key, 
+                type="password"
+            )
+            
+            # Save back to session state
+            st.session_state.llm_provider = provider
+            st.session_state.llm_model = model_val
+            st.session_state.llm_api_key = api_key
+
         st.info("💡 **Scientific Citation Note**: NiMARE/Neurosynth meta-analytic decoding maps literature associations and represents literature spatial frequency, not direct mechanistic causal claims (Yarkoni et al., 2011; Wager & Lindquist, 2016).")
         
         # Validate evidence

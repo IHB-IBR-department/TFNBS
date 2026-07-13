@@ -1,11 +1,138 @@
 import pandas as pd
 import streamlit as st
+import threading
+import traceback
 from conninfpy.decode import decode_rois
 from conninfpy._decode_cache import fetch_neurosynth_dataset
 from conninfpy.interpret.evidence import build_decoding_evidence
 from apps.utils.helpers import active_analysis_atlas, atlas_has_coords, current_contrast_name, render_help, result_is_stale
 
+class DecodingTask:
+    def __init__(self):
+        self.status = "idle"  # idle, running, success, failed
+        self.progress_message = ""  # e.g., "Downloading database..."
+        self.result = None
+        self.evidence = None
+        self.summary = None
+        self.score = None
+        self.error = None
+
+def _run_decoding_background(
+    task, atlas, roi_ids, dec_database, dec_strategy, dec_radius, dec_top_n, dec_scoring, edges_df, contrast_name
+):
+    try:
+        # Check cache existence to set appropriate progress message
+        import os
+        from conninfpy._decode_cache import get_cache_dir
+        c_dir = get_cache_dir()
+        pkl_name = "neuroquery_dataset.pkl" if dec_database.lower() == "neuroquery" else "neurosynth_dataset.pkl"
+        pkl_path = c_dir / pkl_name
+        
+        raw_dir = c_dir / ("raw_nq" if dec_database.lower() == "neuroquery" else "raw")
+        raw_files_available = raw_dir.exists() and any(
+            path.is_file() for path in raw_dir.rglob("*")
+        )
+        if pkl_path.exists():
+            task.progress_message = f"📂 Loading cached {dec_database} database from disk..."
+        elif raw_files_available:
+            task.progress_message = (
+                f"🧱 Building the compact {dec_database} cache from downloaded files "
+                "(no new download required)..."
+            )
+        else:
+            task.progress_message = (
+                f"📥 Downloading and building the {dec_database} cache "
+                "(first run can take several minutes)..."
+            )
+
+        # Fetch selected dataset
+        if dec_database.lower() == "neuroquery":
+            from conninfpy._decode_cache import fetch_neuroquery_dataset
+            dataset = fetch_neuroquery_dataset()
+        else:
+            from conninfpy._decode_cache import fetch_neurosynth_dataset
+            dataset = fetch_neurosynth_dataset()
+            
+        # Stopwords filter
+        task.progress_message = "🧹 Preparing terms and method stopwords filters..."
+        method_stop_words = {
+            "task", "fmri", "subject", "brain", "cortex", "bold", "functional", "activation", 
+            "study", "magnetic resonance", "scanner", "magnetic", "image", "imaging", 
+            "stimulus", "response", "subjects", "patients", "healthy", "group", "studies"
+        }
+        def term_filter(t):
+            t_clean = t.lower().strip()
+            for stop in method_stop_words:
+                if stop == t_clean or stop in t_clean.split():
+                    return False
+            return True
+
+        if dec_strategy == "Combined Region Decoding":
+            task.progress_message = f"🧠 Running Combined Region Decoding on {dec_database}..."
+            from conninfpy.decode import decode_combined_rois
+            combined = decode_combined_rois(
+                atlas,
+                roi_ids,
+                top_n=dec_top_n,
+                radius_mm=dec_radius,
+                dataset=dataset,
+                dataset_name=dec_database.lower(),
+                term_filter=term_filter
+            )
+            decoded = combined.assign(
+                roi_id=-1,
+                roi_name="Combined Pattern",
+                network="All Networks"
+            )
+        else:
+            task.progress_message = f"🧠 Running Discrete ROI Overlap Decoding on {dec_database}..."
+            decoded = decode_rois(
+                atlas,
+                roi_ids,
+                top_n=dec_top_n,
+                radius_mm=dec_radius,
+                scoring=dec_scoring,
+                dataset=dataset,
+                term_filter=term_filter
+            )
+
+        task.progress_message = "📊 Compiling statistical evidence packets..."
+        from conninfpy.interpret.evidence import default_term_filter, build_decoding_evidence
+        decoded_filtered = decoded[decoded["term"].apply(default_term_filter)]
+        evidence = build_decoding_evidence(
+            edges_df,
+            atlas,
+            decoded_filtered,
+            contrast_name=contrast_name,
+            radius_mm=dec_radius,
+            scoring=dec_scoring,
+            top_n=dec_top_n,
+            source="conninfpy_edges",
+            backend="NiMARE",
+            dataset_name=dec_database,
+            decoder_method="CombinedDecoder" if dec_strategy == "Combined Region Decoding" else "NeurosynthDecoder"
+        )
+        
+        task.progress_message = "✍️ Scoring evidence and generating report..."
+        from conninfpy.interpret.evidence import summarize_decoded_terms, score_decoding_evidence
+        summary = summarize_decoded_terms(decoded, edges_df, atlas)
+        score = score_decoding_evidence(summary)
+
+        task.result = decoded
+        task.evidence = evidence
+        task.summary = summary
+        task.score = score
+        task.status = "success"
+        task.progress_message = "✅ Completed!"
+    except Exception as e:
+        task.error = f"{e}\n{traceback.format_exc()}"
+        task.status = "failed"
+        task.progress_message = "❌ Failed"
+
 def render_meta_decoding_view(base_atlas):
+    if "decoding_task" not in st.session_state:
+        st.session_state.decoding_task = DecodingTask()
+        
     col_t, col_h = st.columns([0.8, 0.2])
     with col_t:
         st.markdown("### Meta-Analytic Decoding (NiMARE)")
@@ -33,7 +160,7 @@ def render_meta_decoding_view(base_atlas):
             
             with col1:
                 st.markdown("**Decoding Settings**")
-                dec_database = st.selectbox("Database / Source", ["Neurosynth", "NeuroQuery"], key="dec_database")
+                dec_database = st.selectbox("Database / Source", ["NeuroQuery", "Neurosynth"], key="dec_database")
                 dec_strategy = st.selectbox("Strategy / Unit of Decoding", ["Combined Region Decoding", "Discrete ROI Overlap"], key="dec_strategy")
                 dec_radius = st.slider("Coordinate Sphere Radius (mm)", 4.0, 12.0, 6.0, 0.5, key="dec_radius")
                 dec_top_n = st.number_input("Top Terms to Retrieve", 3, 20, 10, 1, key="dec_top_n")
@@ -42,98 +169,85 @@ def render_meta_decoding_view(base_atlas):
                 if dec_strategy == "Discrete ROI Overlap" and dec_database == "Neurosynth":
                     dec_scoring = st.selectbox("Association Metric", ["chi2", "lda"], key="dec_scoring")
                 
-                run_dec = st.button("🚀 Run NiMARE Decoding", key="run_dec_button")
+                # Get unique roi indices from significant edges
+                roi_ids = sorted(list(pd.concat([st.session_state.edges_df['roi_i'], st.session_state.edges_df['roi_j']]).unique()))
+                roi_ids = [int(r) for r in roi_ids]
                 
-            if run_dec:
-                try:
-                    # Get unique roi indices from significant edges
-                    roi_ids = sorted(list(pd.concat([st.session_state.edges_df['roi_i'], st.session_state.edges_df['roi_j']]).unique()))
-                    roi_ids = [int(r) for r in roi_ids]
-                    
-                    # Fetch selected dataset
-                    if dec_database.lower() == "neuroquery":
-                        with st.spinner("⏳ Loading/Downloading NeuroQuery Dataset... (First-time run downloads database files; this can take 2-5 minutes depending on network speed. Please wait.)"):
-                            from conninfpy._decode_cache import fetch_neuroquery_dataset
-                            dataset = fetch_neuroquery_dataset()
-                    else:
-                        with st.spinner("⏳ Loading/Downloading Neurosynth Dataset... (First-time run downloads ~150MB of database files; this can take 2-5 minutes depending on network speed. Please wait.)"):
-                            from conninfpy._decode_cache import fetch_neurosynth_dataset
-                            dataset = fetch_neurosynth_dataset()
-                    
-                    # Stopwords filter
-                    method_stop_words = {
-                        "task", "fmri", "subject", "brain", "cortex", "bold", "functional", "activation", 
-                        "study", "magnetic resonance", "scanner", "magnetic", "image", "imaging", 
-                        "stimulus", "response", "subjects", "patients", "healthy", "group", "studies"
-                    }
-                    def term_filter(t):
-                        t_clean = t.lower().strip()
-                        for stop in method_stop_words:
-                            if stop == t_clean or stop in t_clean.split():
-                                return False
-                        return True
+                task = st.session_state.decoding_task
+                if task.status == "idle":
+                    run_dec = st.button("🚀 Run NiMARE Decoding", key="run_dec_button")
+                    if run_dec:
+                        task.status = "running"
+                        task.result = None
+                        task.evidence = None
+                        task.summary = None
+                        task.score = None
+                        task.error = None
                         
-                    with st.spinner(f"🧠 Performing {dec_strategy} analysis on {dec_database}..."):
-                        if dec_strategy == "Combined Region Decoding":
-                            from conninfpy.decode import decode_combined_rois
-                            combined = decode_combined_rois(
+                        st.session_state.decoded_df = None
+                        st.session_state.evidence_packet = None
+                        st.session_state.decoding_summary = None
+                        st.session_state.decoding_score = None
+                        st.session_state.narrative_text = None
+                        
+                        # Start background thread
+                        t = threading.Thread(
+                            target=_run_decoding_background,
+                            args=(
+                                task,
                                 atlas,
                                 roi_ids,
-                                top_n=dec_top_n,
-                                radius_mm=dec_radius,
-                                dataset=dataset,
-                                dataset_name=dec_database.lower(),
-                                term_filter=term_filter
+                                dec_database,
+                                dec_strategy,
+                                dec_radius,
+                                dec_top_n,
+                                dec_scoring,
+                                st.session_state.edges_df,
+                                current_contrast_name()
                             )
-                            decoded = combined.assign(
-                                roi_id=-1,
-                                roi_name="Combined Pattern",
-                                network="All Networks"
-                            )
-                        else:
-                            decoded = decode_rois(
-                                atlas,
-                                roi_ids,
-                                top_n=dec_top_n,
-                                radius_mm=dec_radius,
-                                scoring=dec_scoring,
-                                dataset=dataset,
-                                term_filter=term_filter
-                            )
+                        )
+                        t.daemon = True
+                        t.start()
+                        st.rerun()
+                elif task.status == "running":
+                    def render_running_status():
+                        """Poll the decoder thread without restarting its work."""
+                        current_task = st.session_state.decoding_task
+                        if current_task.status != "running":
+                            if hasattr(st, "fragment"):
+                                st.rerun(scope="app")
+                            st.rerun()
+
+                        st.info(f"⏳ **Status:** {current_task.progress_message}")
+                        st.caption("First-time cache builds can take several minutes. Cached runs are much faster.")
+                        st.caption("This status checks automatically every 2 seconds; decoding continues in the background.")
+
+                    if hasattr(st, "fragment"):
+                        st.fragment(run_every=2.0)(render_running_status)()
+                    else:  # pragma: no cover - compatibility with Streamlit < 1.37
+                        render_running_status()
+                        if st.button("Refresh Status", key="refresh_dec_status"):
+                            st.rerun()
+                else:
+                    if st.button("🚀 Run New Decoding", key="run_dec_new_button"):
+                        task.status = "idle"
+                        st.rerun()
                         
-                    st.session_state.decoded_df = decoded
-                    
-                    # Compile evidence packet
-                    contrast_name = current_contrast_name()
-                    from conninfpy.interpret.evidence import default_term_filter
-                    decoded_filtered = decoded[decoded["term"].apply(default_term_filter)]
-                    evidence = build_decoding_evidence(
-                        st.session_state.edges_df,
-                        atlas,
-                        decoded_filtered,
-                        contrast_name=contrast_name,
-                        radius_mm=dec_radius,
-                        scoring=dec_scoring,
-                        top_n=dec_top_n,
-                        source="conninfpy_edges",
-                        backend="NiMARE",
-                        dataset_name=dec_database,
-                        decoder_method="CombinedDecoder" if dec_strategy == "Combined Region Decoding" else "NeurosynthDecoder"
-                    )
-                    st.session_state.evidence_packet = evidence
-                    st.session_state.narrative_text = None  # Reset narrative
-                    
-                    # Calculate summary and score
-                    from conninfpy.interpret.evidence import summarize_decoded_terms, score_decoding_evidence
-                    summary = summarize_decoded_terms(decoded, st.session_state.edges_df, atlas)
-                    score = score_decoding_evidence(summary)
-                    st.session_state.decoding_summary = summary
-                    st.session_state.decoding_score = score
-                    
-                    st.success("Decoding completed successfully!")
-                except Exception as e:
-                    st.error(f"Decoding failed: {e}")
-                    st.exception(e)
+            # Handle finished background tasks
+            task = st.session_state.decoding_task
+            if task.status == "success":
+                if st.session_state.decoded_df is None:
+                    st.session_state.decoded_df = task.result
+                    st.session_state.evidence_packet = task.evidence
+                    st.session_state.decoding_summary = task.summary
+                    st.session_state.decoding_score = task.score
+                    st.success("🎉 Decoding completed successfully!")
+            elif task.status == "failed":
+                st.error("❌ Decoding failed!")
+                st.text_area("Error Traceback", value=task.error or "Unknown error", height=150)
+                if st.button("Reset & Try Again", key="reset_failed_task"):
+                    task.status = "idle"
+                    st.rerun()
                     
             # Display results
             if st.session_state.decoded_df is not None:
@@ -224,6 +338,18 @@ def render_meta_decoding_view(base_atlas):
                     import json
                     evidence_json = json.dumps(st.session_state.evidence_packet, indent=2).encode('utf-8')
                     
+                    def _to_markdown_simple(df: pd.DataFrame) -> str:
+                        if df.empty:
+                            return ""
+                        headers = [str(col) for col in df.columns]
+                        lines = []
+                        lines.append("| " + " | ".join(headers) + " |")
+                        lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+                        for _, row in df.iterrows():
+                            row_str = "| " + " | ".join(str(val) for val in row) + " |"
+                            lines.append(row_str)
+                        return "\n".join(lines)
+                    
                     # Markdown Report
                     report_md = f"""# NiMARE/Neurosynth Decoding Report
 
@@ -233,10 +359,10 @@ def render_meta_decoding_view(base_atlas):
 - **Interpretation:** {report_sentence}
 
 ## High-Burden ROIs
-{pd.DataFrame(summary['top_endpoint_rois']).to_markdown(index=False) if summary['top_endpoint_rois'] else "None"}
+{_to_markdown_simple(pd.DataFrame(summary['top_endpoint_rois'])) if summary['top_endpoint_rois'] else "None"}
 
 ## Top Filtered Terms
-{pd.DataFrame(table_data).to_markdown(index=False) if agg_terms else "None"}
+{_to_markdown_simple(pd.DataFrame(table_data)) if agg_terms else "None"}
 """.encode('utf-8')
 
                     with col_d3:
@@ -246,3 +372,13 @@ def render_meta_decoding_view(base_atlas):
                             file_name="decoding_report.md",
                             mime="text/markdown"
                         )
+            elif task.status == "running":
+                with col2:
+                    st.markdown("#### 📝 Decoded Summary")
+                    st.info("⏳ **NiMARE Decoding is running in the background...**")
+                    st.markdown(f"""
+                    **Current Step:** {task.progress_message}
+                    
+                    *   You can switch to other tabs or browse around the workspace.
+                    *   When you want to check if the results are ready, click the **Refresh Status** button in the left column.
+                    """)

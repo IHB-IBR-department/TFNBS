@@ -13,6 +13,7 @@ from conninfpy.loaders import (
     NiftiDirectoryLoader,
     AbideSchaeferLoader,
     OpenCloseLoader,
+    MultiSiteOpenCloseLoader,
     StressTimeseriesLoader,
     ZerssenNiftiLoader,
     ChinaCloseCloseLoader
@@ -79,10 +80,10 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                     manual_n_modules = len(set(base_atlas.networks)) if atlas_has_networks(base_atlas) else 1
                 
                 if sim_type == "Two-Group Contrast":
-                    n_sub_per_group = st.number_input("Subjects per Group (Total = 2x)", 10, 200, 30, 5)
+                    n_sub_per_group = st.number_input("Subjects per group", 10, 200, 30, 5, help="Total observations will be 2x this number.")
                     effect_sz = st.slider("Signal of Interest (0.0 = Null)", 0.0, 1.0, 0.25, 0.05)
                 elif sim_type == "Two-Group Contrast with Confound":
-                    n_sub_per_group = st.number_input("Subjects per Group (Total = 2x)", 10, 200, 30, 5)
+                    n_sub_per_group = st.number_input("Subjects per group", 10, 200, 30, 5, help="Total observations will be 2x this number.")
                     effect_sz = st.slider("Signal of Interest (0.0 = Null)", 0.0, 1.0, 0.25, 0.05)
                     confound_effect_sz = st.slider("Confound Effect Size", 0.0, 1.0, 0.15, 0.05)
                     interest_confound_corr = st.slider("Correlation (Signal vs Confound)", -0.9, 0.9, 0.3, 0.1)
@@ -248,88 +249,158 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                     n_obs = st.session_state.connectivity_data.shape[0]
                     n_rois = st.session_state.connectivity_data.shape[1]
                     
-                    st.markdown("**Dataset Type:** `Synthetic Generator`")
-                    st.write(f"- **Observations:** {n_obs}")
-                    st.write(f"- **ROIs:** {n_rois}")
-                    st.write(f"- **Atlas Metadata:** `{atlas_choice}`")
-                    st.write(f"- **Target Scenario:** `{st.session_state.get('_synthetic_scenario_name')}`")
+                    st.markdown("### 🎉 Dataset ready")
                     
+                    # Create summary table
+                    summary_data = {
+                        "Property": ["Dataset Type", "Observations", "ROIs", "Atlas Metadata", "Target Scenario"],
+                        "Value": ["Synthetic Generator", f"{n_obs} subjects", f"{n_rois} nodes", str(atlas_choice), str(st.session_state.get('_synthetic_scenario_name'))]
+                    }
                     if st.session_state.get("_synthetic_confound_name"):
-                        st.write(f"- **Confound Scenario:** `{st.session_state['_synthetic_confound_name']}`")
-                        st.write(f"- **Empirical Signal-Confound Corr:** `{st.session_state['_empirical_corr']:.3f}`")
-                    
-                    if st.session_state.pheno_df is not None and "group" in st.session_state.pheno_df.columns:
-                        unique_groups = st.session_state.pheno_df["group"].unique().tolist()
-                        st.write(f"- **Conditions/Groups:** `{unique_groups}` (0=Null, 1=Effect)")
+                        summary_data["Property"].append("Confound Scenario")
+                        summary_data["Value"].append(str(st.session_state['_synthetic_confound_name']))
                         
-                    if st.session_state.get("_synthetic_effect_mask") is not None:
-                        overall_mean = np.mean(st.session_state.connectivity_data, axis=0)
-                        mask = st.session_state["_synthetic_effect_mask"] > 0
-                        mask_triu = np.triu(mask, 1)
-                        non_mask_triu = np.triu(~mask, 1)
-                        if np.any(mask_triu):
-                            mean_in_sig = np.mean(overall_mean[mask_triu])
-                            mean_out_sig = np.mean(overall_mean[non_mask_triu])
-                            st.write(f"- **Mean Conn (Signal Edges):** `{mean_in_sig:.4f}`")
-                            st.write(f"- **Mean Conn (Other Edges):** `{mean_out_sig:.4f}`")
-                            
-                        if st.session_state.get("_synthetic_confound_mask") is not None:
-                            c_mask = st.session_state["_synthetic_confound_mask"] > 0
-                            c_mask_triu = np.triu(c_mask, 1)
-                            if np.any(c_mask_triu):
-                                mean_in_c = np.mean(overall_mean[c_mask_triu])
-                                st.write(f"- **Mean Conn (Confound Edges):** `{mean_in_c:.4f}`")
+                    if st.session_state.pheno_df is not None and "group" in st.session_state.pheno_df.columns:
+                        unique_groups = sorted(st.session_state.pheno_df["group"].unique().tolist())
+                        summary_data["Property"].append("Group Labels")
+                        summary_data["Value"].append(f"{unique_groups} (0=Null, 1=Effect)")
+                        
+                    st.table(pd.DataFrame(summary_data))
                     
                     st.success("✅ Dataset in-session, verified, and ready for inference.")
                     
-                    # Plot correlation matrix
-                    pheno_df = st.session_state.pheno_df
-                    if pheno_df is not None and "group" in pheno_df.columns:
-                        unique_groups = sorted(pheno_df["group"].unique())
-                        if len(unique_groups) == 2:
-                            g0, g1 = unique_groups
-                            g0_idx = np.where(pheno_df["group"] == g0)[0]
-                            g1_idx = np.where(pheno_df["group"] == g1)[0]
-                            
-                            mean_g0 = np.mean(st.session_state.connectivity_data[g0_idx], axis=0)
-                            mean_g1 = np.mean(st.session_state.connectivity_data[g1_idx], axis=0)
-                            
-                            st.markdown("**Mean Correlation Matrices (Fisher-z)**")
-                            fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(8, 4))
-                            
-                            v_max = max(np.max(np.abs(mean_g0)), np.max(np.abs(mean_g1)))
-                            v_max = max(0.5, min(v_max, 2.0))
-                            
-                            im0 = ax0.imshow(mean_g0, cmap="RdBu_r", vmin=-v_max, vmax=v_max)
-                            ax0.set_title(f"Group {g0} Mean")
-                            fig.colorbar(im0, ax=ax0, fraction=0.046, pad=0.04)
-                            
-                            im1 = ax1.imshow(mean_g1, cmap="RdBu_r", vmin=-v_max, vmax=v_max)
-                            ax1.set_title(f"Group {g1} Mean")
-                            fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
-                            
-                            plt.tight_layout()
-                            st.pyplot(fig)
-                            
-                            # Confound scatter plot for Two-Group Contrast with Confound
-                            if st.session_state.get("_synthetic_confound_mask") is not None and "confounds" in pheno_df.columns:
+                    # Next action button
+                    if st.button("Continue to Design & Inference ➡️", key="btn_continue_to_design", type="primary", use_container_width=True):
+                        st.session_state.next_tab = tabs_list[1]
+                        st.rerun()
+                    
+                    # Expanders for large matrices
+                    with st.expander("🔍 Inspect connectivity matrices & relationships", expanded=False):
+                        if st.session_state.get("_synthetic_effect_mask") is not None:
+                            overall_mean = np.mean(st.session_state.connectivity_data, axis=0)
+                            mask = st.session_state["_synthetic_effect_mask"] > 0
+                            mask_triu = np.triu(mask, 1)
+                            non_mask_triu = np.triu(~mask, 1)
+                            if np.any(mask_triu):
+                                mean_in_sig = np.mean(overall_mean[mask_triu])
+                                mean_out_sig = np.mean(overall_mean[non_mask_triu])
+                                st.write(f"- **Mean Conn (Signal Edges):** `{mean_in_sig:.4f}`")
+                                st.write(f"- **Mean Conn (Other Edges):** `{mean_out_sig:.4f}`")
+                                
+                            if st.session_state.get("_synthetic_confound_mask") is not None:
                                 c_mask = st.session_state["_synthetic_confound_mask"] > 0
                                 c_mask_triu = np.triu(c_mask, 1)
                                 if np.any(c_mask_triu):
-                                    sub_means_c = np.mean(st.session_state.connectivity_data[:, c_mask_triu], axis=1)
-                                    st.markdown("**Confound Relationship**")
-                                    fig2, ax_c = plt.subplots(figsize=(4, 3.5))
-                                    ax_c.scatter(pheno_df["confounds"], sub_means_c, alpha=0.7, c='darkorange', edgecolors='none')
-                                    ax_c.set_xlabel("Confound (x)")
-                                    ax_c.set_ylabel("Mean Connectivity (Confound Mask)")
-                                    ax_c.set_title("Confound vs. Brain Connectivity")
-                                    z_c = np.polyfit(pheno_df["confounds"], sub_means_c, 1)
-                                    p_c = np.poly1d(z_c)
-                                    x_c_sort = np.sort(pheno_df["confounds"])
-                                    ax_c.plot(x_c_sort, p_c(x_c_sort), "r--", alpha=0.8)
-                                    ax_c.grid(True, alpha=0.3)
+                                    mean_in_c = np.mean(overall_mean[c_mask_triu])
+                                    st.write(f"- **Mean Conn (Confound Edges):** `{mean_in_c:.4f}`")
+                                    
+                        pheno_df = st.session_state.pheno_df
+                        if pheno_df is not None and "group" in pheno_df.columns:
+                            unique_groups = sorted(pheno_df["group"].unique())
+                            if len(unique_groups) == 2:
+                                g0, g1 = unique_groups
+                                g0_idx = np.where(pheno_df["group"] == g0)[0]
+                                g1_idx = np.where(pheno_df["group"] == g1)[0]
+                                
+                                mean_g0 = np.mean(st.session_state.connectivity_data[g0_idx], axis=0)
+                                mean_g1 = np.mean(st.session_state.connectivity_data[g1_idx], axis=0)
+                                
+                                st.markdown("**Mean Correlation Matrices (Fisher-z)**")
+                                fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(8, 4))
+                                
+                                v_max = max(np.max(np.abs(mean_g0)), np.max(np.abs(mean_g1)))
+                                v_max = max(0.5, min(v_max, 2.0))
+                                
+                                im0 = ax0.imshow(mean_g0, cmap="RdBu_r", vmin=-v_max, vmax=v_max)
+                                ax0.set_title(f"Group {g0} Mean")
+                                fig.colorbar(im0, ax=ax0, fraction=0.046, pad=0.04)
+                                
+                                im1 = ax1.imshow(mean_g1, cmap="RdBu_r", vmin=-v_max, vmax=v_max)
+                                ax1.set_title(f"Group {g1} Mean")
+                                fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
+                                
+                                plt.tight_layout()
+                                st.pyplot(fig)
+                                plt.close(fig)
+                                
+                                # Confound scatter plot for Two-Group Contrast with Confound
+                                if st.session_state.get("_synthetic_confound_mask") is not None and "confounds" in pheno_df.columns:
+                                    c_mask = st.session_state["_synthetic_confound_mask"] > 0
+                                    c_mask_triu = np.triu(c_mask, 1)
+                                    if np.any(c_mask_triu):
+                                        sub_means_c = np.mean(st.session_state.connectivity_data[:, c_mask_triu], axis=1)
+                                        st.markdown("**Confound Relationship**")
+                                        fig2, ax_c = plt.subplots(figsize=(4, 3.5))
+                                        ax_c.scatter(pheno_df["confounds"], sub_means_c, alpha=0.7, c='darkorange', edgecolors='none')
+                                        ax_c.set_xlabel("Confound (x)")
+                                        ax_c.set_ylabel("Mean Connectivity (Confound Mask)")
+                                        ax_c.set_title("Confound vs. Brain Connectivity")
+                                        z_c = np.polyfit(pheno_df["confounds"], sub_means_c, 1)
+                                        p_c = np.poly1d(z_c)
+                                        x_c_sort = np.sort(pheno_df["confounds"])
+                                        ax_c.plot(x_c_sort, p_c(x_c_sort), "r--", alpha=0.8)
+                                        ax_c.grid(True, alpha=0.3)
+                                        plt.tight_layout()
+                                        st.pyplot(fig2)
+                                        plt.close(fig2)
+                            else:
+                                st.markdown("**Example Correlation Matrix (Subject 0)**")
+                                fig, ax = plt.subplots(figsize=(4, 4))
+                                v_max = np.max(np.abs(st.session_state.connectivity_data[0]))
+                                v_max = max(0.5, min(v_max, 2.0))
+                                im = ax.imshow(st.session_state.connectivity_data[0], cmap="RdBu_r", vmin=-v_max, vmax=v_max)
+                                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                                ax.set_title("Subject 0 (Fisher-z)")
+                                st.pyplot(fig)
+                                plt.close(fig)
+                        elif pheno_df is not None and "interest" in pheno_df.columns:
+                            st.markdown("**Covariate Relationships**")
+                            # Plot Covariate Scatter Plots
+                            if st.session_state.get("_synthetic_effect_mask") is not None:
+                                mask = st.session_state["_synthetic_effect_mask"] > 0
+                                mask_triu = np.triu(mask, 1)
+                                
+                                if np.any(mask_triu):
+                                    # Mean connectivity in signal mask per subject
+                                    sub_means_sig = np.mean(st.session_state.connectivity_data[:, mask_triu], axis=1)
+                                    
+                                    c_mask_triu = None
+                                    if st.session_state.get("_synthetic_confound_mask") is not None:
+                                        c_mask = st.session_state["_synthetic_confound_mask"] > 0
+                                        c_mask_triu = np.triu(c_mask, 1)
+                                    
+                                    has_confound = c_mask_triu is not None and np.any(c_mask_triu)
+                                    n_cols = 2 if has_confound else 1
+                                    fig2, axes = plt.subplots(1, n_cols, figsize=(4 * n_cols, 3.5), sharey=True, sharex=True)
+                                    if n_cols == 1:
+                                        axes = [axes]
+                                        
+                                    ax_s = axes[0]
+                                    ax_s.scatter(pheno_df["interest"], sub_means_sig, alpha=0.7, c='royalblue', edgecolors='none')
+                                    ax_s.set_xlabel("Signal of Interest (x)")
+                                    ax_s.set_ylabel("Mean Connectivity (Signal Mask)")
+                                    ax_s.set_title("Behavioral Covariate vs. Brain Connectivity")
+                                    z_s = np.polyfit(pheno_df["interest"], sub_means_sig, 1)
+                                    p_s = np.poly1d(z_s)
+                                    x_sort = np.sort(pheno_df["interest"])
+                                    ax_s.plot(x_sort, p_s(x_sort), "r--", alpha=0.8)
+                                    ax_s.grid(True, alpha=0.3)
+                                    
+                                    if has_confound:
+                                        sub_means_c = np.mean(st.session_state.connectivity_data[:, c_mask_triu], axis=1)
+                                        ax_c = axes[1]
+                                        ax_c.scatter(pheno_df["confounds"], sub_means_c, alpha=0.7, c='darkorange', edgecolors='none')
+                                        ax_c.set_xlabel("Confound (x)")
+                                        ax_c.set_title("Confound vs. Brain Connectivity")
+                                        z_c = np.polyfit(pheno_df["confounds"], sub_means_c, 1)
+                                        p_c = np.poly1d(z_c)
+                                        x_c_sort = np.sort(pheno_df["confounds"])
+                                        ax_c.plot(x_c_sort, p_c(x_c_sort), "r--", alpha=0.8)
+                                        ax_c.grid(True, alpha=0.3)
+                                            
                                     plt.tight_layout()
                                     st.pyplot(fig2)
+                                    plt.close(fig2)
                         else:
                             st.markdown("**Example Correlation Matrix (Subject 0)**")
                             fig, ax = plt.subplots(figsize=(4, 4))
@@ -339,62 +410,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                             fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
                             ax.set_title("Subject 0 (Fisher-z)")
                             st.pyplot(fig)
-                    elif pheno_df is not None and "interest" in pheno_df.columns:
-                        st.markdown("**Covariate Relationships**")
-                        # Plot Covariate Scatter Plots
-                        if st.session_state.get("_synthetic_effect_mask") is not None:
-                            mask = st.session_state["_synthetic_effect_mask"] > 0
-                            mask_triu = np.triu(mask, 1)
-                            
-                            if np.any(mask_triu):
-                                # Mean connectivity in signal mask per subject
-                                sub_means_sig = np.mean(st.session_state.connectivity_data[:, mask_triu], axis=1)
-                                
-                                c_mask_triu = None
-                                if st.session_state.get("_synthetic_confound_mask") is not None:
-                                    c_mask = st.session_state["_synthetic_confound_mask"] > 0
-                                    c_mask_triu = np.triu(c_mask, 1)
-                                
-                                has_confound = c_mask_triu is not None and np.any(c_mask_triu)
-                                n_cols = 2 if has_confound else 1
-                                fig2, axes = plt.subplots(1, n_cols, figsize=(4 * n_cols, 3.5), sharey=True, sharex=True)
-                                if n_cols == 1:
-                                    axes = [axes]
-                                    
-                                ax_s = axes[0]
-                                ax_s.scatter(pheno_df["interest"], sub_means_sig, alpha=0.7, c='royalblue', edgecolors='none')
-                                ax_s.set_xlabel("Signal of Interest (x)")
-                                ax_s.set_ylabel("Mean Connectivity (Signal Mask)")
-                                ax_s.set_title("Behavioral Covariate vs. Brain Connectivity")
-                                z_s = np.polyfit(pheno_df["interest"], sub_means_sig, 1)
-                                p_s = np.poly1d(z_s)
-                                x_sort = np.sort(pheno_df["interest"])
-                                ax_s.plot(x_sort, p_s(x_sort), "r--", alpha=0.8)
-                                ax_s.grid(True, alpha=0.3)
-                                
-                                if has_confound:
-                                    sub_means_c = np.mean(st.session_state.connectivity_data[:, c_mask_triu], axis=1)
-                                    ax_c = axes[1]
-                                    ax_c.scatter(pheno_df["confounds"], sub_means_c, alpha=0.7, c='darkorange', edgecolors='none')
-                                    ax_c.set_xlabel("Confound (x)")
-                                    ax_c.set_title("Confound vs. Brain Connectivity")
-                                    z_c = np.polyfit(pheno_df["confounds"], sub_means_c, 1)
-                                    p_c = np.poly1d(z_c)
-                                    x_c_sort = np.sort(pheno_df["confounds"])
-                                    ax_c.plot(x_c_sort, p_c(x_c_sort), "r--", alpha=0.8)
-                                    ax_c.grid(True, alpha=0.3)
-                                        
-                                plt.tight_layout()
-                                st.pyplot(fig2)
-                    else:
-                        st.markdown("**Example Correlation Matrix (Subject 0)**")
-                        fig, ax = plt.subplots(figsize=(4, 4))
-                        v_max = np.max(np.abs(st.session_state.connectivity_data[0]))
-                        v_max = max(0.5, min(v_max, 2.0))
-                        im = ax.imshow(st.session_state.connectivity_data[0], cmap="RdBu_r", vmin=-v_max, vmax=v_max)
-                        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-                        ax.set_title("Subject 0 (Fisher-z)")
-                        st.pyplot(fig)
+                            plt.close(fig)
                 else:
                     st.info("No synthetic dataset generated yet. Configure settings on the left and click Generate.")
 
@@ -433,9 +449,62 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                         loader_instance = AbideSchaeferLoader(data_path, pheno_csv_path=pheno_path if pheno_path else None)
                         
                 elif dataset_choice == "OpenClose":
-                    cohort = st.selectbox("Cohort", ["IHB", "China"])
+                    cohort_col, cohort_help_col = st.columns([0.7, 0.3])
+                    with cohort_col:
+                        cohort = st.selectbox(
+                            "Cohort",
+                            ["Both sites (IHB + China)", "IHB", "China"],
+                        )
+                    with cohort_help_col:
+                        render_help("openclose_multisite")
                     
-                    if cohort == "IHB":
+                    if cohort == "Both sites (IHB + China)":
+                        st.caption(
+                            "Paired Open-Close observations are retained within each site; "
+                            "the loaded phenotype table includes `site` for IHB and China."
+                        )
+                        ihb_open_path = st.text_input(
+                            "IHB Open Condition Path (.npy)",
+                            value="datasets/open_close/ihb_open_Schaefer200_strategy-4_GSR.npy",
+                        )
+                        ihb_close_path = st.text_input(
+                            "IHB Close Condition Path (.npy)",
+                            value="datasets/open_close/ihb_close_Schaefer200_strategy-4_GSR.npy",
+                        )
+                        ihb_sub_list = st.text_input(
+                            "IHB Subject Order file (.txt)",
+                            value="datasets/open_close/subject_order_ihb.txt",
+                        )
+                        china_open_path = st.text_input(
+                            "China Open Condition Path (.npy)",
+                            value="datasets/open_close/china_open_Schaefer200_strategy-4_GSR.npy",
+                        )
+                        china_close_path = st.text_input(
+                            "China Close Condition Path (.npy)",
+                            value="datasets/open_close/china_close_Schaefer200_strategy-4_GSR.npy",
+                        )
+                        china_sub_list = st.text_input(
+                            "China Subject Order file (.txt)",
+                            value="datasets/open_close/subject_order_china.txt",
+                        )
+                        atlas = "datasets/open_close/schaefer_labels.csv"
+                        loader_instance = MultiSiteOpenCloseLoader(
+                            {
+                                "IHB": {
+                                    "open_path": ihb_open_path,
+                                    "close_path": ihb_close_path,
+                                    "subject_list_path": ihb_sub_list,
+                                },
+                                "China": {
+                                    "open_path": china_open_path,
+                                    "close_path": china_close_path,
+                                    "subject_list_path": china_sub_list,
+                                },
+                            },
+                            atlas=atlas,
+                            drop_missing_rois=True,
+                        )
+                    elif cohort == "IHB":
                         open_path = st.text_input(
                             "Open Condition Path (.npy)",
                             value="datasets/open_close/ihb_open_Schaefer200_strategy-4_GSR.npy"
@@ -462,8 +531,9 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                             value="datasets/open_close/subject_order_china.txt"
                         )
                         
-                    atlas = "datasets/open_close/schaefer_labels.csv"
-                    if open_path and close_path:
+                    if cohort != "Both sites (IHB + China)":
+                        atlas = "datasets/open_close/schaefer_labels.csv"
+                    if cohort != "Both sites (IHB + China)" and open_path and close_path:
                         loader_instance = OpenCloseLoader(
                             open_path,
                             close_path,
@@ -473,6 +543,11 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                         )
                         
                 elif dataset_choice == "China-CloseClose":
+                    close_close_col, close_close_help_col = st.columns([0.7, 0.3])
+                    with close_close_col:
+                        st.caption("China test-retest null example")
+                    with close_close_help_col:
+                        render_help("china_close_close")
                     close_path = st.text_input(
                         "Close Condition Path (.npy)",
                         value="datasets/open_close/china_close_Schaefer200_strategy-4_GSR.npy"
@@ -572,6 +647,27 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                             ts_preprocess_required = True
                         if manifest.loader in {"NiftiDirectoryLoader", "CSVDirectoryLoader", "FmriprepDerivativesLoader", "TimeseriesDirectoryLoader", "StressTimeseriesLoader", "ZerssenNiftiLoader"}:
                             ts_preprocess_required = True
+
+                        delegated_loader = loader_instance.target_loader
+                        matrix_options = getattr(delegated_loader, "matrix_options", lambda: [])()
+                        if matrix_options:
+                            option_by_key = {option["key"]: option for option in matrix_options}
+                            default_key = delegated_loader.matrix_key
+                            if default_key not in option_by_key:
+                                default_key = next(iter(option_by_key))
+                            selected_key = st.selectbox(
+                                "Connectivity matrix",
+                                list(option_by_key),
+                                index=list(option_by_key).index(default_key),
+                                format_func=lambda key: str(option_by_key[key]["label"]),
+                                key=f"manifest_matrix_{manifest_file}",
+                            )
+                            selected = loader_instance.set_runtime_matrix_key(selected_key)
+                            st.caption(
+                                "Session override: "
+                                f"`{selected['data_kind']}` input; validation expects "
+                                f"{selected['n_rois']} ROIs. The YAML file is unchanged."
+                            )
                             
                         st.success("✅ Manifest parsed successfully.")
                     except Exception as e:
@@ -586,7 +682,14 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                 if loader_instance is not None:
                     preview = loader_instance.preview()
                     
-                    st.markdown(f"**Loader:** `{loader_instance.name}`")
+                    delegated_loader = getattr(loader_instance, "target_loader", None)
+                    if delegated_loader is not None:
+                        st.markdown(
+                            f"**Loader:** `{loader_instance.name}` "
+                            f"-> `{delegated_loader.name}`"
+                        )
+                    else:
+                        st.markdown(f"**Loader:** `{loader_instance.name}`")
                     st.write(f"- **Observations:** {preview.n_observations if preview.n_observations else 'Unknown'}")
                     st.write(f"- **Subjects:** {preview.n_subjects if preview.n_subjects else 'Unknown'}")
                     st.write(f"- **ROIs:** {preview.n_rois if preview.n_rois else 'Unknown'}")
@@ -600,8 +703,25 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                     st.write(f"- **File Count:** {preview.file_count if preview.file_count else 1}")
                     if preview.file_sizes_mb:
                         st.write(f"- **Total Size:** {preview.file_sizes_mb:.2f} MB")
-                    # Check atlas choice matching when metadata is active
-                    if base_atlas is not None and preview.n_rois and preview.n_rois != len(base_atlas):
+                    # A manifest may bring atlas metadata for a subset that is unrelated
+                    # to the optional reference atlas selected in the sidebar.
+                    manifest_atlas_path = getattr(loader_instance, "resolved_paths", {}).get("atlas_metadata")
+                    loader_atlas_path = getattr(getattr(loader_instance, "target_loader", None), "atlas_metadata", None)
+                    dataset_owns_atlas = bool(manifest_atlas_path or loader_atlas_path)
+                    if dataset_owns_atlas and preview.n_rois:
+                        atlas_detail = ""
+                        if getattr(loader_instance, "manifest", None) is not None:
+                            atlas_detail = loader_instance.manifest.metadata.get("atlas_description", "")
+                        st.info(
+                            f"This dataset supplies its own atlas metadata for {preview.n_rois} ROIs"
+                            f" ({atlas_detail}). " if atlas_detail else
+                            f"This dataset supplies its own atlas metadata for {preview.n_rois} ROIs. "
+                        )
+                        st.caption(
+                            "It will become the active atlas after loading; the sidebar parcellation is only a reference."
+                        )
+                    # Check atlas choice matching only when the source does not define its own atlas.
+                    elif base_atlas is not None and preview.n_rois and preview.n_rois != len(base_atlas):
                         if (preview.n_rois == 182 and len(base_atlas) == 200) or (preview.n_rois == 84 and len(base_atlas) == 246):
                             st.info(f"💡 Note: Dataset has {preview.n_rois} ROIs (subset of {atlas_choice}). Parcellation metadata will be filtered automatically.")
                         else:
@@ -761,6 +881,10 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                                     st.session_state.sub_atlas = None
                                     
                                 clear_downstream_results()
+                                # A data reload starts a new analysis lineage.
+                                # Do not honor an old completion redirect to Results.
+                                st.session_state.next_tab = None
+                                st.session_state.active_tab = tabs_list[0]
                                 
                                 # Clear synthetic dataset state
                                 st.session_state["_synthetic_scenario_name"] = None
@@ -865,7 +989,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
         N_nodes = st.session_state.connectivity_data.shape[1]
         st.success(f"✅ Loaded Connectivity Matrix: {st.session_state.connectivity_data.shape[0]} observations, {N_nodes} x {N_nodes} ROIs.")
         
-        with st.expander("🔍 View Group Mean Connectivity Matrix", expanded=True):
+        with st.expander("🔍 Inspect connectivity matrices", expanded=False):
             st.markdown("Average connectivity across all loaded observations. Self-connections are zeroed out internally.")
             
             # If synthetic dataset, plot both the mean and the ground-truth mask
@@ -911,6 +1035,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
     settings_parts = [st.session_state.get("active_atlas_signature", atlas_choice), ingest_mode]
     if ingest_mode == "Built-in data":
         if "dataset_choice" in locals(): settings_parts.append(dataset_choice)
+        if "cohort" in locals(): settings_parts.append(cohort)
         if "data_path" in locals(): settings_parts.append(data_path)
         if "pheno_path" in locals(): settings_parts.append(pheno_path)
     elif ingest_mode == "Standard File/Directory Import":

@@ -27,3 +27,5 @@ nilearn           # Comparative validation and neuroimaging utils
 mne               # EEG data handling and analysis
 neuroCombat       # Validation against reference Combat implementation
 neuroHarmonize    # Validation of advanced harmonization strategies
+tabulate          # Required for pandas to_markdown
+-e .              # Install conninfpy package in editable mode for Streamlit Cloud

@@ -672,6 +672,16 @@ def analyze(
     else:
         auto_strata = np.asarray(sites) if sites is not None else None
         if auto_strata is not None:
+            if (
+                ttest_mode
+                and test_type == "paired"
+                and group1 is not None
+                and auto_strata.shape[0] != group1.shape[0]
+            ):
+                raise ValueError(
+                    "For paired inference, sites/strata must provide one label per "
+                    f"paired subject ({group1.shape[0]}), got {auto_strata.shape[0]}."
+                )
             flags.append(
                 "strata= auto-set to `sites`; pass strata= explicitly "
                 "(or strata=None) to override."

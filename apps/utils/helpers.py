@@ -10,6 +10,7 @@ from conninfpy.atlas import AtlasInfo
 from conninfpy.loaders import (
     AbideSchaeferLoader,
     OpenCloseLoader,
+    MultiSiteOpenCloseLoader,
     StressTimeseriesLoader,
     ZerssenNiftiLoader,
     NumpyLoader,
@@ -30,6 +31,7 @@ PROJECT_ROOT = APP_DIR.parent
 LOADER_CLASSES = {
     "AbideSchaeferLoader": AbideSchaeferLoader,
     "OpenCloseLoader": OpenCloseLoader,
+    "MultiSiteOpenCloseLoader": MultiSiteOpenCloseLoader,
     "StressTimeseriesLoader": StressTimeseriesLoader,
     "ZerssenNiftiLoader": ZerssenNiftiLoader,
     "NumpyLoader": NumpyLoader,
@@ -74,7 +76,7 @@ def current_contrast_name():
     return f"{question}_{method}" if method else question
 
 def clear_downstream_results():
-    """Clear outputs that become invalid after data or model changes."""
+    """Clear outputs and completed background tasks invalidated upstream."""
     for key in (
         "inference_result",
         "edges_df",
@@ -87,8 +89,19 @@ def clear_downstream_results():
         "evidence_packet",
         "narrative_text",
         "narrative_results",
+        "run_plan",
     ):
         st.session_state[key] = None
+
+    # Task objects retain their result payload after completion. Leaving one in
+    # session state lets Tab 2 republish an old result after a dataset reload.
+    # A still-running thread cannot be safely killed, but removing its task
+    # handle prevents its stale payload from being promoted into this session.
+    for task_key in ("inference_task", "decoding_task"):
+        task = st.session_state.get(task_key)
+        if task is not None and getattr(task, "status", None) == "running":
+            task.status = "invalidated"
+        st.session_state.pop(task_key, None)
 
 
 def active_analysis_atlas(base_atlas=None):
@@ -146,11 +159,24 @@ def effect_direction_labels(run_plan=None):
                 "positive_title": "Positive group effect",
                 "negative_title": "Negative group effect",
             }
+        
+        target_str = str(target)
+        reference_str = str(reference)
+        if target_str.isdigit() or (target_str.startswith("Group") and target_str[5:].strip().isdigit()):
+            target_lbl = f"Group {target_str}" if target_str.isdigit() else target_str
+        else:
+            target_lbl = target_str
+            
+        if reference_str.isdigit() or (reference_str.startswith("Group") and reference_str[5:].strip().isdigit()):
+            reference_lbl = f"Group {reference_str}" if reference_str.isdigit() else reference_str
+        else:
+            reference_lbl = reference_str
+            
         return {
-            "positive": f"{target} > {reference}",
-            "negative": f"{reference} > {target}",
-            "positive_title": f"Higher connectivity in {target}",
-            "negative_title": f"Higher connectivity in {reference}",
+            "positive": f"{target_lbl} > {reference_lbl}",
+            "negative": f"{reference_lbl} > {target_lbl}",
+            "positive_title": f"Higher connectivity in {target_lbl}",
+            "negative_title": f"Higher connectivity in {reference_lbl}",
         }
 
     if question == "Paired Condition":
@@ -171,7 +197,7 @@ def effect_direction_labels(run_plan=None):
         }
 
     predictor = plan.get("interest_var") or plan.get("predictor") or "predictor"
-    if question in ("Continuous Predictor", "Custom GLM"):
+    if question == "Continuous Predictor":
         return {
             "positive": f"Positive association with {predictor}",
             "negative": f"Negative association with {predictor}",
@@ -305,11 +331,26 @@ HELP_TEXT = {
 - **OpenClose**: Paired Eyes-Open vs. Eyes-Closed resting-state dataset using a 182-ROI unified Schaefer-200 mask.
 *Note: Demo datasets are for trying out workflow features and diagnostic tests, not definitive scientific analysis. Full ABIDE, stress, and local/private datasets should be imported from a manifest.*
 """,
+    "openclose_multisite": """
+**Open-Close Paired Demo**
+
+- **Both sites (IHB + China)** loads the paired Eyes-Open and Eyes-Closed observations from both cohorts and adds a `site` column.
+- Every subject has both conditions at the same site. Use **Paired Condition** inference with `subject_id` and `condition`.
+- This is a useful demonstration that the within-subject Open-Close contrast is less sensitive to between-site offsets than a between-subject comparison. The site column remains available for design inspection and sensitivity checks.
+""",
+    "china_close_close": """
+**China Close-Close Test-Retest Example**
+
+This is a paired null/control comparison of two Eyes-Closed runs from the same China participants. It is useful for checking method specificity: a valid Open-Close result should not be reproduced strongly when comparing repeated closed-eyes runs. One participant with an incomplete second run is excluded automatically.
+""",
     "manifest_import": """
 **Manifest Ingestion**
-- A `data.yaml` file defines file paths, loader types, and dataset-specific checks.
-- Relative paths are resolved automatically relative to the directory containing the manifest.
-- This is the recommended route for full, private, or lab-local datasets.
+- A `data.yaml` file declares `schema_version`, `name`, a supported `loader`, and its file `paths`. Add `params` for loader options, `preprocessing` for requested connectivity construction, and `checks` for expected dimensions.
+- Relative paths are resolved from the manifest's own folder. Use `BUILTIN:<file>` for packaged atlas assets, for example `BUILTIN:bna246.csv`.
+- For ready connectivity matrices, choose the matching loader and include atlas metadata whenever ROI labels, networks, coordinates, or brain plots are needed.
+- **Prepared Zerssen example:** use `loader: CustomPreparedZerssenLoader`; under `paths`, provide `prepared_npz`, `set84_bnt_ids`, and `atlas_metadata: BUILTIN:bna246.csv`. Set `params.matrix_key` to select the analysis array. `connectivity_pearson_z`, `connectivity_tangent`, and `connectivity_tangent_hc_ref` use the full 246-ROI BNA atlas; `set84m_pearson_z` and `set84w_pearson_z` use the ordered 84-ROI BNA subset defined by BNT IDs. Set `data_kind: fisher_z` for the Pearson-z arrays and `data_kind: correlation` for tangent arrays. Update `checks.expected_rois` to match the selected 84- or 246-ROI matrix.
+- The dataset-provided atlas takes precedence after loading. The sidebar atlas is then only a reference for datasets without their own metadata.
+- See `datasets/zerssen_prepared.yaml` for a working local template; replace its machine-specific paths with your own.
 """,
     "source_type": """
 **Source File Types**
@@ -360,9 +401,27 @@ HELP_TEXT = {
 - Node summary lists anatomical regions sorted by degree burden.
 """,
     "meta_analytic_decoding": """
-**Meta-Analytic Decoding**
-- Connects the significant subnetwork nodes to NiMARE/Neurosynth databases.
-- Associates brain regions with cognitive terms to help interpret functional significance.
+**Meta-Analytic Decoding (NiMARE)**
+Connects the coordinates of your significant functional subnetwork to public cognitive databases to associate brain patterns with specific literature terms.
+
+### 📚 Databases
+*   **[NeuroQuery](https://neuroquery.org/) (Recommended Default):**
+    *   Uses a predictive machine-learning model mapping text semantic concepts to spatial activity.
+    *   Excellent for **network-level functional profiling** because it handles synonyms, smooths over sparse literature, and generates coherent concept maps.
+*   **[Neurosynth](https://neurosynth.org/):**
+    *   The classic approach using exact keyword-association meta-analysis.
+    *   Excellent for **high-specificity reverse inference** (e.g., finding exact localized regions uniquely active for a single cognitive task), but can be noisy or fragmented for whole networks.
+
+### 🧠 Strategies
+*   **Combined Region Decoding:**
+    Merges all coordinates of nodes in the significant network into a single spatial pattern. Highly recommended for interpreting global network functional profiles.
+*   **Discrete ROI Overlap:**
+    Decodes each individual ROI independently, allowing a region-by-region audit of the subnetwork nodes.
+
+### 💡 Usage Advice
+1. Use **NeuroQuery + Combined Region Decoding** as your starting point to get a smooth, concept-level description of what your network is doing.
+2. Cross-reference with **Neurosynth** to test for exact, highly specific literature associations for your top high-burden nodes.
+3. Be cautious: meta-analytic associations are correlation-based context, not causal explanations.
 """,
     "narrative_report": """
 **Narrative Report**

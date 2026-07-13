@@ -16,6 +16,19 @@ from apps.utils.helpers import (
     render_help,
 )
 
+def _render_one_sentence_summary(res, edges_df, method_name, direction_labels):
+    pos_count = 0
+    neg_count = 0
+    if edges_df is not None and not edges_df.empty:
+        pos_count = len(edges_df[edges_df["t_signed"] > 0])
+        neg_count = len(edges_df[edges_df["t_signed"] < 0])
+    
+    n_perms = getattr(res, "n_permutations", 100)
+    st.info(
+        f"📝 **Summary:** The {method_name} run detected **{pos_count}** significant edges for **{direction_labels['positive']}** "
+        f"and **{neg_count}** edges for **{direction_labels['negative']}** using {n_perms} permutations."
+    )
+
 def _render_summary_metrics(res, edges_df, method_name, direction_labels):
     st.markdown(f"##### 📊 {method_name} Summary")
     nsig = res.n_significant(0.05)
@@ -191,6 +204,7 @@ def _render_brain_connectome_graphs(edges_df, base_atlas, method_name, direction
         st.markdown(f"**{direction_labels['positive']}: {len(pos_edges)} edges**")
         if pos_edges.empty:
             st.info(f"No edges for {direction_labels['positive']} pass the current graph filters.")
+            st.caption("💡 **Tip:** Try raising the p-value cutoff, increasing top edges, or clearing network filters.")
         else:
             fig_pos = plot_connectome_graph(
                 edges_df=edges_df,
@@ -214,6 +228,7 @@ def _render_brain_connectome_graphs(edges_df, base_atlas, method_name, direction
         st.markdown(f"**{direction_labels['negative']}: {len(neg_edges)} edges**")
         if neg_edges.empty:
             st.info(f"No edges for {direction_labels['negative']} pass the current graph filters.")
+            st.caption("💡 **Tip:** Try raising the p-value cutoff, increasing top edges, or clearing network filters.")
         else:
             fig_neg = plot_connectome_graph(
                 edges_df=edges_df,
@@ -372,6 +387,7 @@ def render_inference_results_view(base_atlas):
                 res = getattr(res_wrapper, "inference", res_wrapper)
                 edges_df = st.session_state.edges_df
                 
+                _render_one_sentence_summary(res, edges_df, primary_method, direction_labels)
                 _render_summary_metrics(res, edges_df, primary_method, direction_labels)
                 _render_ground_truth_metrics(edges_df, effect_mask, primary_method)
                 _render_heatmaps(res, base_atlas, primary_method)
@@ -382,6 +398,7 @@ def render_inference_results_view(base_atlas):
                 res = getattr(companion_res_wrapper, "inference", companion_res_wrapper)
                 edges_df = st.session_state.companion_edges_df
                 
+                _render_one_sentence_summary(res, edges_df, companion_method, direction_labels)
                 _render_summary_metrics(res, edges_df, companion_method, direction_labels)
                 _render_ground_truth_metrics(edges_df, effect_mask, companion_method)
                 _render_heatmaps(res, base_atlas, companion_method)
@@ -408,6 +425,7 @@ def render_inference_results_view(base_atlas):
             res = getattr(res_wrapper, "inference", res_wrapper)
             edges_df = st.session_state.edges_df
             
+            _render_one_sentence_summary(res, edges_df, primary_method, direction_labels)
             _render_summary_metrics(res, edges_df, primary_method, direction_labels)
             _render_ground_truth_metrics(edges_df, effect_mask, primary_method)
             _render_heatmaps(res, base_atlas, primary_method)

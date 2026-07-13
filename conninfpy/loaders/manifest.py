@@ -134,6 +134,18 @@ class ManifestLoader(BaseDataLoader):
                 filtered_kwargs[k] = v
                 
         self.target_loader = loader_class(**filtered_kwargs)
+
+    def set_runtime_matrix_key(self, matrix_key: str) -> dict[str, Any]:
+        """Apply a session-only matrix override when the delegated loader allows it."""
+        setter = getattr(self.target_loader, "set_matrix_key", None)
+        if setter is None:
+            raise ValueError(f"Loader {self.target_loader.name} does not support matrix selection.")
+        selected = setter(matrix_key)
+        self.manifest.params["matrix_key"] = matrix_key
+        self.manifest.params["data_kind"] = selected["data_kind"]
+        if "expected_rois" in self.manifest.checks:
+            self.manifest.checks["expected_rois"] = selected["n_rois"]
+        return selected
         
     def preview(self) -> DatasetPreview:
         preview = self.target_loader.preview()

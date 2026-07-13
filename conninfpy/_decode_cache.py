@@ -83,7 +83,12 @@ def fetch_neurosynth_dataset(cache_dir: str | None = None, *, force: bool = Fals
 
 
 def fetch_neuroquery_dataset(cache_dir: str | None = None, *, force: bool = False):
-    """One-shot fetch + Coordinate -> Dataset conversion for NeuroQuery database."""
+    """Fetch a compact NeuroQuery source and cache it as a NiMARE dataset.
+
+    NeuroQuery ships several large, overlapping vocabulary matrices. The
+    combined TF-IDF ``neuroquery6308`` source is sufficient for decoding and
+    keeps the first conversion practical for a desktop Streamlit session.
+    """
     try:
         import nimare
         from nimare.extract import fetch_neuroquery
@@ -106,7 +111,13 @@ def fetch_neuroquery_dataset(cache_dir: str | None = None, *, force: bool = Fals
     raw_dir = c_dir / "raw_nq"
     raw_dir.mkdir(parents=True, exist_ok=True)
     
-    db_files = fetch_neuroquery(data_dir=str(raw_dir), version="1")
+    db_files = fetch_neuroquery(
+        data_dir=str(raw_dir),
+        version="1",
+        source="combined",
+        vocab="neuroquery6308",
+        type="tfidf",
+    )
     if not db_files:
         raise RuntimeError("Failed to fetch NeuroQuery dataset from NiMARE.")
         

@@ -767,6 +767,116 @@ class OpenCloseLoader(BaseDataLoader):
         )
 
 
+class MultiSiteOpenCloseLoader(BaseDataLoader):
+    """Combine paired Open/Close cohorts while preserving their site labels.
+
+    Every subject contributes one open and one close observation at the same
+    acquisition site. Subject IDs are prefixed with that site to guarantee
+    uniqueness when paired inference is configured from the combined table.
+    """
+    name = "MultiSiteOpenCloseLoader"
+
+    def __init__(
+        self,
+        site_configs: dict[str, dict[str, str]],
+        atlas: str | None = None,
+        drop_missing_rois: bool = True,
+    ):
+        if not site_configs:
+            raise ValueError("site_configs must contain at least one site.")
+        self.site_configs = site_configs
+        self.atlas = atlas
+        self.drop_missing_rois = drop_missing_rois
+
+    def _site_loaders(self) -> list[tuple[str, OpenCloseLoader]]:
+        loaders = []
+        for site, config in self.site_configs.items():
+            loaders.append((
+                site,
+                OpenCloseLoader(
+                    config["open_path"],
+                    config["close_path"],
+                    subject_list_path=config.get("subject_list_path"),
+                    atlas=self.atlas,
+                    drop_missing_rois=self.drop_missing_rois,
+                ),
+            ))
+        return loaders
+
+    def preview(self) -> DatasetPreview:
+        previews = [(site, loader.preview()) for site, loader in self._site_loaders()]
+        warnings = [
+            f"{site}: {warning}"
+            for site, preview in previews
+            for warning in preview.warnings
+        ]
+        valid = [preview for _, preview in previews if preview.n_rois is not None]
+        if not valid:
+            return DatasetPreview(
+                None, None, None, None, "unknown", None, None, [], 0, 0.0, warnings
+            )
+
+        roi_counts = {preview.n_rois for preview in valid}
+        if len(roi_counts) != 1:
+            warnings.append(f"Site ROI counts differ: {sorted(roi_counts)}.")
+
+        timepoints = [preview.n_timepoints for preview in valid if preview.n_timepoints is not None]
+        n_timepoints = (
+            timepoints[0] if len(set(timepoints)) == 1
+            else (min(timepoints), max(timepoints))
+        )
+        return DatasetPreview(
+            n_subjects=sum(preview.n_subjects or 0 for preview in valid),
+            n_observations=sum(preview.n_observations or 0 for preview in valid),
+            n_rois=valid[0].n_rois,
+            n_timepoints=n_timepoints,
+            data_kind_guess="correlation",
+            atlas_guess=valid[0].atlas_guess,
+            conditions=["open", "close"],
+            subject_ids_sample=[
+                f"{site}:{subject_id}"
+                for site, preview in previews
+                for subject_id in preview.subject_ids_sample[:2]
+            ][:5],
+            file_count=sum(preview.file_count or 0 for preview in valid),
+            file_sizes_mb=sum(preview.file_sizes_mb or 0.0 for preview in valid),
+            warnings=warnings,
+        )
+
+    def load(self) -> LoadedDataset:
+        datasets = [(site, loader.load()) for site, loader in self._site_loaders()]
+        roi_counts = {dataset.data.shape[1] for _, dataset in datasets}
+        if len(roi_counts) != 1:
+            raise ValueError(f"All sites must have the same ROI count; got {sorted(roi_counts)}.")
+
+        data_parts = []
+        pheno_parts = []
+        subject_ids = []
+        for site, dataset in datasets:
+            site_pheno = dataset.pheno.copy()
+            original_ids = site_pheno["subject_id"].astype(str)
+            site_pheno["site"] = site
+            site_pheno["subject_id"] = site + ":" + original_ids
+            data_parts.append(dataset.data)
+            pheno_parts.append(site_pheno)
+            subject_ids.extend(site_pheno["subject_id"].tolist())
+
+        return LoadedDataset(
+            data=np.concatenate(data_parts, axis=0),
+            pheno=pd.concat(pheno_parts, ignore_index=True),
+            data_kind="correlation",
+            subject_ids=subject_ids,
+            conditions=["open", "close"],
+            condition_column="condition",
+            atlas=datasets[0][1].atlas,
+            provenance={
+                "sites": list(self.site_configs),
+                "paired_within_site": True,
+                "site_configs": self.site_configs,
+            },
+        )
+
+
 class StressTimeseriesLoader(BaseDataLoader):
     """Loader for the stress dataset containing individual headerless CSV timeseries files."""
     name = "StressTimeseriesLoader"
@@ -864,7 +974,6 @@ class ZerssenNiftiLoader(BaseDataLoader):
             "subject_id": subject_ids,
             "group": groups
         })
-        
         from conninfpy.atlas import AtlasInfo
         atlas = None
         try:
@@ -1221,10 +1330,18 @@ class TimeseriesDirectoryLoader(BaseDataLoader):
                 groups.append(grp)
                 
                 if f.endswith(".npy"):
-                    arr = np.load(f)
+                    arr = np.asarray(np.load(f), dtype=np.float64)
                 else:
                     df = pd.read_csv(f, sep=self.sep, header=hdr)
-                    arr = df.values
+                    try:
+                        arr = df.apply(pd.to_numeric, errors="raise").to_numpy(
+                            dtype=np.float64,
+                        )
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"Time-series file contains non-numeric values: {f}. "
+                            "Check the manifest 'header' and 'sep' settings."
+                        ) from exc
                 data_list.append(arr)
             
         min_len = min(arr.shape[0] for arr in data_list)
@@ -1501,31 +1618,110 @@ class CustomPreparedZerssenLoader(BaseDataLoader):
     """Loader for precomputed Zerssen Prepared set84 NPZ datasets."""
     name = "CustomPreparedZerssenLoader"
     
-    def __init__(self, prepared_npz: str, set84_bnt_ids: str, atlas_metadata: str):
+    def __init__(
+        self,
+        prepared_npz: str,
+        set84_bnt_ids: str,
+        atlas_metadata: str,
+        matrix_key: str = "set84m_pearson_z",
+        data_kind: str = "fisher_z",
+    ):
         self.prepared_npz = prepared_npz
         self.set84_bnt_ids = set84_bnt_ids
         self.atlas_metadata = atlas_metadata
+        self.matrix_key = matrix_key
+        self.data_kind = data_kind
+
+    @staticmethod
+    def _available_connectivity_keys(archive) -> list[str]:
+        """Return square subject-by-ROI-by-ROI arrays stored in the archive."""
+        return [
+            key for key in archive.files
+            if archive[key].ndim == 3 and archive[key].shape[1] == archive[key].shape[2]
+        ]
+
+    def _selected_matrix(self, archive) -> tuple[str, np.ndarray]:
+        available = self._available_connectivity_keys(archive)
+        if self.matrix_key not in available:
+            raise ValueError(
+                f"Zerssen matrix_key {self.matrix_key!r} is unavailable or not a square "
+                f"connectivity tensor. Available matrix keys: {available}"
+            )
+        return self.matrix_key, np.asarray(archive[self.matrix_key])
+
+    def matrix_options(self) -> list[dict[str, object]]:
+        """Describe selectable matrices for an optional manifest UI control."""
+        if not os.path.exists(self.prepared_npz):
+            return []
+        with np.load(self.prepared_npz) as archive:
+            options = []
+            for key in self._available_connectivity_keys(archive):
+                n_rois = int(archive[key].shape[1])
+                if n_rois not in {84, 246}:
+                    continue
+                data_kind = "fisher_z" if key.endswith("pearson_z") else "correlation"
+                atlas_label = "BNA-246 set84 subset" if n_rois == 84 else "BNA-246 full atlas"
+                options.append({
+                    "key": key,
+                    "n_rois": n_rois,
+                    "data_kind": data_kind,
+                    "label": f"{key} ({n_rois} ROIs; {atlas_label})",
+                })
+            return options
+
+    def set_matrix_key(self, matrix_key: str) -> dict[str, object]:
+        """Apply a UI-selected matrix and its corresponding input scale."""
+        options = {option["key"]: option for option in self.matrix_options()}
+        if matrix_key not in options:
+            raise ValueError(f"Unsupported Zerssen matrix selection: {matrix_key!r}")
+        selected = options[matrix_key]
+        self.matrix_key = matrix_key
+        self.data_kind = str(selected["data_kind"])
+        return selected
+
+    def _set84_roi_ids(self, archive) -> list[int]:
+        """Read the 1-based BNA IDs in the exact prepared-matrix order."""
+        if "set84_bnt_ids" in archive:
+            return [int(value) for value in np.asarray(archive["set84_bnt_ids"]).ravel()]
+        if not os.path.exists(self.set84_bnt_ids):
+            return []
+        try:
+            import json
+            with open(self.set84_bnt_ids, "r") as file_handle:
+                metadata = json.load(file_handle)
+            values = metadata.get("bnt_ids", []) if isinstance(metadata, dict) else metadata
+            return [int(value) for value in values]
+        except (OSError, TypeError, ValueError):
+            return []
 
     def preview(self) -> DatasetPreview:
         if not os.path.exists(self.prepared_npz):
             return DatasetPreview(None, None, None, None, "unknown", None, None, [], 0, 0.0, ["Prepared NPZ not found."])
         try:
             d = np.load(self.prepared_npz)
-            keys = list(d.keys())
-            subject_ids = [f"sub_{i:02d}" for i in range(len(d[keys[0]]))]
+            matrix_key, data = self._selected_matrix(d)
+            keys = self._available_connectivity_keys(d)
+            subject_ids = [f"sub_{i:02d}" for i in range(len(data))]
             
             return DatasetPreview(
                 n_subjects=len(subject_ids),
                 n_observations=len(subject_ids),
-                n_rois=84,
+                n_rois=data.shape[1],
                 n_timepoints=None,
-                data_kind_guess="correlation",
-                atlas_guess=os.path.basename(self.atlas_metadata),
+                data_kind_guess=self.data_kind,
+                atlas_guess=(
+                    "BNA-246" if data.shape[1] == 246
+                    else "BNA-246 set84 subset" if data.shape[1] == 84
+                    else os.path.basename(self.atlas_metadata)
+                ),
                 conditions=None,
                 subject_ids_sample=subject_ids[:5],
                 file_count=1,
                 file_sizes_mb=os.path.getsize(self.prepared_npz) / (1024 * 1024),
-                warnings=[f"Available matrices: {keys}"]
+                warnings=[
+                    f"Selected matrix: {matrix_key} ({data.shape[1]} ROIs).",
+                    f"Available connectivity matrices: {keys}",
+                ]
             )
         except Exception as e:
             return DatasetPreview(None, None, None, None, "unknown", None, None, [], 0, 0.0, [f"Error: {e}"])
@@ -1535,63 +1731,82 @@ class CustomPreparedZerssenLoader(BaseDataLoader):
             raise FileNotFoundError(f"Prepared NPZ not found: {self.prepared_npz}")
             
         d = np.load(self.prepared_npz)
-        matrix_key = "set84m_pearson_z" if "set84m_pearson_z" in d else list(d.keys())[0]
-        data = d[matrix_key]
+        matrix_key, data = self._selected_matrix(d)
         
-        import json
-        subject_ids = []
-        if os.path.exists(self.set84_bnt_ids):
-            try:
-                with open(self.set84_bnt_ids, "r") as f:
-                    meta = json.load(f)
-                    subject_ids = meta.get("subject_ids", [])
-            except Exception:
-                pass
-        
-        if not subject_ids:
-            subject_ids = [f"sub_{i:02d}" for i in range(len(data))]
-            
-        groups = []
-        if os.path.exists(self.set84_bnt_ids):
-            try:
-                with open(self.set84_bnt_ids, "r") as f:
-                    meta = json.load(f)
-                    groups = meta.get("groups", [])
-            except Exception:
-                pass
-                
-        if not groups or len(groups) != len(subject_ids):
+        subject_ids = [f"sub_{i:02d}" for i in range(len(data))]
+        groups = d["group"].tolist() if "group" in d and len(d["group"]) == len(data) else []
+        if not groups:
             groups = ["PAT"] * 20 + ["HC"] * 41
             
         pheno = pd.DataFrame({
             "subject_id": subject_ids,
             "group": groups
         })
+        # The prepared archive includes subject-aligned clinical, demographic,
+        # and behavioral scores that can serve as GLM predictors or covariates.
+        for column in ("age", "sex", "bdi", "hads_d", "hads_a", "zerssen", "ds_rt", "dn_rt"):
+            if column not in d.files:
+                continue
+            values = np.asarray(d[column])
+            if values.ndim == 1 and len(values) == len(data):
+                pheno[column] = pd.to_numeric(values, errors="coerce")
         
         from conninfpy.atlas import AtlasInfo
         atlas = None
         if os.path.exists(self.atlas_metadata):
             try:
-                full_atlas = AtlasInfo.from_csv(self.atlas_metadata)
-                if len(data[0]) == 84 and os.path.exists(self.set84_bnt_ids):
-                    with open(self.set84_bnt_ids, "r") as f:
-                        meta = json.load(f)
-                        bnt_ids = meta.get("bnt_ids", [])
-                    if hasattr(full_atlas, "df") and "bnt_id" in full_atlas.df.columns:
-                        full_atlas.df = full_atlas.df[full_atlas.df["bnt_id"].isin(bnt_ids)].copy()
-                        full_atlas.labels = list(full_atlas.df["name"].values)
-                        full_atlas.roi_labels = full_atlas.labels
-                atlas = full_atlas
-            except Exception:
-                pass
+                roi_ids = self._set84_roi_ids(d)
+                atlas_df = pd.read_csv(self.atlas_metadata)
+                if data.shape[1] == 84:
+                    if len(roi_ids) != data.shape[1]:
+                        raise ValueError(
+                            "Prepared set84 matrix requires 84 ROI IDs; "
+                            f"found {len(roi_ids)}."
+                        )
+                    id_column = "roi_id" if "roi_id" in atlas_df.columns else "id"
+                    if id_column not in atlas_df.columns:
+                        raise ValueError(
+                            "BNA atlas metadata must include an 'roi_id' or 'id' column."
+                        )
+                    atlas_df = atlas_df.set_index(id_column).reindex(roi_ids)
+                    if atlas_df.isna().all(axis=1).any():
+                        missing = [
+                            roi_id for roi_id, row in atlas_df.iterrows()
+                            if row.isna().all()
+                        ]
+                        raise ValueError(f"BNA atlas is missing set84 ROI IDs: {missing}")
+                    atlas = AtlasInfo(
+                        labels=atlas_df["name"].astype(str).tolist(),
+                        networks=atlas_df["network"].astype(str).tolist(),
+                        coords=atlas_df[["x", "y", "z"]].to_numpy(dtype=float),
+                        hemisphere=atlas_df["hemisphere"].astype(str).tolist(),
+                        source="Zerssen prepared set84 BNA subset",
+                    )
+                elif data.shape[1] == 246:
+                    atlas = AtlasInfo.from_csv(self.atlas_metadata)
+                else:
+                    raise ValueError(
+                        f"Matrix {matrix_key!r} has {data.shape[1]} ROIs. "
+                        "This manifest supplies BNA metadata only for the 84-ROI subset "
+                        "or the full 246-ROI atlas."
+                    )
+            except Exception as exc:
+                raise ValueError(
+                    "Failed to construct atlas metadata for the prepared Zerssen matrix: "
+                    f"{exc}"
+                ) from exc
                 
         return LoadedDataset(
             data=data,
             pheno=pheno,
-            data_kind="fisher_z",
+            data_kind=self.data_kind,
             subject_ids=subject_ids,
             atlas=atlas,
-            provenance={"prepared_npz": self.prepared_npz, "matrix_key": matrix_key}
+            provenance={
+                "prepared_npz": self.prepared_npz,
+                "matrix_key": matrix_key,
+                "phenotype_columns": list(pheno.columns),
+            }
         )
 
 

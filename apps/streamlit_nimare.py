@@ -1,4 +1,5 @@
 import os
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -166,6 +167,13 @@ else:
     caps.append("coordinates" if atlas_has_coords(base_atlas) else "no coordinates")
     st.sidebar.caption("Atlas loaded: " + ", ".join(caps))
 
+dataset_atlas = st.session_state.get("dataset_atlas")
+if dataset_atlas is not None:
+    st.sidebar.caption(
+        "Active dataset atlas: "
+        f"{len(dataset_atlas)} ROIs from {getattr(dataset_atlas, 'source', 'dataset metadata')}."
+    )
+
 st.session_state["active_atlas_signature"] = "|".join([
     atlas_mode,
     atlas_choice,
@@ -238,6 +246,13 @@ with title_col1:
 with title_col2:
     st.image("apps/assets/brain_connectivity_dashboard_right_panel.png", width=120)
 
+# Stepper task states
+decoding_task = st.session_state.get("decoding_task")
+decoding_is_running = decoding_task is not None and getattr(decoding_task, "status", "") == "running"
+
+inference_task = st.session_state.get("inference_task")
+inference_is_running = inference_task is not None and getattr(inference_task, "status", "") == "running"
+
 # Dynamic Progress Stepper Bar (Clinical Neuro Lab style, no emojis)
 status_cols = st.columns(5)
 
@@ -255,7 +270,9 @@ with status_cols[0]:
 # Design & Inference status
 with status_cols[1]:
     is_active = st.session_state.active_tab == tabs_list[1]
-    if st.session_state.inference_result is not None:
+    if inference_is_running:
+        label = "2. Inference (Running)"
+    elif st.session_state.inference_result is not None:
         label = "2. Inference (Completed)"
     elif st.session_state.connectivity_data is not None:
         label = "2. Inference (Ready)"
@@ -279,7 +296,9 @@ with status_cols[2]:
 # Decoding status
 with status_cols[3]:
     is_active = st.session_state.active_tab == tabs_list[3]
-    if st.session_state.decoded_df is not None:
+    if decoding_is_running:
+        label = "4. Decoding (Running)"
+    elif st.session_state.decoded_df is not None:
         label = "4. Decoding (Completed)"
     elif st.session_state.edges_df is not None and not st.session_state.edges_df.empty:
         label = "4. Decoding (Ready)"
@@ -292,7 +311,9 @@ with status_cols[3]:
 # Narrative status
 with status_cols[4]:
     is_active = st.session_state.active_tab == tabs_list[4]
-    if st.session_state.narrative_text is not None:
+    if decoding_is_running:
+        label = "5. Narrative (Waiting for Decoding)"
+    elif st.session_state.narrative_text is not None:
         label = "5. Narrative (Generated)"
     elif st.session_state.evidence_packet is not None:
         label = "5. Narrative (Ready)"
@@ -305,9 +326,18 @@ with status_cols[4]:
 st.markdown("---")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("## Navigation")
+st.sidebar.markdown("## Documentation")
+doc_active = st.session_state.active_tab == tabs_list[5]
+if st.sidebar.button(
+    "📖 Workspace Documentation",
+    key="nav_docs_btn",
+    type="primary" if doc_active else "secondary",
+    use_container_width=True
+):
+    st.session_state.active_tab = tabs_list[5]
+    st.rerun()
 
-active_tab = st.sidebar.radio("Go to:", tabs_list, key="active_tab")
+active_tab = st.session_state.active_tab
 
 # ----------------- ROUTING TO modularized tabs -----------------
 if active_tab == tabs_list[0]:

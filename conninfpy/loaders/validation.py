@@ -50,8 +50,13 @@ def validate_loaded_dataset(dataset: LoadedDataset, check_inference_ready: bool 
     if n_observations != n_pheno_rows:
         errors.append(f"Subject count mismatch: data has {n_observations} observations, but pheno has {n_pheno_rows} rows.")
 
-    # Check finite values
-    if not np.isfinite(data).all():
+    # Check numeric type before calling np.isfinite(), whose error for object
+    # arrays hides the real ingestion problem (usually a CSV header mismatch).
+    if not np.issubdtype(data.dtype, np.number):
+        errors.append(
+            f"Data must be numeric, got dtype {data.dtype}. Check CSV header and separator settings."
+        )
+    elif not np.isfinite(data).all():
         errors.append("Data contains missing, infinite, or NaN values.")
 
     # Retrieve subject IDs if present

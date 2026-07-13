@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
+import threading
+import traceback
 from conninfpy.atlas import AtlasInfo
 from conninfpy import analyze
 from apps.utils.helpers import (
@@ -11,6 +13,17 @@ from apps.utils.helpers import (
     data_is_fisher_z,
     render_help,
 )
+
+class InferenceTask:
+    def __init__(self):
+        self.status = "idle"  # idle, running, success, failed
+        self.progress_message = ""
+        self.result = None
+        self.edges = None
+        self.comp_result = None
+        self.comp_edges = None
+        self.run_plan = None
+        self.error = None
 
 
 ABIDE_DEFAULT_CONFOUNDS = ("Age", "Sex", "Motion_FD")
@@ -104,6 +117,33 @@ def _format_runtime(seconds):
     return f"{hours:.1f} h"
 
 
+def _method_plan_parameters(method, method_kwargs):
+    """Keep only human-readable settings relevant to the selected method."""
+    if method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
+        keys = ("e", "h", "m_min", "normalization")
+        labels = {
+            "e": "E",
+            "h": "H",
+            "m_min": "minimum block size",
+            "normalization": "normalization",
+        }
+    elif method == "nbs":
+        keys = ("start_thres", "nbs_stat")
+        labels = {"start_thres": "tau", "nbs_stat": "component statistic"}
+    else:
+        return {}
+    return {
+        labels[key]: method_kwargs[key]
+        for key in keys
+        if key in method_kwargs
+    }
+
+
+def _format_method_plan_parameters(method, method_kwargs):
+    params = _method_plan_parameters(method, method_kwargs)
+    return ", ".join(f"{label}={value}" for label, value in params.items()) or "Default settings"
+
+
 def _estimate_runtime_range(
     *,
     n_subjects,
@@ -152,6 +192,119 @@ def _estimate_runtime_range(
     lower = seconds * 0.6
     upper = seconds * 1.8
     return f"{_format_runtime(lower)} - {_format_runtime(upper)}"
+
+
+def _run_inference_background(
+    task,
+    Y, interest, confounds, group1, group2, test_type, sites, harmonization_choice,
+    operator_choice, n_perms, seed_val, use_mp, acceleration_choice, op_kwargs,
+    run_sensitivity, comp_method, comp_kwargs, sc_net_labels, use_sc_prior, atlas,
+    annotation_atlas, alpha, question_choice, loaded_settings_hash, recipe_choice,
+    effective_recipe_choice, group_col, ref_group, target_group, interest_var,
+    subject_col, condition_col, baseline_val, target_val, confound_vars, site_col,
+    active_atlas_signature, data_kind
+):
+    try:
+        task.progress_message = f"Executing primary method ({operator_choice.upper()}) permutation loops..."
+        from conninfpy import analyze
+        res = analyze(
+            Y=Y if test_type == "glm" else None,
+            interest=interest,
+            confounds=confounds,
+            group1=group1,
+            group2=group2,
+            test_type=test_type,
+            sites=sites,
+            harmonize=harmonization_choice,
+            fisher_z=False,
+            method=operator_choice,
+            n_permutations=n_perms,
+            rng=seed_val,
+            verbose=False,
+            use_mp=use_mp,
+            acceleration=None if acceleration_choice == "none" else acceleration_choice,
+            **op_kwargs
+        )
+        
+        edges = res.significant_edges(atlas=annotation_atlas, alpha=alpha)
+        
+        comp_res = None
+        comp_edges = None
+        if run_sensitivity and comp_method:
+            task.progress_message = f"Executing sensitivity companion ({comp_method.upper()}) permutation loops..."
+            comp_run_kwargs = dict(comp_kwargs)
+            if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
+                comp_run_kwargs.setdefault("e", 0.4)
+                comp_run_kwargs.setdefault("h", 3.0)
+                comp_run_kwargs.setdefault("n", 10)
+                if comp_method in ("ni_tfnbs", "fbc_tfnbs"):
+                    comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
+            elif comp_method == "cnbs":
+                comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
+            elif comp_method == "nbs":
+                comp_run_kwargs.setdefault("start_thres", 3.0)
+                comp_run_kwargs.setdefault("nbs_stat", "extent")
+                
+            comp_res = analyze(
+                Y=Y if test_type == "glm" else None,
+                interest=interest,
+                confounds=confounds,
+                group1=group1,
+                group2=group2,
+                test_type=test_type,
+                sites=sites,
+                harmonize=harmonization_choice,
+                fisher_z=False,
+                method=comp_method,
+                n_permutations=n_perms,
+                rng=seed_val,
+                verbose=False,
+                use_mp=use_mp,
+                acceleration=None if acceleration_choice == "none" else acceleration_choice,
+                **comp_run_kwargs
+            )
+            comp_edges = comp_res.significant_edges(atlas=annotation_atlas, alpha=alpha)
+            
+        task.result = res
+        task.edges = edges
+        task.comp_result = comp_res
+        task.comp_edges = comp_edges
+        
+        task.run_plan = {
+            "question_type": question_choice,
+            "loaded_settings_hash": loaded_settings_hash,
+            "design_family": test_type,
+            "method": operator_choice,
+            "n_permutations": n_perms,
+            "site_recipe": recipe_choice,
+            "effective_site_recipe": effective_recipe_choice,
+            "harmonize": harmonization_choice,
+            "group_col": group_col,
+            "reference_group": ref_group,
+            "target_group": target_group,
+            "interest_var": interest_var,
+            "subject_col": subject_col,
+            "condition_col": condition_col,
+            "baseline_condition": baseline_val,
+            "target_condition": target_val,
+            "confound_vars": confound_vars,
+            "site_col": site_col,
+            "active_atlas_signature": active_atlas_signature,
+            "data_kind": data_kind,
+            "seed": seed_val,
+            "method_parameters": _method_plan_parameters(operator_choice, op_kwargs),
+            "companion_method": comp_method if run_sensitivity else None,
+            "companion_method_parameters": (
+                _method_plan_parameters(comp_method, comp_kwargs)
+                if run_sensitivity and comp_method else {}
+            ),
+        }
+        task.status = "success"
+        task.progress_message = "✅ Completed!"
+    except Exception as e:
+        task.error = f"{e}\n{traceback.format_exc()}"
+        task.status = "failed"
+        task.progress_message = "❌ Failed"
 
 
 def render_design_inference_view(base_atlas, tabs_list):
@@ -231,19 +384,16 @@ def render_design_inference_view(base_atlas, tabs_list):
             if is_synthetic:
                 cols = list(st.session_state.pheno_df.columns)
                 if "group" in cols:
-                    if "confounds" in cols:
-                        valid_choices = ["Group Difference", "Custom GLM"]
-                    else:
-                        valid_choices = ["Group Difference"]
+                    valid_choices = ["Group Difference"]
                 else:
-                    valid_choices = ["Continuous Predictor", "Custom GLM"]
+                    valid_choices = ["Continuous Predictor"]
                 
                 default_idx = valid_choices.index(recomm) if recomm in valid_choices else 0
             elif is_abide:
                 valid_choices = ["Group Difference", "Continuous Predictor"]
                 default_idx = valid_choices.index(recomm) if recomm in valid_choices else 0
             else:
-                valid_choices = ["Group Difference", "Paired Condition", "Continuous Predictor", "Custom GLM"]
+                valid_choices = ["Group Difference", "Paired Condition", "Continuous Predictor"]
                 default_idx = valid_choices.index(recomm) if recomm in valid_choices else 0
                 
             question_choice = st.selectbox(
@@ -280,6 +430,22 @@ def render_design_inference_view(base_atlas, tabs_list):
                     unique_conds,
                     index=1 if len(unique_conds) > 1 else 0
                 )
+
+                if not is_synthetic:
+                    site_candidates = [
+                        column for column in cols
+                        if column not in (subject_col, condition_col)
+                    ]
+                    site_options = [None] + site_candidates
+                    default_site = next(
+                        (column for column in site_candidates if str(column).lower() == "site"),
+                        None,
+                    )
+                    site_col = st.selectbox(
+                        "Acquisition Site Column (Optional)",
+                        site_options,
+                        index=site_options.index(default_site) if default_site else 0,
+                    )
                 
                 st.info(f"**Contrast Direction:**\n• **Positive effect:** {target_val} > {baseline_val}\n• **Negative effect:** {baseline_val} > {target_val}\n\n*Uses sign-flip permutation within-subject. Subject-constant site effects cancel in differences.*")
                 test_type = "paired"
@@ -339,31 +505,23 @@ def render_design_inference_view(base_atlas, tabs_list):
                     
             elif question_choice == "Continuous Predictor":
                 st.markdown("##### Design Binding (Continuous Predictor)")
-                interest_candidates = [c for c in cols if c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "site", "session")]
+                interest_candidates = _numeric_covariate_candidates(pheno_df)
+                if not interest_candidates:
+                    st.warning("Continuous Predictor requires at least one numeric phenotype column.")
+                    return
                 interest_var = st.selectbox(
                     "Predictor of Interest",
                     interest_candidates,
                     index=0 if interest_candidates else 0
                 )
-                confound_candidates = [c for c in cols if c != interest_var and c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "site", "session")]
+                confound_candidates = _numeric_covariate_candidates(
+                    pheno_df,
+                    exclude=[interest_var],
+                )
                 confound_vars = st.multiselect("Nuisance Covariates", confound_candidates)
                 
                 if not is_synthetic:
                     site_col = st.selectbox("Acquisition Site Column (Optional)", [None] + [c for c in cols if c not in [interest_var] + confound_vars and c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "session")])
-                else:
-                    site_col = None
-                test_type = "glm"
-                
-            elif question_choice == "Custom GLM":
-                st.markdown("##### Design Binding (Custom GLM)")
-                interest_candidates = [c for c in cols if c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "site", "session")]
-                interest_var = st.selectbox("Predictor of Interest (Interest)", interest_candidates)
-                
-                confound_candidates = [c for c in cols if c != interest_var and c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "site", "session")]
-                confound_vars = st.multiselect("Nuisance Covariates (Confounds)", confound_candidates)
-                
-                if not is_synthetic:
-                    site_col = st.selectbox("Acquisition Site Column (strata/ComBat)", [None] + [c for c in cols if c not in [interest_var] + confound_vars and c.lower() not in ("subject", "subject_id", "sub", "id", "subj", "session")])
                 else:
                     site_col = None
                 test_type = "glm"
@@ -373,8 +531,22 @@ def render_design_inference_view(base_atlas, tabs_list):
             if not is_synthetic:
                 st.markdown("#### 🌐 2. Site & Exchangeability Handling")
                 if question_choice == "Paired Condition":
-                    recipe_choice = "Paired within-subject"
-                    st.write("• **Strategy Selected:** `Paired within-subject` (Subject-constant site effects cancel out in differences; no ComBat needed)")
+                    if site_col is not None:
+                        recipe_choice = "Paired within-subject + site blocks"
+                        effective_recipe_choice = recipe_choice
+                        site_strategy_note = (
+                            "Site labels are checked to be constant within each subject and "
+                            "passed as paired exchangeability/provenance blocks. ComBat is not "
+                            "applied because additive site effects cancel in within-subject differences."
+                        )
+                        st.write(
+                            "• **Strategy Selected:** `Paired within-subject + site blocks` "
+                            "(site is retained for validation and exchangeability provenance; no ComBat needed)"
+                        )
+                    else:
+                        recipe_choice = "Paired within-subject"
+                        effective_recipe_choice = recipe_choice
+                        st.write("• **Strategy Selected:** `Paired within-subject` (Subject-constant site effects cancel in differences; no ComBat needed)")
                     harmonization_choice = None
                 elif site_col is None:
                     recipe_choice = "No site handling"
@@ -454,6 +626,36 @@ def render_design_inference_view(base_atlas, tabs_list):
                 st.warning("⚠️ **Active Method:** `t-stat Max-Permutation` (Unenhanced)\n\n*Massive univariate testing with family-wise error rate control. No network-level topological enhancement is applied.*")
             elif operator_choice == "bh_fdr":
                 st.warning("⚠️ **Active Method:** `FDR Correction` (Unenhanced)\n\n*Edge-level Benjamini-Hochberg False Discovery Rate correction. No network/topological enhancement is applied.*")
+
+            sc_prior_path = None
+            with st.expander("Method Parameters", expanded=False):
+                if operator_choice in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
+                    e_exp = st.number_input("Extent exponent (E)", 0.1, 2.0, 0.4, 0.05)
+                    h_exp = st.number_input("Height exponent (H)", 1.0, 5.0, 3.0, 0.1)
+                    n_steps = st.number_input("Integration steps (n)", 5, 50, 10, 1)
+                    op_kwargs["e"] = e_exp
+                    op_kwargs["h"] = h_exp
+                    op_kwargs["n"] = n_steps
+
+                    if operator_choice == "fbc_tfnbs":
+                        m_min = st.number_input("Minimum block size (m_min)", 5, 100, 20)
+                        op_kwargs["m_min"] = m_min
+                    elif operator_choice == "ni_tfnbs":
+                        ni_norm = st.selectbox("Normalization", ["sqrt", "none"], index=0)
+                        op_kwargs["normalization"] = ni_norm
+
+                elif operator_choice == "nbs":
+                    tau = st.number_input("Cluster-forming threshold (tau)", 1.0, 10.0, 3.0, 0.1)
+                    op_kwargs["start_thres"] = tau
+                    nbs_stat = st.selectbox("NBS statistic", ["extent", "intensity"], index=0)
+                    op_kwargs["nbs_stat"] = nbs_stat
+
+                if operator_choice in ("ni_tfnbs", "fbc_tfnbs", "cnbs"):
+                    sc_prior_path = st.text_input(
+                        "SC Prior Matrix (.npy) (Overrides Atlas)",
+                        value="",
+                        help="Supply an empirical structural connectivity matrix to derive data-driven Louvain communities instead of using fixed atlas networks.",
+                    )
                 
             # Option to add sensitivity companion
             st.markdown("##### 🔄 Sensitivity Baseline Comparison")
@@ -490,6 +692,26 @@ def render_design_inference_view(base_atlas, tabs_list):
                     format_func=lambda x: all_methods[x],
                     help="The baseline method to run sequentially alongside your primary method for comparison."
                 )
+
+                with st.expander("Companion Method Parameters", expanded=False):
+                    if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
+                        comp_e = st.number_input("Companion Extent exponent (E)", 0.1, 2.0, 0.4, 0.05, key="comp_e")
+                        comp_h = st.number_input("Companion Height exponent (H)", 1.0, 5.0, 3.0, 0.1, key="comp_h")
+                        comp_n = st.number_input("Companion Integration steps (n)", 5, 50, 10, 1, key="comp_n")
+                        comp_kwargs["e"] = comp_e
+                        comp_kwargs["h"] = comp_h
+                        comp_kwargs["n"] = comp_n
+                        if comp_method == "fbc_tfnbs":
+                            comp_m_min = st.number_input("Companion Minimum block size (m_min)", 5, 100, 20, key="comp_m_min")
+                            comp_kwargs["m_min"] = comp_m_min
+                        elif comp_method == "ni_tfnbs":
+                            comp_ni_norm = st.selectbox("Companion Normalization", ["sqrt", "none"], index=0, key="comp_ni_norm")
+                            comp_kwargs["normalization"] = comp_ni_norm
+                    elif comp_method == "nbs":
+                        comp_tau = st.number_input("Companion Cluster-forming threshold (tau)", 1.0, 10.0, 3.0, 0.1, key="comp_tau")
+                        comp_kwargs["start_thres"] = comp_tau
+                        comp_nbs_stat = st.selectbox("Companion NBS statistic", ["extent", "intensity"], index=0, key="comp_nbs_stat")
+                        comp_kwargs["nbs_stat"] = comp_nbs_stat
                 
             st.write("")
             
@@ -516,58 +738,10 @@ def render_design_inference_view(base_atlas, tabs_list):
             else:
                 n_perms = budget_map[budget_choice]
                 
-            with st.expander("🛠️ Advanced Parameters", expanded=False):
-                if operator_choice in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                    e_exp = st.number_input("Extent exponent (E)", 0.1, 2.0, 0.4, 0.05)
-                    h_exp = st.number_input("Height exponent (H)", 1.0, 5.0, 3.0, 0.1)
-                    n_steps = st.number_input("Integration steps (n)", 5, 50, 10, 1)
-                    op_kwargs["e"] = e_exp
-                    op_kwargs["h"] = h_exp
-                    op_kwargs["n"] = n_steps
-                    
-                    if operator_choice == "fbc_tfnbs":
-                        m_min = st.number_input("Minimum block size (m_min)", 5, 100, 20)
-                        op_kwargs["m_min"] = m_min
-                    elif operator_choice == "ni_tfnbs":
-                        ni_norm = st.selectbox("Normalization", ["sqrt", "none"], index=0)
-                        op_kwargs["normalization"] = ni_norm
-                        
-                elif operator_choice == "nbs":
-                    tau = st.number_input("Cluster-forming threshold (tau)", 1.0, 10.0, 3.0, 0.1)
-                    op_kwargs["start_thres"] = tau
-                    nbs_stat = st.selectbox("NBS statistic", ["extent", "intensity"], index=0)
-                    op_kwargs["nbs_stat"] = nbs_stat
-                    
-                sc_prior_path = None
-                if operator_choice in ("ni_tfnbs", "fbc_tfnbs", "cnbs"):
-                    sc_prior_path = st.text_input("SC Prior Matrix (.npy) (Overrides Atlas)", value="", help="Supply an empirical structural connectivity matrix to derive data-driven Louvain communities instead of using fixed atlas networks.")
-                    
+            with st.expander("Execution Options", expanded=False):
                 acceleration_choice = st.selectbox("Tail Acceleration", ["gpd", "gamma", "none"], index=0)
                 use_mp = st.checkbox("Parallel Execution (Multiprocessing)", value=True)
                 seed_val = st.number_input("Random Seed", 1, 10000, 42)
-                
-                # Companion parameters inside expander
-                if run_sensitivity and comp_method:
-                    st.markdown("---")
-                    st.markdown("🔧 **Companion Advanced Parameters**")
-                    if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                        comp_e = st.number_input("Companion Extent exponent (E)", 0.1, 2.0, 0.4, 0.05, key="comp_e")
-                        comp_h = st.number_input("Companion Height exponent (H)", 1.0, 5.0, 3.0, 0.1, key="comp_h")
-                        comp_n = st.number_input("Companion Integration steps (n)", 5, 50, 10, 1, key="comp_n")
-                        comp_kwargs["e"] = comp_e
-                        comp_kwargs["h"] = comp_h
-                        comp_kwargs["n"] = comp_n
-                        if comp_method == "fbc_tfnbs":
-                            comp_m_min = st.number_input("Companion Minimum block size (m_min)", 5, 100, 20, key="comp_m_min")
-                            comp_kwargs["m_min"] = comp_m_min
-                        elif comp_method == "ni_tfnbs":
-                            comp_ni_norm = st.selectbox("Companion Normalization", ["sqrt", "none"], index=0, key="comp_ni_norm")
-                            comp_kwargs["normalization"] = comp_ni_norm
-                    elif comp_method == "nbs":
-                        comp_tau = st.number_input("Companion Cluster-forming threshold (tau)", 1.0, 10.0, 3.0, 0.1, key="comp_tau")
-                        comp_kwargs["start_thres"] = comp_tau
-                        comp_nbs_stat = st.selectbox("Companion NBS statistic", ["extent", "intensity"], index=0, key="comp_nbs_stat")
-                        comp_kwargs["nbs_stat"] = comp_nbs_stat
                 
         with col_right:
             st.markdown("#### 📋 Review & Execute")
@@ -605,16 +779,21 @@ def render_design_inference_view(base_atlas, tabs_list):
                     )
                 
                 st.markdown("**Structured Run Plan:**")
-                summary_items = [
-                    f"• **Question:** {question_choice}",
-                    f"• **Statistical Path:** {test_type.upper() if not (question_choice == 'Group Difference' and adjust_covariates) else 'GLM (Promoted)'}",
-                    f"• **Method Profile:** {profile_choice.split(' ')[0]} ({operator_choice})",
-                    f"• **Atlas Metadata:** {'none' if active_analysis_atlas(base_atlas) is None else len(active_analysis_atlas(base_atlas))}",
-                    f"• **Site Strategy:** {effective_recipe_choice}",
-                    f"• **Permutations:** {n_perms}",
-                    f"• **Rough Runtime:** `{est_str}`",
-                ]
-                st.write("\n".join(summary_items))
+                method_parameters = _format_method_plan_parameters(operator_choice, op_kwargs)
+                plan_md = f"""
+| Field | Value |
+|---|---|
+| **Question** | {question_choice} |
+| **Statistical Path** | {test_type.upper() if not (question_choice == 'Group Difference' and adjust_covariates) else 'GLM (Promoted)'} |
+| **Method Profile** | {profile_choice.split(' ')[0]} ({operator_choice}) |
+| **Method Parameters** | {method_parameters} |
+| **Atlas Metadata** | {'None' if active_analysis_atlas(base_atlas) is None else f"{len(active_analysis_atlas(base_atlas))} ROIs"} |
+| **Site Strategy** | {effective_recipe_choice} |
+| **Permutations** | {n_perms} |
+| **Rough Runtime** | `{est_str}` |
+| **P-value Resolution** | ~{resolution:.4f} |
+"""
+                st.markdown(plan_md)
                 st.caption("Runtime is a rough range; first runs, multiprocessing startup, and TFNBS scoring can move it substantially.")
                 if site_strategy_note:
                     st.info(site_strategy_note)
@@ -676,187 +855,219 @@ def render_design_inference_view(base_atlas, tabs_list):
                 run_enabled = not has_blocking_errors
                 btn_label = "🚀 Run Multi-Method Inference (Primary + Companion)" if run_sensitivity else "🚀 Run Connectivity Inference"
                 
-                if st.button(btn_label, type="primary", disabled=not run_enabled, key="run_inference_btn"):
-                    try:
-                        Y = st.session_state.connectivity_data.copy()
-                        atlas = active_analysis_atlas(base_atlas)
-                        if st.session_state.roi_indices is not None:
-                            roi_idx = st.session_state.roi_indices
-                            Y = Y[:, roi_idx][:, :, roi_idx]
-                            atlas = st.session_state.sub_atlas
+                if "inference_task" not in st.session_state:
+                    st.session_state.inference_task = InferenceTask()
+                    
+                task = st.session_state.inference_task
+                
+                # Check status and draw corresponding elements
+                if task.status == "idle":
+                    if st.button(btn_label, type="primary", disabled=not run_enabled, key="run_inference_btn"):
+                        try:
+                            Y = st.session_state.connectivity_data.copy()
+                            atlas = active_analysis_atlas(base_atlas)
+                            if st.session_state.roi_indices is not None:
+                                roi_idx = st.session_state.roi_indices
+                                Y = Y[:, roi_idx][:, :, roi_idx]
+                                atlas = st.session_state.sub_atlas
+                                
+                            pheno_df = st.session_state.pheno_df
                             
-                        pheno_df = st.session_state.pheno_df
-                        
-                        # --- NaN Handling ---
-                        req_cols = []
-                        if test_type == "glm":
-                            if question_choice == "Group Difference":
+                            # --- NaN Handling ---
+                            req_cols = []
+                            if test_type == "glm":
+                                if question_choice == "Group Difference":
+                                    req_cols = [group_col]
+                                    if confound_vars: req_cols.extend(confound_vars)
+                                else:
+                                    req_cols = [interest_var]
+                                    if confound_vars: req_cols.extend(confound_vars)
+                            elif test_type == "paired":
+                                req_cols = [condition_col, subject_col]
+                            elif test_type == "two-sample":
                                 req_cols = [group_col]
-                                if confound_vars: req_cols.extend(confound_vars)
-                            else:
-                                req_cols = [interest_var]
-                                if confound_vars: req_cols.extend(confound_vars)
-                        elif test_type == "paired":
-                            req_cols = [condition_col, subject_col]
-                        elif test_type == "two-sample":
-                            req_cols = [group_col]
-                        
-                        if site_col:
-                            req_cols.append(site_col)
                             
-                        req_cols = [c for c in req_cols if c in pheno_df.columns]
-                        
-                        if req_cols:
-                            valid_mask = pheno_df[req_cols].notna().all(axis=1)
-                            num_dropped = len(pheno_df) - valid_mask.sum()
-                            if num_dropped > 0:
-                                st.warning(f"⚠️ **Missing Data Excluded:** Automatically dropped {num_dropped} subject(s) due to missing (`NaN`) values in selected model variables.")
-                            Y = Y[valid_mask.to_numpy()]
-                            pheno_df = pheno_df.loc[valid_mask].reset_index(drop=True)
-                        
-                        interest = None
-                        confounds = None
-                        group1 = None
-                        group2 = None
-                        sites = None
-                        
-                        if site_col:
-                            sites = list(pheno_df[site_col].values)
+                            if site_col:
+                                req_cols.append(site_col)
+                                
+                            req_cols = [c for c in req_cols if c in pheno_df.columns]
                             
-                        if test_type == "glm":
-                            if question_choice == "Group Difference":
-                                group_mask = pheno_df[group_col].isin([ref_group, target_group])
-                                Y = Y[group_mask.to_numpy()]
-                                pheno_df_filtered = pheno_df.loc[group_mask].reset_index(drop=True)
+                            if req_cols:
+                                valid_mask = pheno_df[req_cols].notna().all(axis=1)
+                                num_dropped = len(pheno_df) - valid_mask.sum()
+                                if num_dropped > 0:
+                                    st.warning(f"⚠️ **Missing Data Excluded:** Automatically dropped {num_dropped} subject(s) due to missing (`NaN`) values in selected model variables.")
+                                 Y = Y[valid_mask.to_numpy()]
+                                 pheno_df = pheno_df.loc[valid_mask].reset_index(drop=True)
+
+                            # Always zero out diagonal of connectivity matrices to prevent float noise causing TFNBS crashes
+                            for i in range(Y.shape[0]):
+                                np.fill_diagonal(Y[i], 0.0)
+
+                            
+                            interest = None
+                            confounds = None
+                            group1 = None
+                            group2 = None
+                            sites = None
+                            
+                            if site_col:
+                                sites = list(pheno_df[site_col].values)
+                                
+                            if test_type == "glm":
+                                if question_choice == "Group Difference":
+                                    group_mask = pheno_df[group_col].isin([ref_group, target_group])
+                                    Y = Y[group_mask.to_numpy()]
+                                    pheno_df_filtered = pheno_df.loc[group_mask].reset_index(drop=True)
+                                    if site_col:
+                                        sites = list(pheno_df_filtered[site_col].values)
+                                    interest = (pheno_df_filtered[group_col] == target_group).values.astype(np.float64)
+                                    if confound_vars:
+                                        confounds = pheno_df_filtered[confound_vars].values.astype(np.float64)
+                                else:
+                                    interest = pheno_df[interest_var].values.astype(np.float64)
+                                    if confound_vars:
+                                        confounds = pheno_df[confound_vars].values.astype(np.float64)
+                                        
+                            elif test_type == "paired":
+                                df_baseline = pheno_df[pheno_df[condition_col] == baseline_val]
+                                df_target = pheno_df[pheno_df[condition_col] == target_val]
+                                common_subjects = sorted(list(set(df_baseline[subject_col]).intersection(set(df_target[subject_col]))))
+                                
+                                idx_baseline = [df_baseline[df_baseline[subject_col] == s].index[0] for s in common_subjects]
+                                idx_target = [df_target[df_target[subject_col] == s].index[0] for s in common_subjects]
+                                
+                                group1 = Y[idx_baseline]
+                                group2 = Y[idx_target]
+
                                 if site_col:
-                                    sites = list(pheno_df_filtered[site_col].values)
-                                interest = (pheno_df_filtered[group_col] == target_group).values.astype(np.float64)
-                                if confound_vars:
-                                    confounds = pheno_df_filtered[confound_vars].values.astype(np.float64)
-                            else:
-                                interest = pheno_df[interest_var].values.astype(np.float64)
-                                if confound_vars:
-                                    confounds = pheno_df[confound_vars].values.astype(np.float64)
+                                    baseline_sites = pheno_df.loc[idx_baseline, site_col].astype(str).tolist()
+                                    target_sites = pheno_df.loc[idx_target, site_col].astype(str).tolist()
+                                    mismatched_sites = [
+                                        subject for subject, baseline_site, target_site in zip(
+                                            common_subjects, baseline_sites, target_sites
+                                        )
+                                        if baseline_site != target_site
+                                    ]
+                                    if mismatched_sites:
+                                        raise ValueError(
+                                            "Paired site handling requires one stable site per subject. "
+                                            "Site labels differ between conditions for: "
+                                            + ", ".join(map(str, mismatched_sites[:5]))
+                                            + ("..." if len(mismatched_sites) > 5 else "")
+                                        )
+                                    # One site label per paired subject, in the same order as group1/group2.
+                                    sites = baseline_sites
+                                
+                            elif test_type == "two-sample":
+                                g1_mask = (pheno_df[group_col] == ref_group)
+                                g2_mask = (pheno_df[group_col] == target_group)
+                                group1 = Y[g1_mask.to_numpy()]
+                                group2 = Y[g2_mask.to_numpy()]
+                                
+                            if operator_choice in ("ni_tfnbs", "fbc_tfnbs", "cnbs"):
+                                if use_sc_prior:
+                                    op_kwargs["net_labels"] = sc_net_labels
+                                else:
+                                    op_kwargs["net_labels"] = atlas.network_index()
                                     
-                        elif test_type == "paired":
-                            df_baseline = pheno_df[pheno_df[condition_col] == baseline_val]
-                            df_target = pheno_df[pheno_df[condition_col] == target_val]
-                            common_subjects = sorted(list(set(df_baseline[subject_col]).intersection(set(df_target[subject_col]))))
+                            alpha = 0.05
+                            annotation_atlas = atlas_for_annotation(atlas, Y.shape[1])
                             
-                            idx_baseline = [df_baseline[df_baseline[subject_col] == s].index[0] for s in common_subjects]
-                            idx_target = [df_target[df_target[subject_col] == s].index[0] for s in common_subjects]
+                            task.status = "running"
+                            task.progress_message = "Starting background inference thread..."
+                            task.result = None
+                            task.edges = None
+                            task.comp_result = None
+                            task.comp_edges = None
+                            task.error = None
                             
-                            group1 = Y[idx_baseline]
-                            group2 = Y[idx_target]
-                            
-                        elif test_type == "two-sample":
-                            g1_mask = (pheno_df[group_col] == ref_group)
-                            g2_mask = (pheno_df[group_col] == target_group)
-                            group1 = Y[g1_mask.to_numpy()]
-                            group2 = Y[g2_mask.to_numpy()]
-                            
-                        if operator_choice in ("ni_tfnbs", "fbc_tfnbs", "cnbs"):
-                            if use_sc_prior:
-                                op_kwargs["net_labels"] = sc_net_labels
-                            else:
-                                op_kwargs["net_labels"] = atlas.network_index()
-                            
-                        with st.spinner(f"Executing primary method ({operator_choice.upper()}) permutation loops..."):
-                            res = analyze(
-                                Y=Y if test_type == "glm" else None,
-                                interest=interest,
-                                confounds=confounds,
-                                group1=group1,
-                                group2=group2,
-                                test_type=test_type,
-                                sites=sites,
-                                harmonize=harmonization_choice,
-                                fisher_z=False,
-                                method=operator_choice,
-                                n_permutations=n_perms,
-                                rng=seed_val,
-                                verbose=False,
-                                use_mp=use_mp,
-                                acceleration=None if acceleration_choice == "none" else acceleration_choice,
-                                **op_kwargs
-                            )
-                            
-                        st.session_state.inference_result = res
-                        alpha = 0.05
-                        annotation_atlas = atlas_for_annotation(atlas, Y.shape[1])
-                        edges = res.significant_edges(atlas=annotation_atlas, alpha=alpha)
-                        st.session_state.edges_df = edges
-                        
-                        if run_sensitivity and comp_method:
-                            comp_run_kwargs = dict(comp_kwargs)
-                            if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                                comp_run_kwargs.setdefault("e", 0.4)
-                                comp_run_kwargs.setdefault("h", 3.0)
-                                comp_run_kwargs.setdefault("n", 10)
-                                if comp_method in ("ni_tfnbs", "fbc_tfnbs"):
-                                    comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
-                            elif comp_method == "cnbs":
-                                comp_run_kwargs["net_labels"] = sc_net_labels if use_sc_prior else atlas.network_index()
-                            elif comp_method == "nbs":
-                                comp_run_kwargs.setdefault("start_thres", 3.0)
-                                comp_run_kwargs.setdefault("nbs_stat", "extent")
-                                    
-                            with st.spinner(f"Executing sensitivity companion ({comp_method.upper()}) permutation loops..."):
-                                comp_res = analyze(
-                                    Y=Y if test_type == "glm" else None,
-                                    interest=interest,
-                                    confounds=confounds,
-                                    group1=group1,
-                                    group2=group2,
-                                    test_type=test_type,
-                                    sites=sites,
-                                    harmonize=harmonization_choice,
-                                    fisher_z=False,
-                                    method=comp_method,
-                                    n_permutations=n_perms,
-                                    rng=seed_val,
-                                    verbose=False,
-                                    use_mp=use_mp,
-                                    acceleration=None if acceleration_choice == "none" else acceleration_choice,
-                                    **comp_run_kwargs
-                                )
-                            st.session_state.companion_inference_result = comp_res
-                            comp_edges = comp_res.significant_edges(atlas=annotation_atlas, alpha=alpha)
-                            st.session_state.companion_edges_df = comp_edges
-                            st.session_state.companion_method = comp_method
-                        else:
+                            # Reset in-session results
+                            st.session_state.inference_result = None
+                            st.session_state.edges_df = None
                             st.session_state.companion_inference_result = None
                             st.session_state.companion_edges_df = None
                             st.session_state.companion_method = None
-                        
-                        st.session_state.run_plan = {
-                            "question_type": question_choice,
-                            "loaded_settings_hash": st.session_state.get("loaded_settings_hash"),
-                            "design_family": test_type,
-                            "method": operator_choice,
-                            "n_permutations": n_perms,
-                            "site_recipe": recipe_choice,
-                            "effective_site_recipe": effective_recipe_choice,
-                            "harmonize": harmonization_choice,
-                            "group_col": group_col,
-                            "reference_group": ref_group,
-                            "target_group": target_group,
-                            "interest_var": interest_var,
-                            "subject_col": subject_col,
-                            "condition_col": condition_col,
-                            "baseline_condition": baseline_val,
-                            "target_condition": target_val,
-                            "confound_vars": confound_vars,
-                            "site_col": site_col,
-                            "active_atlas_signature": st.session_state.get("active_atlas_signature"),
-                            "data_kind": st.session_state.get("connectivity_data_kind"),
-                            "seed": seed_val
-                        }
-                        
-                        st.session_state.next_tab = tabs_list[2] # Redirect to Inference Results
-                        st.success(f"✅ Connectivity inference completed!")
+                            st.session_state.run_plan = None
+                            
+                            # Start thread
+                            t = threading.Thread(
+                                target=_run_inference_background,
+                                kwargs=dict(
+                                    task=task,
+                                    Y=Y, interest=interest, confounds=confounds, group1=group1, group2=group2,
+                                    test_type=test_type, sites=sites, harmonization_choice=harmonization_choice,
+                                    operator_choice=operator_choice, n_perms=n_perms, seed_val=seed_val,
+                                    use_mp=use_mp, acceleration_choice=acceleration_choice, op_kwargs=op_kwargs,
+                                    run_sensitivity=run_sensitivity, comp_method=comp_method, comp_kwargs=comp_kwargs,
+                                    sc_net_labels=sc_net_labels, use_sc_prior=use_sc_prior, atlas=atlas,
+                                    annotation_atlas=annotation_atlas, alpha=alpha, question_choice=question_choice,
+                                    loaded_settings_hash=st.session_state.get("loaded_settings_hash"),
+                                    recipe_choice=recipe_choice, effective_recipe_choice=effective_recipe_choice,
+                                    group_col=group_col, ref_group=ref_group, target_group=target_group,
+                                    interest_var=interest_var, subject_col=subject_col, condition_col=condition_col,
+                                    baseline_val=baseline_val, target_val=target_val, confound_vars=confound_vars,
+                                    site_col=site_col, active_atlas_signature=st.session_state.get("active_atlas_signature"),
+                                    data_kind=st.session_state.get("connectivity_data_kind")
+                                )
+                            )
+                            t.daemon = True
+                            t.start()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed to start background thread: {e}")
+                            st.exception(e)
+                            
+                elif task.status == "running":
+                    def render_running_status():
+                        """Poll the thread state without restarting its inference work."""
+                        current_task = st.session_state.inference_task
+                        if current_task.status != "running":
+                            # A full rerun promotes the completed result into
+                            # session state and navigates to the results tab.
+                            if hasattr(st, "fragment"):
+                                st.rerun(scope="app")
+                            st.rerun()
+
+                        st.info(f"⏳ **Status:** {current_task.progress_message}")
+                        st.markdown(f"""
+                        **Estimated remaining time:** `{est_str}`
+
+                        *   Permutations are running in the background.
+                        *   You can switch to other tabs (such as Workspace Documentation) or browse around the workspace.
+                        *   This status checks automatically every 2 seconds.
+                        """)
+
+                    if hasattr(st, "fragment"):
+                        # Fragment reruns are scoped to this status area, so
+                        # they do not re-create the background worker thread.
+                        st.fragment(run_every=2.0)(render_running_status)()
+                    else:  # pragma: no cover - compatibility with Streamlit < 1.37
+                        render_running_status()
+                        if st.button("Refresh Status", key="refresh_inf_status_btn"):
+                            st.rerun()
+                else:
+                    # success or failed
+                    st.info(f"Inference run complete. Current status: **{task.status.upper()}**")
+                    if st.button("🚀 Configure & Run New Inference", key="run_inf_new_button"):
+                        task.status = "idle"
                         st.rerun()
                         
-                    except Exception as e:
-                        st.error(f"Inference failed: {e}")
-                        st.exception(e)
+                # Handle finished background task results
+                if task.status == "success":
+                    if st.session_state.inference_result is None:
+                        st.session_state.inference_result = task.result
+                        st.session_state.edges_df = task.edges
+                        st.session_state.companion_inference_result = task.comp_result
+                        st.session_state.companion_edges_df = task.comp_edges
+                        st.session_state.companion_method = task.run_plan.get("companion_method")
+                        st.session_state.run_plan = task.run_plan
+                        st.success("🎉 Connectivity inference completed successfully!")
+                        st.session_state.next_tab = tabs_list[2] # Redirect to Inference Results
+                        st.rerun()
+                elif task.status == "failed":
+                    st.error("❌ Inference failed!")
+                    st.text_area("Error Traceback", value=task.error or "Unknown error", height=150)
+                    if st.button("Reset & Try Again", key="reset_failed_inf_task"):
+                        task.status = "idle"
+                        st.rerun()

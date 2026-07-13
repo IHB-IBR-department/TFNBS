@@ -231,3 +231,15 @@ docs/_build/
 # Local validation plans (local results only, not committed)
 Abide_Validation_Plan.md
 OpenClose_Validation_Plan.md
+
+# Local-only datasets
+datasets/abide_full.yaml
+datasets/china_close_close.yaml
+datasets/stress_connectivity.yaml
+datasets/stress_fmriprep.yaml
+datasets/stress_timeseries.yaml
+datasets/zerssen_nifti.yaml
+datasets/zerssen_prepared.yaml
+datasets/eeg_dataframe_nansfilled.csv
+datasets/ABIDE_TS_Schaefer100/
+
