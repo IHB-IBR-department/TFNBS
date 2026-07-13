@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.eeg_utils &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="References" href="references.html" />
+    <link rel="prev" title="conninfpy.utils" href="conninfpy.utils.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="conninfpy.html">conninfpy</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="conninfpy.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.pairwise_stats.html">conninfpy.pairwise_stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.glm_stats.html">conninfpy.glm_stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy._enhancement.html">conninfpy._enhancement</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.tfnbs_score.html">conninfpy.tfnbs_score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.nbs_score.html">conninfpy.nbs_score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.acceleration.html">conninfpy.acceleration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.harmonize.html">conninfpy.harmonize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.synth_datasets.html">conninfpy.synth_datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.topologies.html">conninfpy.topologies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.defaults.html">conninfpy.defaults</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.utils.html">conninfpy.utils</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">conninfpy.eeg_utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.Electrodes"><code class="docutils literal notranslate"><span class="pre">Electrodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.Bands"><code class="docutils literal notranslate"><span class="pre">Bands</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.PairsElectrodes1020"><code class="docutils literal notranslate"><span class="pre">PairsElectrodes1020</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.EEGData"><code class="docutils literal notranslate"><span class="pre">EEGData</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.read_from_eeg_dataframe"><code class="docutils literal notranslate"><span class="pre">read_from_eeg_dataframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.reshape_eeg_data"><code class="docutils literal notranslate"><span class="pre">reshape_eeg_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.eeg_utils.inverse_reshape_eeg_data"><code class="docutils literal notranslate"><span class="pre">inverse_reshape_eeg_data()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="conninfpy.html">conninfpy</a></li>
+      <li class="breadcrumb-item active">conninfpy.eeg_utils</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/conninfpy.eeg_utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-conninfpy.eeg_utils">
+<span id="conninfpy-eeg-utils"></span><h1>conninfpy.eeg_utils<a class="headerlink" href="#module-conninfpy.eeg_utils" title="Link to this heading"></a></h1>
+<p>EEG-specific data structures and reshape helpers.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">Electrodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#Electrodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></a></p>
+<p>Class to return EEG electrode names and respective IDs based on 10-20 EEG system.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp2</span><span class="o">.</span><span class="n">value</span>
+<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Electrodes</span><span class="o">.</span><span class="n">P3</span><span class="o">.</span><span class="n">name</span>
+<span class="go">&#39;P3&#39;</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.Fp1">
+<span class="sig-name descname"><span class="pre">Fp1</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.Fp1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.Fp2">
+<span class="sig-name descname"><span class="pre">Fp2</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.Fp2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.F7">
+<span class="sig-name descname"><span class="pre">F7</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.F7" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.F3">
+<span class="sig-name descname"><span class="pre">F3</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.F3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.Fz">
+<span class="sig-name descname"><span class="pre">Fz</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.Fz" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.F4">
+<span class="sig-name descname"><span class="pre">F4</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">6</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.F4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.F8">
+<span class="sig-name descname"><span class="pre">F8</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">7</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.F8" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.T3">
+<span class="sig-name descname"><span class="pre">T3</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.T3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.T4">
+<span class="sig-name descname"><span class="pre">T4</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">9</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.T4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.T5">
+<span class="sig-name descname"><span class="pre">T5</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.T5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.T6">
+<span class="sig-name descname"><span class="pre">T6</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">11</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.T6" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.O1">
+<span class="sig-name descname"><span class="pre">O1</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">12</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.O1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.O2">
+<span class="sig-name descname"><span class="pre">O2</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">13</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.O2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.C3">
+<span class="sig-name descname"><span class="pre">C3</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">14</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.C3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.Cz">
+<span class="sig-name descname"><span class="pre">Cz</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">15</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.Cz" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.C4">
+<span class="sig-name descname"><span class="pre">C4</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">16</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.C4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.P3">
+<span class="sig-name descname"><span class="pre">P3</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">17</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.P3" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.Pz">
+<span class="sig-name descname"><span class="pre">Pz</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">18</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.Pz" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Electrodes.P4">
+<span class="sig-name descname"><span class="pre">P4</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">19</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Electrodes.P4" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">Bands</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#Bands"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.Bands" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></a></p>
+<p>Class to return EEG frequency bands with respective IDs.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Bands</span><span class="o">.</span><span class="n">alpha1</span><span class="o">.</span><span class="n">value</span>
+<span class="go">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Bands</span><span class="o">.</span><span class="n">get_name_by_id</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="go">&#39;beta2&#39;</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.delta">
+<span class="sig-name descname"><span class="pre">delta</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.delta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.theta">
+<span class="sig-name descname"><span class="pre">theta</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.theta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.alpha1">
+<span class="sig-name descname"><span class="pre">alpha1</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.alpha1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.alpha2">
+<span class="sig-name descname"><span class="pre">alpha2</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.alpha2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.beta1">
+<span class="sig-name descname"><span class="pre">beta1</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.beta1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.beta2">
+<span class="sig-name descname"><span class="pre">beta2</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">6</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.beta2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.gamma">
+<span class="sig-name descname"><span class="pre">gamma</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">7</span></span><a class="headerlink" href="#conninfpy.eeg_utils.Bands.gamma" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.get_name_by_id">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_name_by_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#Bands.get_name_by_id"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.Bands.get_name_by_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.Bands.get_values">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#Bands.get_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.Bands.get_values" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.PairsElectrodes1020">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">PairsElectrodes1020</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">electrodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#conninfpy.eeg_utils.Electrodes" title="conninfpy.eeg_utils.Electrodes"><span class="pre">Electrodes</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#PairsElectrodes1020"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.PairsElectrodes1020" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Class to resolve &amp; return electrode pairs based on 10-20 EEG system.</p>
+<dl class="simple">
+<dt>Methods:</dt><dd><p>electrode_pairs: Function to resolve indexed electrode names.
+create_pairs_dict: Function to create mapped dictionary of electodes with pairs.</p>
+</dd>
+<dt>Attributes:</dt><dd><p>electrodes (List[Electrodes]): List of electrodes to consider
+nearest (List[Tuple[str, str]]): List of electrode pairs</p>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">electrodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp1</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp2</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fz</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span> <span class="o">=</span> <span class="n">PairsElectrodes1020</span><span class="p">(</span><span class="n">electrodes</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span><span class="o">.</span><span class="n">electrode_pairs</span>
+<span class="go">[(&#39;Fp1&#39;, &#39;Fp2&#39;), (&#39;Fp1&#39;, &#39;Fz&#39;), (&#39;Fp2&#39;, &#39;Fz&#39;)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_dict</span> <span class="o">=</span> <span class="n">pairs_obj</span><span class="o">.</span><span class="n">create_pairs_dict</span><span class="p">(</span><span class="n">pairs_obj</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span> <span class="n">filter_by</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Fp1&#39;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">(</span><span class="s1">&#39;Fp1&#39;</span><span class="p">,</span> <span class="s1">&#39;Fp2&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">pairs_dict</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<dl class="py property">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.PairsElectrodes1020.electrode_pairs">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">electrode_pairs</span></span><a class="headerlink" href="#conninfpy.eeg_utils.PairsElectrodes1020.electrode_pairs" title="Link to this definition"></a></dt>
+<dd><p>Returns electrode names as an indexed list as per combinations</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">electrodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp1</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp2</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fz</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span> <span class="o">=</span> <span class="n">PairsElectrodes1020</span><span class="p">(</span><span class="n">electrodes</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span><span class="o">.</span><span class="n">electrode_pairs</span>
+<span class="go">[(&#39;Fp1&#39;, &#39;Fp2&#39;), (&#39;Fp1&#39;, &#39;Fz&#39;), (&#39;Fp2&#39;, &#39;Fz&#39;)]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.PairsElectrodes1020.create_pairs_dict">
+<span class="sig-name descname"><span class="pre">create_pairs_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pairs_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#PairsElectrodes1020.create_pairs_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.PairsElectrodes1020.create_pairs_dict" title="Link to this definition"></a></dt>
+<dd><p>Creates a dictionary mapping electrode pairs to pairs_list.</p>
+<dl class="simple">
+<dt>Parameters:</dt><dd><p>pairs_list (list): List of electrode pairs (tuple) to be mapped.
+filter_by (list, optional): List of electrodes to be filtered by name (Default = None).</p>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pairs_dict (dict) = Dictionary with electrode pairs as keys (from self.electrode) mapped to</dt><dd><p>electrodes from pairs_list.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">electrodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp1</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fp2</span><span class="p">,</span> <span class="n">Electrodes</span><span class="o">.</span><span class="n">Fz</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span> <span class="o">=</span> <span class="n">PairsElectrodes1020</span><span class="p">(</span><span class="n">electrodes</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pairs_obj</span><span class="o">.</span><span class="n">electrode_pairs</span>
+<span class="go">[(&#39;Fp1&#39;, &#39;Fp2&#39;), (&#39;Fp1&#39;, &#39;Fz&#39;), (&#39;Fp2&#39;, &#39;Fz&#39;)]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.EEGData">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">EEGData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subj_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrodes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">el_pairs_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bands</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#EEGData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.EEGData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Class function for reading EEG data</p>
+<dl class="simple">
+<dt>Parameters:</dt><dd><p>data (np.ndarray): EEG data of shape (n_subjects, n_channels, num_freqs).
+subj_list (List[str]): List of subject identifiers corresponding to the first axis of ‘data’.
+electrodes (Enum): Enum represents electrodes.
+el_pairs_list (List[Tuple[str, str]]): List of electrode pairs.
+bands (List[str]): List of EEG frequency bands.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.read_from_eeg_dataframe">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">read_from_eeg_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_to_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cond_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#read_from_eeg_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.read_from_eeg_dataframe" title="Link to this definition"></a></dt>
+<dd><p>Function to read EEG data from (.csv) format &amp; load into (n_subjects, n_channels, num_freqs) format.</p>
+<dl class="simple">
+<dt>Parameters:</dt><dd><p>path_to_df (str): Path to csv file with EEG data.
+cond_prefix (str, optional): String prefix for identification of condition w.r.t columns (default = ‘fo’).
+band_list (list[int], optional) : List of frequency bands (default = None).</p>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>EEGData object with attributes:</dt><dd><p>data (np.ndarray): EEG data array of shape (n_subjects, n_channels, n_freqs)
+subj_list (List[str]): List of subject identifiers corresponding to the first axis of ‘data’.
+Electrodes (Enum): Returned as electrode class for channels with labels.
+(pairs_dict.keys()) (tuple): Electrode pairs as a tuple.
+bands (Enum): Returned as Bands class of frequency bands.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">eeg_data</span> <span class="o">=</span> <span class="n">read_from_eeg_dataframe</span><span class="p">(</span><span class="s1">&#39;datasets\eeg_dataframe_nansfilled.csv&#39;</span><span class="p">,</span> <span class="n">cond_prefix</span><span class="o">=</span><span class="s1">&#39;fo&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">eeg_data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(177, 171, 7)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.reshape_eeg_data">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">reshape_eeg_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">reshape_bands</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#reshape_eeg_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.reshape_eeg_data" title="Link to this definition"></a></dt>
+<dd><p>Reshape EEG data from (n_subjects, chan_pairs, num_freqs) or (chan_pairs, chan_pairs) to
+(n_subjects, n_chans, n_chans, n_freq) or to (n_subjects, n_chans*n_freq, n_chans*n_freq,) if reshape_bands is True,
+where each chansxchans block corresponds to a specific frequency. The number of electrode pairs is considered as 19,
+for this instance of implementation.</p>
+<dl class="simple">
+<dt>Parameters:</dt><dd><p>data (np.ndarray): Array of shape (n_subjects, chan_pairs, num_freqs)
+reshape_bands (bool): Option to return a block diagonal matrix where each block returned as per individual frequency bands (default = True)</p>
+</dd>
+<dt>Returns:</dt><dd><p>reshaped_data (np.ndarray): Array of shape (n_subjects,  chan_pairs, num_freqs) or  (n_subjects, n_chans*n_freq, n_chans*n_freq,)
+For single subjects = reshaped_data: [np.ndarray] of shape (chan_pairs, chan_pairs, num_freqs) or (chan_pairs*num_freqs, chan_pairs*num_freqs)</p>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">n_pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">PairsElectrodes1020</span><span class="p">(</span><span class="n">Electrodes</span><span class="p">)</span><span class="o">.</span><span class="n">electrode_pairs</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>  <span class="c1"># 1 subject, all pairs, 2 freqs/len(PairsElectrodes1020(Electrodes).electrode_pairs)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">reshape_eeg_data</span><span class="p">(</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">reshape_bands</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(2, 19, 19, 3)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">reshape_eeg_data</span><span class="p">(</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">reshape_bands</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(2, 57, 57)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.eeg_utils.inverse_reshape_eeg_data">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.eeg_utils.</span></span><span class="sig-name descname"><span class="pre">inverse_reshape_eeg_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reshaped_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">reshape_bands</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></span><a class="reference internal" href="_modules/conninfpy/eeg_utils.html#inverse_reshape_eeg_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.eeg_utils.inverse_reshape_eeg_data" title="Link to this definition"></a></dt>
+<dd><p>Function to perform Inverse reshape of EEG data back to (n_subjects, chan_pairs, num_freqs) format.</p>
+<dl class="simple">
+<dt>Parameters:</dt><dd><p>reshaped_data (np.ndarray): EEG data of shape (n_subjects, num_els, num_els, num_freqs).
+or (n_subjects, num_els*n_freqs, num_els*n_freqs) if reshape_bands=True.
+reshape_bands (bool): To indicate if input is in band-flattened form.</p>
+</dd>
+<dt>Returns:</dt><dd><p>original_data (np.ndarray): Original EEG data of shape (n_subjects, chan_pairs, num_freqs) or (chan_pairs, num_freq)</p>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">n_pairs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">PairsElectrodes1020</span><span class="p">(</span><span class="n">Electrodes</span><span class="p">)</span><span class="o">.</span><span class="n">electrode_pairs</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">reshaped_data</span> <span class="o">=</span> <span class="n">reshape_eeg_data</span><span class="p">(</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">reshape_bands</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">reshaped_data</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(2, 57, 57)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">inverse_data</span> <span class="o">=</span> <span class="n">inverse_reshape_eeg_data</span><span class="p">(</span><span class="n">reshaped_data</span><span class="p">,</span> <span class="n">reshape_bands</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">inverse_data</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(2, 171, 3)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="conninfpy.utils.html" class="btn btn-neutral float-left" title="conninfpy.utils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="references.html" class="btn btn-neutral float-right" title="References" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

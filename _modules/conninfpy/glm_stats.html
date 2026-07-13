@@ -1,0 +1,1442 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.glm_stats &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../conninfpy.html">conninfpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">conninfpy.glm_stats</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for conninfpy.glm_stats</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">GLM-based statistical testing for brain connectivity networks.</span>
+
+<span class="sd">Implements edge-wise General Linear Model with Freedman-Lane permutation</span>
+<span class="sd">for confound-aware inference on connectivity matrices. Supports all</span>
+<span class="sd">enhancement methods (TFNBS, NBS, cNBS, NI-TFNBS, FBC-TFNBS).</span>
+
+<span class="sd">Main Functions</span>
+<span class="sd">--------------</span>
+<span class="sd">compute_glm_stat : Compute GLM t-statistics for connectivity data</span>
+<span class="sd">compute_p_val_glm : Full GLM pipeline with permutation testing</span>
+<span class="sd">build_design_matrix : Convenience builder for design matrix + contrast</span>
+
+<span class="sd">References</span>
+<span class="sd">----------</span>
+<span class="sd">Freedman &amp; Lane (1983). A nonstochastic interpretation of reported significance levels.</span>
+<span class="sd">Anderson &amp; Legendre (1999). An empirical comparison of permutation methods.</span>
+<span class="sd">Winkler et al. (2014). Permutation inference for the general linear model.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">multiprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.defaults</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_EXTENT_EXPONENT</span><span class="p">,</span>
+    <span class="n">DEFAULT_HEIGHT_EXPONENT</span><span class="p">,</span>
+    <span class="n">DEFAULT_N_THRESHOLDS_PERMUTATION</span> <span class="k">as</span> <span class="n">DEFAULT_N_THRESHOLDS</span><span class="p">,</span>
+    <span class="n">DEFAULT_N_PERMUTATIONS</span><span class="p">,</span>
+    <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">DEFAULT_MIN_CLUSTER_SIZE</span><span class="p">,</span>
+    <span class="n">DEFAULT_NBS_THRESHOLD</span><span class="p">,</span>
+    <span class="n">DEFAULT_NBS_STAT</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._enhancement</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">apply_cnbs</span><span class="p">,</span>
+    <span class="n">apply_fbc_tfnbs</span><span class="p">,</span>
+    <span class="n">apply_nbs</span><span class="p">,</span>
+    <span class="n">apply_ni_tfnbs</span><span class="p">,</span>
+    <span class="n">apply_tfnbs</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_extract_max_stats</span><span class="p">,</span>
+    <span class="n">_collect_results_to_arrays</span><span class="p">,</span>
+    <span class="n">_compute_p_values_from_null</span><span class="p">,</span>
+    <span class="n">_is_worker_process</span><span class="p">,</span>
+    <span class="n">compute_p_val</span><span class="p">,</span>
+    <span class="n">get_available_cores</span><span class="p">,</span>
+    <span class="n">StatMethod</span><span class="p">,</span>
+    <span class="n">CONSTRAINED_METHODS</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.acceleration</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_p_values_accelerated</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._compat</span><span class="w"> </span><span class="kn">import</span> <span class="n">TailResult</span><span class="p">,</span> <span class="n">make_tail_result</span><span class="p">,</span> <span class="n">normalize_keys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._progress</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_permutations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._result</span><span class="w"> </span><span class="kn">import</span> <span class="n">InferenceResult</span><span class="p">,</span> <span class="n">OmnibusInferenceResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._rng</span><span class="w"> </span><span class="kn">import</span> <span class="n">RngLike</span><span class="p">,</span> <span class="n">resolve_seed</span><span class="p">,</span> <span class="n">warn_legacy_random_state</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;GLMStatType&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compute_glm_stat&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compute_p_val_glm&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compute_p_val_paired_glm&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;build_design_matrix&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Enums</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="GLMStatType">
+<a class="viewcode-back" href="../../conninfpy.glm_stats.html#conninfpy.glm_stats.GLMStatType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GLMStatType</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistic type for GLM inference.&quot;&quot;&quot;</span>
+
+    <span class="n">TSTAT</span> <span class="o">=</span> <span class="s2">&quot;tstat&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;t-statistic: beta / SE(beta). Scale-invariant, start_thres=1.65 valid.&quot;&quot;&quot;</span>
+
+    <span class="n">BETA</span> <span class="o">=</span> <span class="s2">&quot;beta&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raw regression coefficient. Interpretable, needs adapted threshold.&quot;&quot;&quot;</span>
+
+    <span class="n">FSTAT</span> <span class="o">=</span> <span class="s2">&quot;fstat&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;F-statistic for an omnibus (multi-row) contrast.</span>
+
+<span class="sd">    Non-negative by construction — the enhancement pipeline sees a single</span>
+<span class="sd">    ``&#39;omnibus&#39;`` key instead of a ``positive``/``negative`` split. For a</span>
+<span class="sd">    single-row contrast, F == t² (same rejection regions, same rankings).&quot;&quot;&quot;</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># OLS precomputation</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_precompute_ols</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Precompute OLS quantities that are constant across permutations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : ndarray of shape (n_subjects, p)</span>
+<span class="sd">        Design matrix (must include intercept if desired).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    X_pinv : ndarray of shape (p, n_subjects)</span>
+<span class="sd">        Moore-Penrose pseudoinverse of the design matrix.</span>
+<span class="sd">    XtX_inv_diag : ndarray of shape (p,)</span>
+<span class="sd">        Diagonal of the generalized inverse of X&#39;X, needed for SE computation.</span>
+<span class="sd">    XtX_inv : ndarray of shape (p, p)</span>
+<span class="sd">        Generalized inverse of X&#39;X, needed for contrast SE computation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rank</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_rank</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">rank</span> <span class="o">&lt;</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Design matrix is rank deficient &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(rank=</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2">, columns=</span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">). &quot;</span>
+            <span class="s2">&quot;Using Moore-Penrose pseudoinverse; non-estimable contrasts may &quot;</span>
+            <span class="s2">&quot;still be unstable.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cond</span> <span class="o">&gt;</span> <span class="mf">1e12</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Design matrix is ill-conditioned (cond=</span><span class="si">{</span><span class="n">cond</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">). &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Results may be numerically unstable.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="n">X_pinv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">X_pinv</span> <span class="o">@</span> <span class="n">X_pinv</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">XtX_inv_diag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">XtX_inv</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">X_pinv</span><span class="p">,</span> <span class="n">XtX_inv_diag</span><span class="p">,</span> <span class="n">XtX_inv</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_residual_degrees_of_freedom</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return residual df based on design rank, not raw column count.&quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_rank</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">df</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Design matrix has no residual degrees of freedom &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(n=</span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, rank=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_rank</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="si">}</span><span class="s2">).&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_warn_beta_threshold_scale</span><span class="p">(</span>
+    <span class="n">stat_type_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">method_enum</span><span class="p">:</span> <span class="n">StatMethod</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warn when beta-scale statistics are paired with threshold enhancers.&quot;&quot;&quot;</span>
+    <span class="n">threshold_methods</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">StatMethod</span><span class="o">.</span><span class="n">NBS</span><span class="p">,</span>
+        <span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">,</span>
+        <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">,</span>
+        <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">BETA</span><span class="o">.</span><span class="n">value</span>
+        <span class="ow">and</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="n">threshold_methods</span>
+    <span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;stat_type=&#39;beta&#39; uses raw coefficient units. Ensure NBS/TFNBS &quot;</span>
+            <span class="s2">&quot;thresholds are chosen on the beta scale, not the default t-stat &quot;</span>
+            <span class="s2">&quot;scale.&quot;</span><span class="p">,</span>
+            <span class="ne">UserWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="p">)</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Core GLM computation</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="compute_glm_stat">
+<a class="viewcode-back" href="../../conninfpy.glm_stats.html#conninfpy.glm_stats.compute_glm_stat">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_glm_stat</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">contrast</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">stat_type</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">]</span> <span class="o">=</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">TSTAT</span><span class="p">,</span>
+    <span class="n">X_pinv</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">XtX_inv_diag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">XtX_inv</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute edge-wise GLM statistics for connectivity matrices.</span>
+
+<span class="sd">    For each edge (i,j): Y_ij = X @ beta_ij + epsilon_ij.</span>
+
+<span class="sd">    - ``tstat``/``beta``: single-column contrast, returns ``{positive, negative}``.</span>
+<span class="sd">    - ``fstat``: multi-row contrast (omnibus F), returns ``{omnibus}`` — F is</span>
+<span class="sd">      non-negative by construction, so there is no direction to split.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Connectivity matrices (symmetric, zero diagonal).</span>
+<span class="sd">    X : ndarray of shape (n_subjects, p)</span>
+<span class="sd">        Design matrix (should include intercept column if needed).</span>
+<span class="sd">    contrast : ndarray of shape (p,) or (r, p)</span>
+<span class="sd">        Contrast vector (for ``tstat``/``beta``: 1D) or contrast matrix (for</span>
+<span class="sd">        ``fstat``: 2D with ``r`` rows). A 1D contrast passed with ``stat_type</span>
+<span class="sd">        =&#39;fstat&#39;`` is treated as a 1×p matrix (F == t² at each edge).</span>
+<span class="sd">    stat_type : {&#39;tstat&#39;, &#39;beta&#39;, &#39;fstat&#39;} or GLMStatType, default=&#39;tstat&#39;</span>
+<span class="sd">        Type of statistic to compute.</span>
+<span class="sd">    X_pinv : ndarray of shape (p, n_subjects), optional</span>
+<span class="sd">        Precomputed Moore-Penrose pseudoinverse. If None, computed</span>
+<span class="sd">        internally by :func:`_precompute_ols`.</span>
+<span class="sd">    XtX_inv_diag : ndarray of shape (p,), optional</span>
+<span class="sd">        Precomputed diagonal of the generalized inverse of ``X&#39;X``.</span>
+<span class="sd">        Required when ``stat_type=&#39;tstat&#39;`` and ``X_pinv`` is provided.</span>
+<span class="sd">    XtX_inv : ndarray of shape (p, p), optional</span>
+<span class="sd">        Generalized inverse of ``X&#39;X``. Required for contrast standard</span>
+<span class="sd">        errors when ``X_pinv`` is provided.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        For ``tstat``/``beta``: ``{&#39;positive&#39;: (N, N), &#39;negative&#39;: (N, N)}``,</span>
+<span class="sd">        both non-negative.</span>
+<span class="sd">        For ``fstat``: ``{&#39;omnibus&#39;: (N, N)}``, non-negative.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stat_type_str</span> <span class="o">=</span> <span class="n">stat_type</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stat_type</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">)</span> <span class="k">else</span> <span class="n">stat_type</span>
+
+    <span class="n">n</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">contrast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">contrast</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Precompute if not provided</span>
+    <span class="k">if</span> <span class="n">X_pinv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X_pinv</span><span class="p">,</span> <span class="n">XtX_inv_diag</span><span class="p">,</span> <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="c1"># Compute betas: (p, N, N)</span>
+    <span class="c1"># Y reshaped to (n, N*N), then beta = X_pinv @ Y_flat → (p, N*N) → (p, N, N)</span>
+    <span class="n">Y_flat</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># (n, N*N)</span>
+    <span class="n">beta_flat</span> <span class="o">=</span> <span class="n">X_pinv</span> <span class="o">@</span> <span class="n">Y_flat</span>  <span class="c1"># (p, N*N)</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="n">beta_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>  <span class="c1"># (p, N, N)</span>
+
+    <span class="k">if</span> <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">FSTAT</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="c1"># --- F-statistic: (Cβ)&#39; [C(X&#39;X)^+ C&#39;]^-1 (Cβ) / (r · σ²) ---</span>
+        <span class="k">if</span> <span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">contrast</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">contrast</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;F-stat contrast must be 1D or 2D, got ndim=</span><span class="si">{</span><span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">C</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Contrast has </span><span class="si">{</span><span class="n">C</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> columns but design matrix has </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Residual variance per edge</span>
+        <span class="n">residuals_flat</span> <span class="o">=</span> <span class="n">Y_flat</span> <span class="o">-</span> <span class="n">X</span> <span class="o">@</span> <span class="n">beta_flat</span>  <span class="c1"># (n, N*N)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">_residual_degrees_of_freedom</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">sigma2_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">residuals_flat</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">df</span>
+        <span class="n">sigma2</span> <span class="o">=</span> <span class="n">sigma2_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">XtX_inv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+        <span class="c1"># M = C (X&#39;X)^+ C&#39; shape (r, r); invert once (small)</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">C</span> <span class="o">@</span> <span class="n">XtX_inv</span> <span class="o">@</span> <span class="n">C</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">matrix_rank</span><span class="p">(</span><span class="n">M</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">r</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;C(X&#39;X)⁻¹C&#39; is singular — contrast rows are not linearly &quot;</span>
+                <span class="s2">&quot;independent on the column space of X.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">M_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;C(X&#39;X)⁻¹C&#39; is singular — contrast rows are not linearly &quot;</span>
+                <span class="s2">&quot;independent on the column space of X.&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">err</span>
+
+        <span class="c1"># Cβ shape (r, N, N); quadratic form per edge via einsum</span>
+        <span class="n">Cbeta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tensordot</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">]))</span>  <span class="c1"># (r, N, N)</span>
+        <span class="n">quad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;ixy,ij,jxy-&gt;xy&quot;</span><span class="p">,</span> <span class="n">Cbeta</span><span class="p">,</span> <span class="n">M_inv</span><span class="p">,</span> <span class="n">Cbeta</span><span class="p">)</span>  <span class="c1"># (N, N)</span>
+
+        <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">invalid</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">):</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">quad</span> <span class="o">/</span> <span class="p">(</span><span class="n">r</span> <span class="o">*</span> <span class="n">sigma2</span><span class="p">)</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sigma2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">F</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>  <span class="c1"># guard numerical noise near zero</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;omnibus&quot;</span><span class="p">:</span> <span class="n">F</span><span class="p">}</span>
+
+    <span class="c1"># --- t-stat / beta path: single-column contrast, signed output ---</span>
+    <span class="k">if</span> <span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;stat_type=&#39;</span><span class="si">{</span><span class="n">stat_type_str</span><span class="si">}</span><span class="s2">&#39; requires a 1D contrast; got &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;ndim=</span><span class="si">{</span><span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">. Use stat_type=&#39;fstat&#39; for multi-row contrasts.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Contrast beta: scalar statistic per edge</span>
+    <span class="c1"># contrast @ beta → (N, N)</span>
+    <span class="n">c_beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tensordot</span><span class="p">(</span><span class="n">contrast</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">]))</span>  <span class="c1"># (N, N)</span>
+
+    <span class="k">if</span> <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">BETA</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="n">stat</span> <span class="o">=</span> <span class="n">c_beta</span>
+    <span class="k">elif</span> <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">TSTAT</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="c1"># Residuals: (n, N*N)</span>
+        <span class="n">residuals_flat</span> <span class="o">=</span> <span class="n">Y_flat</span> <span class="o">-</span> <span class="n">X</span> <span class="o">@</span> <span class="n">beta_flat</span>  <span class="c1"># (n, N*N)</span>
+
+        <span class="c1"># Residual variance per edge: sigma^2 = RSS / (n - rank(X))</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">_residual_degrees_of_freedom</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">sigma2_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">residuals_flat</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">df</span>  <span class="c1"># (N*N,)</span>
+        <span class="n">sigma2</span> <span class="o">=</span> <span class="n">sigma2_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+        <span class="c1"># SE of contrast beta: sqrt(c&#39; (X&#39;X)^+ c * sigma^2)</span>
+        <span class="k">if</span> <span class="n">XtX_inv</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">c_XtX_inv_c</span> <span class="o">=</span> <span class="n">contrast</span> <span class="o">@</span> <span class="n">XtX_inv</span> <span class="o">@</span> <span class="n">contrast</span>  <span class="c1"># scalar</span>
+        <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">c_XtX_inv_c</span> <span class="o">*</span> <span class="n">sigma2</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">invalid</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">):</span>
+            <span class="n">stat</span> <span class="o">=</span> <span class="n">c_beta</span> <span class="o">/</span> <span class="n">se</span>
+            <span class="n">stat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">se</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">stat</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Invalid stat_type: &#39;</span><span class="si">{</span><span class="n">stat_type_str</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Must be one of: </span><span class="si">{</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">value</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">GLMStatType</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Separate positive and negative effects</span>
+    <span class="n">positive</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">stat</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">stat</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="n">negative</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">stat</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">stat</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">make_tail_result</span><span class="p">(</span><span class="n">positive</span><span class="p">,</span> <span class="n">negative</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Design matrix builder</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="build_design_matrix">
+<a class="viewcode-back" href="../../conninfpy.glm_stats.html#conninfpy.glm_stats.build_design_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_design_matrix</span><span class="p">(</span>
+    <span class="n">interest</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">confounds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Build design matrix and contrast vector from interest and confound variables.</span>
+
+<span class="sd">    Constructs X = [intercept, confounds, interest] and contrast = [0, ..., 0, 1]</span>
+<span class="sd">    targeting the last column (interest variable).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    interest : ndarray of shape (n_subjects,)</span>
+<span class="sd">        Variable of interest (continuous or binary).</span>
+<span class="sd">    confounds : ndarray of shape (n_subjects,) or (n_subjects, q), optional</span>
+<span class="sd">        Confound variables. If 1D, treated as single confound.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    X : ndarray of shape (n_subjects, p)</span>
+<span class="sd">        Design matrix with intercept, confounds, and interest.</span>
+<span class="sd">    contrast : ndarray of shape (p,)</span>
+<span class="sd">        Contrast vector [0, ..., 0, 1] targeting the interest column.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">interest</span><span class="p">)</span>
+    <span class="n">interest</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">interest</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">interest</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">interest</span> <span class="o">=</span> <span class="n">interest</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+    <span class="n">intercept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">confounds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">confounds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">confounds</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">confounds</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">confounds</span> <span class="o">=</span> <span class="n">confounds</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">intercept</span><span class="p">,</span> <span class="n">confounds</span><span class="p">,</span> <span class="n">interest</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">intercept</span><span class="p">,</span> <span class="n">interest</span><span class="p">])</span>
+
+    <span class="n">contrast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">contrast</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">return</span> <span class="n">X</span><span class="p">,</span> <span class="n">contrast</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Freedman-Lane permutation helpers</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_reduced_model</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">contrast</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the reduced design matrix for Freedman-Lane permutation.</span>
+
+<span class="sd">    The reduced model contains all columns NOT targeted by the contrast.</span>
+<span class="sd">    For a 2D contrast matrix (F-test), a column is targeted if ANY row of</span>
+<span class="sd">    the contrast has a non-zero entry for it.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : ndarray of shape (n_subjects, p)</span>
+<span class="sd">        Full design matrix.</span>
+<span class="sd">    contrast : ndarray of shape (p,) or (r, p)</span>
+<span class="sd">        Contrast vector (1D, t-test) or contrast matrix (2D, F-test).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    X_reduced : ndarray of shape (n_subjects, p_reduced)</span>
+<span class="sd">        Reduced design matrix (columns not touched by the contrast).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contrast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">contrast</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">contrast</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">keep_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">contrast</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># 2D: keep columns that are zero across ALL contrast rows</span>
+        <span class="n">keep_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">contrast</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keep_cols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># All columns targeted — reduced model is just intercept</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">X</span><span class="p">[:,</span> <span class="n">keep_cols</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_freedman_lane_permutation_task</span><span class="p">(</span>
+    <span class="n">Y_hat_reduced</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">residuals_reduced</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">contrast</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">X_pinv</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">XtX_inv_diag</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">XtX_inv</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">reference_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">stat_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">enhance_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">strata_codes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Single Freedman-Lane permutation step.</span>
+
+<span class="sd">    1. Permute reduced-model residuals across subjects (within-stratum</span>
+<span class="sd">       only when ``strata_codes`` is provided — PALM ``-eb`` semantics).</span>
+<span class="sd">    2. Reconstruct Y_perm = Y_hat_reduced + permuted residuals</span>
+<span class="sd">    3. Fit full model to Y_perm</span>
+<span class="sd">    4. Optionally apply enhancement</span>
+<span class="sd">    5. Return max statistics</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y_hat_reduced : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Predicted values from reduced model.</span>
+<span class="sd">    residuals_reduced : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Residuals from reduced model.</span>
+<span class="sd">    X, contrast, X_pinv, XtX_inv_diag, XtX_inv : precomputed GLM quantities</span>
+<span class="sd">    reference_shape : tuple</span>
+<span class="sd">        Shape (N, N) for _extract_max_stats.</span>
+<span class="sd">    stat_type : str</span>
+<span class="sd">        &#39;tstat&#39; or &#39;beta&#39;.</span>
+<span class="sd">    enhance_func : callable, optional</span>
+<span class="sd">        Enhancement function to apply to GLM stats.</span>
+<span class="sd">    seed : int</span>
+<span class="sd">        Random seed for this permutation.</span>
+<span class="sd">    strata_codes : ndarray of shape (n_subjects,), optional</span>
+<span class="sd">        Integer stratum codes for within-block residual permutation.</span>
+<span class="sd">    **enhance_kwargs</span>
+<span class="sd">        Keyword arguments for enhance_func.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Maximum statistics per direction.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">strata_codes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">perm_idx</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">residuals_reduced</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_stratified_perm</span>
+        <span class="n">perm_idx</span> <span class="o">=</span> <span class="n">_stratified_perm</span><span class="p">(</span><span class="n">strata_codes</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+    <span class="n">residuals_perm</span> <span class="o">=</span> <span class="n">residuals_reduced</span><span class="p">[</span><span class="n">perm_idx</span><span class="p">]</span>
+    <span class="n">Y_perm</span> <span class="o">=</span> <span class="n">Y_hat_reduced</span> <span class="o">+</span> <span class="n">residuals_perm</span>
+
+    <span class="n">stat_dict</span> <span class="o">=</span> <span class="n">compute_glm_stat</span><span class="p">(</span>
+        <span class="n">Y_perm</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">contrast</span><span class="p">,</span>
+        <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type</span><span class="p">,</span>
+        <span class="n">X_pinv</span><span class="o">=</span><span class="n">X_pinv</span><span class="p">,</span>
+        <span class="n">XtX_inv_diag</span><span class="o">=</span><span class="n">XtX_inv_diag</span><span class="p">,</span>
+        <span class="n">XtX_inv</span><span class="o">=</span><span class="n">XtX_inv</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">enhance_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stat_dict</span> <span class="o">=</span> <span class="n">enhance_func</span><span class="p">(</span><span class="n">stat_dict</span><span class="p">,</span> <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_extract_max_stats</span><span class="p">(</span><span class="n">stat_dict</span><span class="p">,</span> <span class="n">reference_shape</span><span class="p">)</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Enhancement registry</span>
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Wrappers live in _enhancement.py and are shared with the t-test pipeline —</span>
+<span class="c1"># see pairwise_stats.compute_p_val.</span>
+
+<span class="n">_ENHANCE_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">TSTAT</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># No enhancement</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">:</span> <span class="n">apply_tfnbs</span><span class="p">,</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">NBS</span><span class="p">:</span> <span class="n">apply_nbs</span><span class="p">,</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">CNBS</span><span class="p">:</span> <span class="n">apply_cnbs</span><span class="p">,</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">:</span> <span class="n">apply_ni_tfnbs</span><span class="p">,</span>
+    <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">:</span> <span class="n">apply_fbc_tfnbs</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Main orchestrator</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="compute_p_val_glm">
+<a class="viewcode-back" href="../../conninfpy.glm_stats.html#conninfpy.glm_stats.compute_p_val_glm">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_p_val_glm</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="c1"># --- Advanced API ---</span>
+    <span class="n">design_matrix</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">contrast</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="c1"># --- Convenience API ---</span>
+    <span class="n">interest</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">confounds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="c1"># --- Common parameters ---</span>
+    <span class="n">stat_type</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">]</span> <span class="o">=</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">TSTAT</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">StatMethod</span><span class="p">]</span> <span class="o">=</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">,</span>
+    <span class="n">n_permutations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_N_PERMUTATIONS</span><span class="p">,</span>
+    <span class="n">two_tailed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">acceleration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">use_mp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RngLike</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># deprecated alias for `rng`</span>
+    <span class="n">n_processes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="c1"># --- Method-specific parameters ---</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_NBS_THRESHOLD</span><span class="p">,</span>
+    <span class="n">nbs_stat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">DEFAULT_NBS_STAT</span><span class="p">,</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DEFAULT_EXTENT_EXPONENT</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DEFAULT_HEIGHT_EXPONENT</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_N_THRESHOLDS</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">min_cluster_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MIN_CLUSTER_SIZE</span><span class="p">,</span>
+    <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+    <span class="n">strata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">InferenceResult</span><span class="p">,</span> <span class="n">OmnibusInferenceResult</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute p-values for connectivity data using GLM with Freedman-Lane permutation.</span>
+
+<span class="sd">    Supports two APIs that share the same core engine:</span>
+
+<span class="sd">    - **Advanced API**: provide ``design_matrix`` and ``contrast`` directly.</span>
+<span class="sd">    - **Convenience API**: provide ``interest`` (and optional ``confounds``);</span>
+<span class="sd">      the design matrix and contrast are built automatically.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Connectivity matrices (symmetric, zero diagonal).</span>
+<span class="sd">    design_matrix : ndarray of shape (n_subjects, p), optional</span>
+<span class="sd">        Full design matrix (advanced API). Mutually exclusive with ``interest``.</span>
+<span class="sd">    contrast : ndarray of shape (p,) or (r, p), optional</span>
+<span class="sd">        Contrast vector (1D, t/beta) or contrast matrix (2D, F-stat).</span>
+<span class="sd">        Required with ``design_matrix``. For ``stat_type=&#39;fstat&#39;``, pass a</span>
+<span class="sd">        2D matrix whose rows encode the linear combinations being tested</span>
+<span class="sd">        jointly (e.g., ``[[1, -1, 0], [1, 0, -1]]`` tests β₁=β₂=β₃).</span>
+<span class="sd">    interest : ndarray of shape (n_subjects,), optional</span>
+<span class="sd">        Variable of interest (convenience API). Mutually exclusive with</span>
+<span class="sd">        ``design_matrix``. Produces a single-column contrast — use the</span>
+<span class="sd">        advanced API for multi-row F-contrasts.</span>
+<span class="sd">    confounds : ndarray of shape (n_subjects,) or (n_subjects, q), optional</span>
+<span class="sd">        Confound variables (convenience API).</span>
+<span class="sd">    stat_type : {&#39;tstat&#39;, &#39;beta&#39;, &#39;fstat&#39;} or GLMStatType, default=&#39;tstat&#39;</span>
+<span class="sd">        Type of statistic to compute. ``&#39;fstat&#39;`` enables an omnibus F-test</span>
+<span class="sd">        for a multi-row contrast matrix and returns a single ``&#39;omnibus&#39;``</span>
+<span class="sd">        p-value map (no positive/negative split).</span>
+<span class="sd">    method : str or StatMethod, default=&#39;tfnbs&#39;</span>
+<span class="sd">        Enhancement method.</span>
+<span class="sd">    n_permutations : int, default=1000</span>
+<span class="sd">        Number of permutations for null distribution.</span>
+<span class="sd">    two_tailed : bool, default=False</span>
+<span class="sd">        If False (default), per-tail FWER control (separate null for positive</span>
+<span class="sd">        and negative). If True, joint null from max(max_positive, max_negative).</span>
+<span class="sd">    acceleration : {&#39;gpd&#39;, &#39;gamma&#39;} or None, default=None</span>
+<span class="sd">        Permutation acceleration method (Winkler et al., 2016). If None,</span>
+<span class="sd">        use standard empirical p-values. &#39;gpd&#39; fits a Generalized Pareto</span>
+<span class="sd">        Distribution to the tail of the null distribution. &#39;gamma&#39; fits</span>
+<span class="sd">        a gamma distribution using method of moments. Both are</span>
+<span class="sd">        approximation accelerators with empirical fallback; use</span>
+<span class="sd">        ``acceleration=None`` for exact empirical finite-permutation</span>
+<span class="sd">        p-values.</span>
+<span class="sd">    use_mp : bool, default=True</span>
+<span class="sd">        Use multiprocessing for permutation testing.</span>
+<span class="sd">    random_state : int, optional</span>
+<span class="sd">        Random seed for reproducibility.</span>
+<span class="sd">    n_processes : int, optional</span>
+<span class="sd">        Number of CPU cores for parallel computing.</span>
+<span class="sd">    net_labels : ndarray of shape (N,), optional</span>
+<span class="sd">        Network labels (required for cnbs, ni_tfnbs, fbc_tfnbs).</span>
+<span class="sd">    threshold, nbs_stat, n, start_thres, min_cluster_size, normalization</span>
+<span class="sd">        Method-specific parameters (see ``compute_p_val`` docstring).</span>
+<span class="sd">    e, h : float or sequence of float</span>
+<span class="sd">        TFNBS extent and height exponents. Pass equal-length sequences to</span>
+<span class="sd">        evaluate a whole ``(E, H)`` grid in one permutation pass. In grid</span>
+<span class="sd">        mode the returned :class:`InferenceResult` carries the parameter</span>
+<span class="sd">        axis (``result.is_grid``, ``result.e_grid``, ``result.h_grid``);</span>
+<span class="sd">        use ``result.select(param_idx)`` or pass ``param_idx=`` to</span>
+<span class="sd">        ``significant_edges`` / ``to_csv`` to project to a single cell.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    InferenceResult or OmnibusInferenceResult</span>
+<span class="sd">        For ``stat_type`` in ``{&#39;tstat&#39;, &#39;beta&#39;}``: an</span>
+<span class="sd">        :class:`InferenceResult` with ``positive`` and ``negative`` p-value</span>
+<span class="sd">        maps of shape ``(N, N)`` or ``(N, N, K)`` in grid mode. For</span>
+<span class="sd">        ``stat_type=&#39;fstat&#39;``: an :class:`OmnibusInferenceResult` with a</span>
+<span class="sd">        single ``omnibus`` map of shape ``(N, N)``.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If API arguments are inconsistent or contrast is invalid.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+
+    <span class="c1"># ---- Resolve rng → seed ----</span>
+    <span class="k">if</span> <span class="n">random_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">rng</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">warn_legacy_random_state</span><span class="p">(</span><span class="s2">&quot;random_state&quot;</span><span class="p">)</span>
+    <span class="n">random_state</span> <span class="o">=</span> <span class="n">resolve_seed</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">legacy_random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+
+    <span class="c1"># ---- Resolve API mode ----</span>
+    <span class="k">if</span> <span class="n">design_matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">interest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Provide either (design_matrix, contrast) or (interest, confounds), &quot;</span>
+            <span class="s2">&quot;not both.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">design_matrix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">interest</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Must provide either design_matrix or interest.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">interest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">contrast_vec</span> <span class="o">=</span> <span class="n">build_design_matrix</span><span class="p">(</span><span class="n">interest</span><span class="p">,</span> <span class="n">confounds</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">design_matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">contrast</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;contrast is required when using design_matrix.&quot;</span><span class="p">)</span>
+        <span class="n">contrast_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">contrast</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="c1"># ---- Validate inputs ----</span>
+    <span class="n">n_subjects</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_subjects</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Design matrix has </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows but Y has </span><span class="si">{</span><span class="n">n_subjects</span><span class="si">}</span><span class="s2"> subjects.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Contrast may be 1D (t/beta) or 2D (F-stat). Check the column dimension.</span>
+    <span class="k">if</span> <span class="n">contrast_vec</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">contrast_vec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Contrast vector length (</span><span class="si">{</span><span class="n">contrast_vec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) must match &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;number of columns in design matrix (</span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">).&quot;</span>
+            <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">contrast_vec</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">contrast_vec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Contrast matrix has </span><span class="si">{</span><span class="n">contrast_vec</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> columns but design &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;matrix has </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Contrast must be 1D or 2D, got ndim=</span><span class="si">{</span><span class="n">contrast_vec</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">contrast_vec</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Contrast must have at least one non-zero entry.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">acceleration</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;gpd&quot;</span><span class="p">,</span> <span class="s2">&quot;gamma&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Invalid acceleration: &#39;</span><span class="si">{</span><span class="n">acceleration</span><span class="si">}</span><span class="s2">&#39;. Must be &#39;gpd&#39;, &#39;gamma&#39;, or None.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">stat_type_str</span> <span class="o">=</span> <span class="n">stat_type</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stat_type</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">)</span> <span class="k">else</span> <span class="n">stat_type</span>
+    <span class="n">method_str</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">StatMethod</span><span class="p">)</span> <span class="k">else</span> <span class="n">method</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">method_enum</span> <span class="o">=</span> <span class="n">StatMethod</span><span class="p">(</span><span class="n">method_str</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">StatMethod</span> <span class="k">if</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">_ENHANCE_MAP</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid method: &#39;</span><span class="si">{</span><span class="n">method_str</span><span class="si">}</span><span class="s2">&#39;. Must be one of: </span><span class="si">{</span><span class="n">valid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_ENHANCE_MAP</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Method &#39;</span><span class="si">{</span><span class="n">method_str</span><span class="si">}</span><span class="s2">&#39; is not supported in the GLM pipeline. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Use compute_p_val() for parametric baselines.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">_warn_beta_threshold_scale</span><span class="p">(</span><span class="n">stat_type_str</span><span class="p">,</span> <span class="n">method_enum</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="n">CONSTRAINED_METHODS</span> <span class="ow">and</span> <span class="n">net_labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Method &#39;</span><span class="si">{</span><span class="n">method_str</span><span class="si">}</span><span class="s2">&#39; requires net_labels.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># ---- Build enhancement kwargs ----</span>
+    <span class="n">enhance_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NBS</span><span class="p">:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span> <span class="s2">&quot;nbs_stat&quot;</span><span class="p">:</span> <span class="n">nbs_stat</span><span class="p">}</span>
+    <span class="k">elif</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="p">{</span><span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">,</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">,</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">}:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;e&quot;</span><span class="p">:</span> <span class="n">e</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="n">h</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&quot;start_thres&quot;</span><span class="p">:</span> <span class="n">start_thres</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="n">CONSTRAINED_METHODS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;net_labels&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">net_labels</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;min_cluster_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_cluster_size</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;normalization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalization</span>
+    <span class="k">elif</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">CNBS</span><span class="p">:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;net_labels&quot;</span><span class="p">:</span> <span class="n">net_labels</span><span class="p">}</span>
+
+    <span class="n">enhance_func</span> <span class="o">=</span> <span class="n">_ENHANCE_MAP</span><span class="p">[</span><span class="n">method_enum</span><span class="p">]</span>
+
+    <span class="c1"># ---- Precompute OLS ----</span>
+    <span class="n">X_pinv</span><span class="p">,</span> <span class="n">XtX_inv_diag</span><span class="p">,</span> <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="c1"># ---- Compute observed statistics ----</span>
+    <span class="n">emp_stat_dict</span> <span class="o">=</span> <span class="n">compute_glm_stat</span><span class="p">(</span>
+        <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">contrast_vec</span><span class="p">,</span>
+        <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type_str</span><span class="p">,</span>
+        <span class="n">X_pinv</span><span class="o">=</span><span class="n">X_pinv</span><span class="p">,</span>
+        <span class="n">XtX_inv_diag</span><span class="o">=</span><span class="n">XtX_inv_diag</span><span class="p">,</span>
+        <span class="n">XtX_inv</span><span class="o">=</span><span class="n">XtX_inv</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># Keep the raw (pre-enhancement) stat dict so InferenceResult can</span>
+    <span class="c1"># surface the t/β/F effect map even when the enhanced score is a</span>
+    <span class="c1"># multi-(E, H) tensor.</span>
+    <span class="n">raw_stat_dict</span> <span class="o">=</span> <span class="n">emp_stat_dict</span>
+    <span class="k">if</span> <span class="n">enhance_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">emp_stat_dict</span> <span class="o">=</span> <span class="n">enhance_func</span><span class="p">(</span><span class="n">emp_stat_dict</span><span class="p">,</span> <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">)</span>
+
+    <span class="c1"># ---- Freedman-Lane: compute reduced model ----</span>
+    <span class="n">X_reduced</span> <span class="o">=</span> <span class="n">_compute_reduced_model</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">contrast_vec</span><span class="p">)</span>
+    <span class="n">X_red_pinv</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X_reduced</span><span class="p">)</span>
+
+    <span class="n">Y_flat</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">Y_hat_reduced_flat</span> <span class="o">=</span> <span class="n">X_reduced</span> <span class="o">@</span> <span class="p">(</span><span class="n">X_red_pinv</span> <span class="o">@</span> <span class="n">Y_flat</span><span class="p">)</span>
+    <span class="n">Y_hat_reduced</span> <span class="o">=</span> <span class="n">Y_hat_reduced_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+    <span class="n">residuals_reduced</span> <span class="o">=</span> <span class="n">Y</span> <span class="o">-</span> <span class="n">Y_hat_reduced</span>
+
+    <span class="n">reference_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+    <span class="c1"># ---- Encode strata for within-block exchangeability (PALM -eb) ----</span>
+    <span class="n">strata_codes</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">strata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_encode_strata</span>
+        <span class="n">strata_codes</span> <span class="o">=</span> <span class="n">_encode_strata</span><span class="p">(</span><span class="n">strata</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">strata_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_subjects</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;strata length </span><span class="si">{</span><span class="n">strata_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> does not match &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;n_subjects=</span><span class="si">{</span><span class="n">n_subjects</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># ---- Generate seeds ----</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="n">seeds</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="c1"># ---- Build permutation task ----</span>
+    <span class="n">task_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">_freedman_lane_permutation_task</span><span class="p">,</span>
+        <span class="n">Y_hat_reduced</span><span class="p">,</span>
+        <span class="n">residuals_reduced</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">contrast_vec</span><span class="p">,</span>
+        <span class="n">X_pinv</span><span class="p">,</span>
+        <span class="n">XtX_inv_diag</span><span class="p">,</span>
+        <span class="n">XtX_inv</span><span class="p">,</span>
+        <span class="n">reference_shape</span><span class="p">,</span>
+        <span class="n">stat_type_str</span><span class="p">,</span>
+        <span class="n">enhance_func</span><span class="p">,</span>
+        <span class="n">strata_codes</span><span class="o">=</span><span class="n">strata_codes</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---- Run permutations ----</span>
+    <span class="n">_use_mp</span> <span class="o">=</span> <span class="n">use_mp</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_is_worker_process</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_use_mp</span> <span class="ow">and</span> <span class="n">n_processes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_processes</span> <span class="o">=</span> <span class="n">get_available_cores</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_use_mp</span> <span class="ow">and</span> <span class="n">n_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_processes</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_processes</span><span class="p">,</span> <span class="n">n_permutations</span><span class="p">)</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="n">run_permutations</span><span class="p">(</span>
+        <span class="n">task_func</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">seeds</span><span class="p">),</span>
+        <span class="n">use_mp</span><span class="o">=</span><span class="n">_use_mp</span><span class="p">,</span> <span class="n">n_processes</span><span class="o">=</span><span class="n">n_processes</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;glm_perm&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">max_null_dict</span> <span class="o">=</span> <span class="n">_collect_results_to_arrays</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">n_permutations</span><span class="p">)</span>
+
+    <span class="c1"># ---- Two-tailed FWER ----</span>
+    <span class="k">if</span> <span class="n">two_tailed</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">FSTAT</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+            <span class="c1"># F is non-negative; there is no sign to split and nothing to pool.</span>
+            <span class="c1"># Silently ignore rather than raise — keeps the API uniform for</span>
+            <span class="c1"># callers that pass two_tailed=True by default.</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Build joint null from max(max_positive, max_negative)</span>
+            <span class="n">joint_null</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">max_null_dict</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span>
+                <span class="n">max_null_dict</span><span class="p">[</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">max_null_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;positive&quot;</span><span class="p">:</span> <span class="n">joint_null</span><span class="p">,</span>
+                <span class="s2">&quot;negative&quot;</span><span class="p">:</span> <span class="n">joint_null</span><span class="p">,</span>
+            <span class="p">}</span>
+
+    <span class="c1"># ---- Compute p-values ----</span>
+    <span class="k">if</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">compute_p_values_accelerated</span><span class="p">(</span>
+            <span class="n">emp_stat_dict</span><span class="p">,</span> <span class="n">max_null_dict</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">acceleration</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">_compute_p_values_from_null</span><span class="p">(</span><span class="n">emp_stat_dict</span><span class="p">,</span> <span class="n">max_null_dict</span><span class="p">)</span>
+    <span class="n">method_str</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_grid_from_kwargs</span>
+    <span class="n">e_grid</span><span class="p">,</span> <span class="n">h_grid</span> <span class="o">=</span> <span class="n">_grid_from_kwargs</span><span class="p">(</span><span class="n">method_enum</span><span class="p">,</span> <span class="n">enhance_kwargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;positive&quot;</span><span class="p">,</span> <span class="s2">&quot;negative&quot;</span><span class="p">}:</span>
+        <span class="k">return</span> <span class="n">InferenceResult</span><span class="p">(</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="n">method</span><span class="o">=</span><span class="n">method_str</span><span class="p">,</span> <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+            <span class="n">acceleration</span><span class="o">=</span><span class="n">acceleration</span><span class="p">,</span>
+            <span class="n">wall_time_s</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">_t0</span><span class="p">,</span>
+            <span class="n">stat_positive</span><span class="o">=</span><span class="n">raw_stat_dict</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span>
+            <span class="n">stat_negative</span><span class="o">=</span><span class="n">raw_stat_dict</span><span class="p">[</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type_str</span><span class="p">,</span>
+            <span class="n">strata_provided</span><span class="o">=</span><span class="n">strata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">e_grid</span><span class="o">=</span><span class="n">e_grid</span><span class="p">,</span>
+            <span class="n">h_grid</span><span class="o">=</span><span class="n">h_grid</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="c1"># F-stat path: single &#39;omnibus&#39; map → OmnibusInferenceResult</span>
+    <span class="k">return</span> <span class="n">OmnibusInferenceResult</span><span class="p">(</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;omnibus&quot;</span><span class="p">],</span>
+        <span class="n">method</span><span class="o">=</span><span class="n">method_str</span><span class="p">,</span> <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+        <span class="n">acceleration</span><span class="o">=</span><span class="n">acceleration</span><span class="p">,</span>
+        <span class="n">wall_time_s</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">_t0</span><span class="p">,</span>
+        <span class="n">stat_omnibus</span><span class="o">=</span><span class="n">raw_stat_dict</span><span class="p">[</span><span class="s2">&quot;omnibus&quot;</span><span class="p">],</span>
+        <span class="n">stat_type</span><span class="o">=</span><span class="s2">&quot;fstat&quot;</span><span class="p">,</span>
+        <span class="n">strata_provided</span><span class="o">=</span><span class="n">strata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Multi-contrast GLM (shared nuisance, single permutation pass)</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_multi_contrast_perm_task</span><span class="p">(</span>
+    <span class="n">Y_hat_reduced</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">residuals_reduced</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">contrast_names</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">contrast_arrays</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">X_pinv</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">XtX_inv_diag</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">XtX_inv</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">reference_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+    <span class="n">stat_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">enhance_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">],</span>
+    <span class="n">enhance_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">strata_codes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Single Freedman-Lane permutation, evaluated against multiple contrasts.</span>
+
+<span class="sd">    Permutes residuals once (within-stratum when ``strata_codes`` is</span>
+<span class="sd">    provided), fits the full model once, then for each contrast extracts</span>
+<span class="sd">    the per-edge statistic, optionally enhances, and records max-stats.</span>
+<span class="sd">    Returns a nested dict ``{contrast_name: {tail: max_stat}}``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">strata_codes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">perm_idx</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">residuals_reduced</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_stratified_perm</span>
+        <span class="n">perm_idx</span> <span class="o">=</span> <span class="n">_stratified_perm</span><span class="p">(</span><span class="n">strata_codes</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+    <span class="n">Y_perm</span> <span class="o">=</span> <span class="n">Y_hat_reduced</span> <span class="o">+</span> <span class="n">residuals_reduced</span><span class="p">[</span><span class="n">perm_idx</span><span class="p">]</span>
+
+    <span class="n">out</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">contrast</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">contrast_names</span><span class="p">,</span> <span class="n">contrast_arrays</span><span class="p">):</span>
+        <span class="n">stat_dict</span> <span class="o">=</span> <span class="n">compute_glm_stat</span><span class="p">(</span>
+            <span class="n">Y_perm</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">contrast</span><span class="p">,</span>
+            <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type</span><span class="p">,</span>
+            <span class="n">X_pinv</span><span class="o">=</span><span class="n">X_pinv</span><span class="p">,</span>
+            <span class="n">XtX_inv_diag</span><span class="o">=</span><span class="n">XtX_inv_diag</span><span class="p">,</span>
+            <span class="n">XtX_inv</span><span class="o">=</span><span class="n">XtX_inv</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">enhance_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stat_dict</span> <span class="o">=</span> <span class="n">enhance_func</span><span class="p">(</span><span class="n">stat_dict</span><span class="p">,</span> <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_extract_max_stats</span><span class="p">(</span><span class="n">stat_dict</span><span class="p">,</span> <span class="n">reference_shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_p_val_glm_multi</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">design_matrix</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">contrasts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">nuisance_contrast</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">stat_type</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">]</span> <span class="o">=</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">TSTAT</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">StatMethod</span><span class="p">]</span> <span class="o">=</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">,</span>
+    <span class="n">n_permutations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_N_PERMUTATIONS</span><span class="p">,</span>
+    <span class="n">two_tailed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">acceleration</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">use_mp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">rng</span><span class="p">:</span> <span class="n">RngLike</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_processes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="c1"># --- Method-specific parameters (forwarded to enhancement) ---</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_NBS_THRESHOLD</span><span class="p">,</span>
+    <span class="n">nbs_stat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">DEFAULT_NBS_STAT</span><span class="p">,</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DEFAULT_EXTENT_EXPONENT</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="n">DEFAULT_HEIGHT_EXPONENT</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_N_THRESHOLDS</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">min_cluster_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MIN_CLUSTER_SIZE</span><span class="p">,</span>
+    <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+    <span class="n">strata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">InferenceResult</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run several contrasts under a shared nuisance model in one perm pass.</span>
+
+<span class="sd">    For studies with multiple contrasts of interest under the same nuisance</span>
+<span class="sd">    structure (e.g. testing age, sex, and motion separately while using</span>
+<span class="sd">    the others as covariates), the Freedman-Lane reduced model and residual</span>
+<span class="sd">    permutations are shared across contrasts. The current implementation</span>
+<span class="sd">    still recomputes contrast-specific GLM statistics for each contrast, so</span>
+<span class="sd">    the speedup is amortized rather than a full K-fold reuse of one fitted</span>
+<span class="sd">    model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Connectivity tensor.</span>
+<span class="sd">    design_matrix : ndarray of shape (n_subjects, p)</span>
+<span class="sd">        Full design matrix (intercept + all regressors of interest +</span>
+<span class="sd">        nuisance).</span>
+<span class="sd">    contrasts : dict[str, ndarray]</span>
+<span class="sd">        Named 1D contrast vectors (length ``p``). For a 4-column</span>
+<span class="sd">        ``[intercept, age, sex, motion]`` design, pass</span>
+<span class="sd">        ``{&#39;age&#39;: [0,1,0,0], &#39;sex&#39;: [0,0,1,0], &#39;motion&#39;: [0,0,0,1]}``.</span>
+<span class="sd">        F-stat / multi-row contrasts are not supported here — use</span>
+<span class="sd">        :func:`compute_p_val_glm` for those.</span>
+<span class="sd">    nuisance_contrast : ndarray, optional</span>
+<span class="sd">        Explicit specification of the *combined* set of regressors of</span>
+<span class="sd">        interest. The reduced model excludes any column touched by</span>
+<span class="sd">        ``nuisance_contrast``. Defaults to the union of ``contrasts.values()``</span>
+<span class="sd">        (a column is &quot;of interest&quot; if any contrast is non-zero on it).</span>
+<span class="sd">    stat_type : ``&#39;tstat&#39;`` or ``&#39;beta&#39;``</span>
+<span class="sd">        F-stat is unsupported here.</span>
+<span class="sd">    method, two_tailed, acceleration, n_permutations, use_mp, rng,</span>
+<span class="sd">    n_processes, verbose, net_labels, threshold, nbs_stat, e, h, n,</span>
+<span class="sd">    start_thres, min_cluster_size, normalization</span>
+<span class="sd">        Forwarded to the underlying GLM pipeline (see</span>
+<span class="sd">        :func:`compute_p_val_glm`).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict[str, InferenceResult]</span>
+<span class="sd">        One :class:`InferenceResult` per contrast name. Wall-time on</span>
+<span class="sd">        each result reflects the *amortised* cost (total wall-time / K),</span>
+<span class="sd">        and ``n_permutations`` is the shared count.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">random_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">rng</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">warn_legacy_random_state</span><span class="p">(</span><span class="s2">&quot;random_state&quot;</span><span class="p">)</span>
+    <span class="n">random_state</span> <span class="o">=</span> <span class="n">resolve_seed</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">legacy_random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">contrasts</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;contrasts must be a non-empty dict.&quot;</span><span class="p">)</span>
+
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">Y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Y must have shape (n_subjects, N, N), got </span><span class="si">{</span><span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">n_subjects</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">design_matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_subjects</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;design_matrix has </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows but Y has </span><span class="si">{</span><span class="n">n_subjects</span><span class="si">}</span><span class="s2"> subjects.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Validate contrasts: all 1D, all length p</span>
+    <span class="n">contrast_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">contrasts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">contrast_arrays</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">contrast_names</span><span class="p">:</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">contrasts</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;contrast </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: must be 1D of length </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">, got shape </span><span class="si">{</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">contrast_arrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+    <span class="n">stat_type_str</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">stat_type</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stat_type</span><span class="p">,</span> <span class="n">GLMStatType</span><span class="p">)</span> <span class="k">else</span> <span class="n">stat_type</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">stat_type_str</span> <span class="o">==</span> <span class="n">GLMStatType</span><span class="o">.</span><span class="n">FSTAT</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;F-stat is unsupported in compute_p_val_glm_multi (per-contrast &quot;</span>
+            <span class="s2">&quot;directional split is undefined). Call compute_p_val_glm once &quot;</span>
+            <span class="s2">&quot;per multi-row contrast for omnibus F tests.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">method_str</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">StatMethod</span><span class="p">)</span> <span class="k">else</span> <span class="n">method</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">method_enum</span> <span class="o">=</span> <span class="n">StatMethod</span><span class="p">(</span><span class="n">method_str</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">StatMethod</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid method: </span><span class="si">{</span><span class="n">method_str</span><span class="si">!r}</span><span class="s2">. Must be one of </span><span class="si">{</span><span class="n">valid</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_ENHANCE_MAP</span><span class="p">:</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">_ENHANCE_MAP</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Method </span><span class="si">{</span><span class="n">method_str</span><span class="si">!r}</span><span class="s2"> is not supported in the GLM multi-contrast &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;pipeline. Must be one of </span><span class="si">{</span><span class="n">valid</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">_warn_beta_threshold_scale</span><span class="p">(</span><span class="n">stat_type_str</span><span class="p">,</span> <span class="n">method_enum</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="n">CONSTRAINED_METHODS</span> <span class="ow">and</span> <span class="n">net_labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Method </span><span class="si">{</span><span class="n">method_str</span><span class="si">!r}</span><span class="s2"> requires net_labels to be provided.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">enhance_func</span> <span class="o">=</span> <span class="n">_ENHANCE_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">method_enum</span><span class="p">)</span>
+    <span class="n">enhance_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NBS</span><span class="p">:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span> <span class="s2">&quot;nbs_stat&quot;</span><span class="p">:</span> <span class="n">nbs_stat</span><span class="p">}</span>
+    <span class="k">elif</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="p">{</span><span class="n">StatMethod</span><span class="o">.</span><span class="n">TFNBS</span><span class="p">,</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">,</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">}:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;e&quot;</span><span class="p">:</span> <span class="n">e</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="n">h</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s2">&quot;start_thres&quot;</span><span class="p">:</span> <span class="n">start_thres</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="ow">in</span> <span class="n">CONSTRAINED_METHODS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;net_labels&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">net_labels</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">FBC_TFNBS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;min_cluster_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_cluster_size</span>
+        <span class="k">if</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">NI_TFNBS</span><span class="p">:</span>
+            <span class="n">enhance_kwargs</span><span class="p">[</span><span class="s2">&quot;normalization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalization</span>
+    <span class="k">elif</span> <span class="n">method_enum</span> <span class="o">==</span> <span class="n">StatMethod</span><span class="o">.</span><span class="n">CNBS</span><span class="p">:</span>
+        <span class="n">enhance_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;net_labels&quot;</span><span class="p">:</span> <span class="n">net_labels</span><span class="p">}</span>
+
+    <span class="c1"># ---- Reduced model (shared) ----</span>
+    <span class="k">if</span> <span class="n">nuisance_contrast</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Default: column is &quot;of interest&quot; if ANY contrast is non-zero on it.</span>
+        <span class="n">union</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">contrast_arrays</span><span class="p">:</span>
+            <span class="n">union</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">c</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">union</span><span class="p">)</span>
+        <span class="n">reduced_marker</span> <span class="o">=</span> <span class="n">union</span>  <span class="c1"># 1 where of interest → exclude from reduced model</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">reduced_marker</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">nuisance_contrast</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">reduced_marker</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">reduced_marker</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;nuisance_contrast length </span><span class="si">{</span><span class="n">reduced_marker</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> does not &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;match design width </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="n">X_reduced</span> <span class="o">=</span> <span class="n">_compute_reduced_model</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">reduced_marker</span><span class="p">)</span>
+    <span class="n">X_red_pinv</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X_reduced</span><span class="p">)</span>
+    <span class="n">X_pinv</span><span class="p">,</span> <span class="n">XtX_inv_diag</span><span class="p">,</span> <span class="n">XtX_inv</span> <span class="o">=</span> <span class="n">_precompute_ols</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="c1"># ---- Empirical stats per contrast ----</span>
+    <span class="n">emp_dicts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">raw_stat_dicts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">contrast</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">contrast_names</span><span class="p">,</span> <span class="n">contrast_arrays</span><span class="p">):</span>
+        <span class="n">emp</span> <span class="o">=</span> <span class="n">compute_glm_stat</span><span class="p">(</span>
+            <span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">contrast</span><span class="p">,</span> <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type_str</span><span class="p">,</span>
+            <span class="n">X_pinv</span><span class="o">=</span><span class="n">X_pinv</span><span class="p">,</span> <span class="n">XtX_inv_diag</span><span class="o">=</span><span class="n">XtX_inv_diag</span><span class="p">,</span> <span class="n">XtX_inv</span><span class="o">=</span><span class="n">XtX_inv</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Snapshot the raw (pre-enhancement) statistic for the result</span>
+        <span class="c1"># object — the user-facing effect map should be t/β, not the</span>
+        <span class="c1"># enhanced score.</span>
+        <span class="n">raw_stat_dicts</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">emp</span>
+        <span class="k">if</span> <span class="n">enhance_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">emp</span> <span class="o">=</span> <span class="n">enhance_func</span><span class="p">(</span><span class="n">emp</span><span class="p">,</span> <span class="o">**</span><span class="n">enhance_kwargs</span><span class="p">)</span>
+        <span class="n">emp_dicts</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">emp</span>
+
+    <span class="c1"># ---- Fixed-residuals reduced fit (shared) ----</span>
+    <span class="n">Y_flat</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">Y_hat_reduced_flat</span> <span class="o">=</span> <span class="n">X_reduced</span> <span class="o">@</span> <span class="p">(</span><span class="n">X_red_pinv</span> <span class="o">@</span> <span class="n">Y_flat</span><span class="p">)</span>
+    <span class="n">Y_hat_reduced</span> <span class="o">=</span> <span class="n">Y_hat_reduced_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+    <span class="n">residuals_reduced</span> <span class="o">=</span> <span class="n">Y</span> <span class="o">-</span> <span class="n">Y_hat_reduced</span>
+
+    <span class="n">reference_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+    <span class="c1"># ---- Encode strata for within-block exchangeability (PALM -eb) ----</span>
+    <span class="n">strata_codes</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">strata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.pairwise_stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">_encode_strata</span>
+        <span class="n">strata_codes</span> <span class="o">=</span> <span class="n">_encode_strata</span><span class="p">(</span><span class="n">strata</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">strata_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_subjects</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;strata length </span><span class="si">{</span><span class="n">strata_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> does not match &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;n_subjects=</span><span class="si">{</span><span class="n">n_subjects</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># ---- Permutation seeds ----</span>
+    <span class="n">rng_local</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="n">seeds</span> <span class="o">=</span> <span class="n">rng_local</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="n">task_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">_multi_contrast_perm_task</span><span class="p">,</span>
+        <span class="n">Y_hat_reduced</span><span class="p">,</span>
+        <span class="n">residuals_reduced</span><span class="p">,</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="nb">tuple</span><span class="p">(</span><span class="n">contrast_names</span><span class="p">),</span>
+        <span class="nb">tuple</span><span class="p">(</span><span class="n">contrast_arrays</span><span class="p">),</span>
+        <span class="n">X_pinv</span><span class="p">,</span>
+        <span class="n">XtX_inv_diag</span><span class="p">,</span>
+        <span class="n">XtX_inv</span><span class="p">,</span>
+        <span class="n">reference_shape</span><span class="p">,</span>
+        <span class="n">stat_type_str</span><span class="p">,</span>
+        <span class="n">enhance_func</span><span class="p">,</span>
+        <span class="n">enhance_kwargs</span><span class="p">,</span>
+        <span class="n">strata_codes</span><span class="o">=</span><span class="n">strata_codes</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">_use_mp</span> <span class="o">=</span> <span class="n">use_mp</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">_is_worker_process</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_use_mp</span> <span class="ow">and</span> <span class="n">n_processes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_processes</span> <span class="o">=</span> <span class="n">get_available_cores</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_use_mp</span> <span class="ow">and</span> <span class="n">n_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_processes</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_processes</span><span class="p">,</span> <span class="n">n_permutations</span><span class="p">)</span>
+
+    <span class="n">perm_results</span> <span class="o">=</span> <span class="n">run_permutations</span><span class="p">(</span>
+        <span class="n">task_func</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">seeds</span><span class="p">),</span>
+        <span class="n">use_mp</span><span class="o">=</span><span class="n">_use_mp</span><span class="p">,</span> <span class="n">n_processes</span><span class="o">=</span><span class="n">n_processes</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;glm_multi&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---- Re-shape into per-contrast null arrays ----</span>
+    <span class="n">null_max_per_contrast</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">contrast_names</span><span class="p">:</span>
+        <span class="n">per_perm</span> <span class="o">=</span> <span class="p">[</span><span class="n">pr</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">pr</span> <span class="ow">in</span> <span class="n">perm_results</span><span class="p">]</span>
+        <span class="n">null_max_per_contrast</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">_collect_results_to_arrays</span><span class="p">(</span>
+            <span class="n">per_perm</span><span class="p">,</span> <span class="n">n_permutations</span>
+        <span class="p">)</span>
+
+    <span class="c1"># ---- Two-tailed pooling ----</span>
+    <span class="k">if</span> <span class="n">two_tailed</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">contrast_names</span><span class="p">:</span>
+            <span class="n">joint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="n">null_max_per_contrast</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span>
+                <span class="n">null_max_per_contrast</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">null_max_per_contrast</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;positive&quot;</span><span class="p">:</span> <span class="n">joint</span><span class="p">,</span> <span class="s2">&quot;negative&quot;</span><span class="p">:</span> <span class="n">joint</span><span class="p">}</span>
+
+    <span class="c1"># ---- Per-contrast p-values + InferenceResult ----</span>
+    <span class="n">out</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">InferenceResult</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">_t0</span>
+    <span class="n">per_contrast_wall</span> <span class="o">=</span> <span class="n">elapsed</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">contrast_names</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">contrast_names</span><span class="p">:</span>
+        <span class="n">emp</span> <span class="o">=</span> <span class="n">emp_dicts</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">null</span> <span class="o">=</span> <span class="n">null_max_per_contrast</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">acceleration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">compute_p_values_accelerated</span><span class="p">(</span><span class="n">emp</span><span class="p">,</span> <span class="n">null</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">acceleration</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">_compute_p_values_from_null</span><span class="p">(</span><span class="n">emp</span><span class="p">,</span> <span class="n">null</span><span class="p">)</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">raw_stat_dicts</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">InferenceResult</span><span class="p">(</span>
+            <span class="n">res</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="n">method</span><span class="o">=</span><span class="n">method_str</span><span class="p">,</span> <span class="n">n_permutations</span><span class="o">=</span><span class="n">n_permutations</span><span class="p">,</span>
+            <span class="n">acceleration</span><span class="o">=</span><span class="n">acceleration</span><span class="p">,</span>
+            <span class="n">wall_time_s</span><span class="o">=</span><span class="n">per_contrast_wall</span><span class="p">,</span>
+            <span class="n">stat_positive</span><span class="o">=</span><span class="n">raw</span><span class="p">[</span><span class="s2">&quot;positive&quot;</span><span class="p">],</span>
+            <span class="n">stat_negative</span><span class="o">=</span><span class="n">raw</span><span class="p">[</span><span class="s2">&quot;negative&quot;</span><span class="p">],</span>
+            <span class="n">stat_type</span><span class="o">=</span><span class="n">stat_type_str</span><span class="p">,</span>
+            <span class="n">strata_provided</span><span class="o">=</span><span class="n">strata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Paired-difference GLM convenience wrapper</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="compute_p_val_paired_glm">
+<a class="viewcode-back" href="../../conninfpy.glm_stats.html#conninfpy.glm_stats.compute_p_val_paired_glm">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_p_val_paired_glm</span><span class="p">(</span>
+    <span class="n">Y_A</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">Y_B</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">confounds_A</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">confounds_B</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">InferenceResult</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Paired-difference GLM: test ``Y_A`` vs ``Y_B`` within-subject, optionally</span>
+<span class="sd">    controlling for per-subject differences in confounds.</span>
+
+<span class="sd">    Two routes depending on ``confounds_*``:</span>
+
+<span class="sd">    - **No confounds** → delegates to</span>
+<span class="sd">      :func:`conninfpy.compute_p_val` with ``test_type=&#39;paired&#39;`` (sign-flip</span>
+<span class="sd">      permutation). This is numerically equivalent to a one-sample GLM on</span>
+<span class="sd">      the differences and avoids the Freedman-Lane degeneracy that occurs</span>
+<span class="sd">      when the contrast targets the only column in the design matrix.</span>
+<span class="sd">    - **With confounds** → builds ``Δ_Y = Y_A − Y_B`` and</span>
+<span class="sd">      ``Δ_C = confounds_A − confounds_B``, then calls</span>
+<span class="sd">      :func:`compute_p_val_glm` with ``design_matrix = [1, Δ_C]``,</span>
+<span class="sd">      ``contrast = [1, 0, ..., 0]`` (intercept as the effect of interest).</span>
+
+<span class="sd">    Use this when the same subjects are measured under two conditions (task</span>
+<span class="sd">    A vs task B, pre vs post, open vs close) and a confound whose value</span>
+<span class="sd">    *differs between the two conditions for the same subject* (e.g.,</span>
+<span class="sd">    motion, arousal, response time) needs to be partialled out.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y_A, Y_B : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Aligned per-subject connectivity matrices for the two conditions.</span>
+<span class="sd">        ``Y_A[s]`` and ``Y_B[s]`` must correspond to the same subject.</span>
+<span class="sd">    confounds_A, confounds_B : ndarray of shape (n_subjects,) or (n_subjects, k), optional</span>
+<span class="sd">        Aligned per-subject confound values for the two conditions. Either</span>
+<span class="sd">        pass both or neither. If passed, the *difference*</span>
+<span class="sd">        ``confounds_A - confounds_B`` enters the GLM as a nuisance regressor.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Forwarded to the downstream call (``compute_p_val`` or</span>
+<span class="sd">        ``compute_p_val_glm``). ``test_type`` is fixed to ``&#39;paired&#39;`` when</span>
+<span class="sd">        routing to the t-test pipeline and must not be supplied.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        ``{&#39;positive&#39;, &#39;negative&#39;}`` regardless of routing. For the</span>
+<span class="sd">        no-confound path, ``positive`` corresponds to ``Y_B &gt; Y_A`` (B has</span>
+<span class="sd">        greater connectivity); for the with-confound path it corresponds</span>
+<span class="sd">        to the sign of the ``Y_A - Y_B`` intercept adjusted for ``Δ_C``.</span>
+<span class="sd">        Legacy keys ``&#39;g2&gt;g1&#39;`` / ``&#39;g1&gt;g2&#39;`` remain accessible with a</span>
+<span class="sd">        :class:`DeprecationWarning` until v2.1.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``Y_A`` and ``Y_B`` shapes mismatch, only one of the confound</span>
+<span class="sd">        arrays is supplied, or confound shapes mismatch.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Y_A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y_A</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">Y_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y_B</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">Y_B</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Y_A and Y_B must have identical shapes, got </span><span class="si">{</span><span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">Y_B</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Y_A/Y_B must have shape (n_subjects, N, N), got </span><span class="si">{</span><span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">has_A</span> <span class="o">=</span> <span class="n">confounds_A</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">has_B</span> <span class="o">=</span> <span class="n">confounds_B</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">has_A</span> <span class="o">!=</span> <span class="n">has_B</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Provide either both confounds_A and confounds_B, or neither. &quot;</span>
+            <span class="s2">&quot;Paired-difference inference requires matched confound values &quot;</span>
+            <span class="s2">&quot;in both conditions.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># --- No-confound path: delegate to sign-flip paired test ---</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">has_A</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;test_type&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;test_type is fixed to &#39;paired&#39; by compute_p_val_paired_glm; &quot;</span>
+                <span class="s2">&quot;do not pass it explicitly.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">compute_p_val</span><span class="p">(</span><span class="n">Y_A</span><span class="p">,</span> <span class="n">Y_B</span><span class="p">,</span> <span class="n">test_type</span><span class="o">=</span><span class="s2">&quot;paired&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># --- With-confound path: one-sample GLM on differences ---</span>
+    <span class="n">confounds_A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">confounds_A</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">confounds_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">confounds_B</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">confounds_A</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">confounds_B</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;confounds_A and confounds_B must have identical shapes, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="n">confounds_A</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">confounds_B</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">confounds_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;confounds have </span><span class="si">{</span><span class="n">confounds_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> subjects but Y_A has &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">Delta_Y</span> <span class="o">=</span> <span class="n">Y_A</span> <span class="o">-</span> <span class="n">Y_B</span>
+    <span class="n">Delta_C</span> <span class="o">=</span> <span class="n">confounds_A</span> <span class="o">-</span> <span class="n">confounds_B</span>
+    <span class="k">if</span> <span class="n">Delta_C</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">Delta_C</span> <span class="o">=</span> <span class="n">Delta_C</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+    <span class="n">n_subjects</span> <span class="o">=</span> <span class="n">Y_A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">intercept</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n_subjects</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">intercept</span><span class="p">,</span> <span class="n">Delta_C</span><span class="p">])</span>
+    <span class="n">contrast</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">contrast</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># test the intercept (= mean of Δ_Y)</span>
+
+    <span class="c1"># Disallow caller from overriding the design; these keys conflict.</span>
+    <span class="k">for</span> <span class="n">forbidden</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;design_matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;contrast&quot;</span><span class="p">,</span> <span class="s2">&quot;interest&quot;</span><span class="p">,</span> <span class="s2">&quot;confounds&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">forbidden</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;compute_p_val_paired_glm builds the design internally; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;do not pass &#39;</span><span class="si">{</span><span class="n">forbidden</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">compute_p_val_glm</span><span class="p">(</span>
+        <span class="n">Delta_Y</span><span class="p">,</span>
+        <span class="n">design_matrix</span><span class="o">=</span><span class="n">X</span><span class="p">,</span>
+        <span class="n">contrast</span><span class="o">=</span><span class="n">contrast</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

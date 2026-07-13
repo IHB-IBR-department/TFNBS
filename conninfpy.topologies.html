@@ -1,0 +1,318 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.topologies &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=51b770b3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="conninfpy.defaults" href="conninfpy.defaults.html" />
+    <link rel="prev" title="conninfpy.synth_datasets" href="conninfpy.synth_datasets.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="conninfpy.html">conninfpy</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="conninfpy.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.pairwise_stats.html">conninfpy.pairwise_stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.glm_stats.html">conninfpy.glm_stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy._enhancement.html">conninfpy._enhancement</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.tfnbs_score.html">conninfpy.tfnbs_score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.nbs_score.html">conninfpy.nbs_score</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.acceleration.html">conninfpy.acceleration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.harmonize.html">conninfpy.harmonize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.synth_datasets.html">conninfpy.synth_datasets</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">conninfpy.topologies</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#public-api">Public API</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.TopologyScenario"><code class="docutils literal notranslate"><span class="pre">TopologyScenario</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.TopologyDataset"><code class="docutils literal notranslate"><span class="pre">TopologyDataset</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.TopologyDatasetGenerator"><code class="docutils literal notranslate"><span class="pre">TopologyDatasetGenerator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.list_scenarios"><code class="docutils literal notranslate"><span class="pre">list_scenarios()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.get_scenarios"><code class="docutils literal notranslate"><span class="pre">get_scenarios()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#conninfpy.topologies.get_scenario"><code class="docutils literal notranslate"><span class="pre">get_scenario()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.defaults.html">conninfpy.defaults</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.utils.html">conninfpy.utils</a></li>
+<li class="toctree-l3"><a class="reference internal" href="conninfpy.eeg_utils.html">conninfpy.eeg_utils</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="conninfpy.html">conninfpy</a></li>
+      <li class="breadcrumb-item active">conninfpy.topologies</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/conninfpy.topologies.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="conninfpy-topologies">
+<h1>conninfpy.topologies<a class="headerlink" href="#conninfpy-topologies" title="Link to this heading"></a></h1>
+<p>Named topology scenarios for benchmarking enhancement methods on
+synthetic connectivity. Promoted from <code class="docutils literal notranslate"><span class="pre">examples/</span></code> to the public API
+on 2026-04-18.</p>
+<p>Provides 19 named scenarios covering the topologies most likely to
+arise in real connectivity data: within-module-dense,
+between-modules-dense, hub, rich-club, scattered, chain,
+gradient-core-periphery, partial-bipartite, fragmented-within-module,
+cross-block-connected-chain, plus secondary variants.</p>
+<p>Public surface:</p>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyDatasetGenerator</span></code> — main generator class</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyDataset</span></code> — output container (<code class="docutils literal notranslate"><span class="pre">.group1</span></code>, <code class="docutils literal notranslate"><span class="pre">.group2</span></code>,
+<code class="docutils literal notranslate"><span class="pre">.mask</span></code>, <code class="docutils literal notranslate"><span class="pre">.net_labels</span></code>, <code class="docutils literal notranslate"><span class="pre">.scenario</span></code>)</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyScenario</span></code> — scenario specification</p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">list_scenarios()</span></code> — return all scenario names</p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">get_scenarios()</span></code> — return all scenario specs</p></li>
+<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">get_scenario()</span></code> — look up a specific scenario by name</p></li>
+</ul>
+<p>The MICCAI 2026 power benchmark
+(<code class="docutils literal notranslate"><span class="pre">examples/miccai_paper_reproducing/</span></code>) sweeps all enhancement methods
+across all 19 topologies; its findings are summarized in the
+“no-method-dominates-across-topologies” empirical message of the
+ConnInfPy paper.</p>
+<p id="module-conninfpy.topologies">Topology-based synthetic connectivity scenarios.</p>
+<p>Built on top of <a class="reference internal" href="conninfpy.synth_datasets.html#conninfpy.synth_datasets.ModularDatasetGenerator" title="conninfpy.synth_datasets.ModularDatasetGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">conninfpy.synth_datasets.ModularDatasetGenerator</span></code></a>,
+this module adds a library of named topological effect patterns (hub,
+chain, rich-club, checkerboard, gradient, etc.) plus a scenario registry
+so callers can request a scenario by name.</p>
+<section id="public-api">
+<h2>Public API<a class="headerlink" href="#public-api" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyScenario</span></code></a> — scenario specification</p></li>
+<li><p><a class="reference internal" href="#conninfpy.topologies.TopologyDataset" title="conninfpy.topologies.TopologyDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyDataset</span></code></a>  — generated output container</p></li>
+<li><p><a class="reference internal" href="#conninfpy.topologies.TopologyDatasetGenerator" title="conninfpy.topologies.TopologyDatasetGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">TopologyDatasetGenerator</span></code></a> — the main entry point</p></li>
+<li><p><a class="reference internal" href="#conninfpy.topologies.list_scenarios" title="conninfpy.topologies.list_scenarios"><code class="xref py py-func docutils literal notranslate"><span class="pre">list_scenarios()</span></code></a>, <a class="reference internal" href="#conninfpy.topologies.get_scenario" title="conninfpy.topologies.get_scenario"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_scenario()</span></code></a>, <a class="reference internal" href="#conninfpy.topologies.get_scenarios" title="conninfpy.topologies.get_scenarios"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_scenarios()</span></code></a> — registry</p></li>
+</ul>
+<p>Mask generator functions (<code class="docutils literal notranslate"><span class="pre">_mask_*</span></code>, <code class="docutils literal notranslate"><span class="pre">_scenario_mask_*</span></code>) are private;
+access them indirectly via the scenario registry.</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">conninfpy.topologies</span><span class="w"> </span><span class="kn">import</span> <span class="n">TopologyDatasetGenerator</span><span class="p">,</span> <span class="n">list_scenarios</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">list_scenarios</span><span class="p">()[:</span><span class="mi">3</span><span class="p">]</span>
+<span class="go">[&#39;within_module_dense&#39;, &#39;between_modules_dense&#39;, &#39;hub&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">gen</span> <span class="o">=</span> <span class="n">TopologyDatasetGenerator</span><span class="p">(</span><span class="n">n_nodes</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_modules</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;chain&quot;</span><span class="p">,</span> <span class="n">effect_size</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">time_points</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span><span class="o">.</span><span class="n">group1</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(20, 60, 60)</span>
+</pre></div>
+</div>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">TopologyScenario</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">name:</span> <span class="pre">str,</span> <span class="pre">base_kind:</span> <span class="pre">str,</span> <span class="pre">mask_fn:</span> <span class="pre">~typing.Callable[[...],</span> <span class="pre">~numpy.ndarray],</span> <span class="pre">mask_params:</span> <span class="pre">~typing.Dict[str,</span> <span class="pre">object]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">labels_fn:</span> <span class="pre">~typing.Callable[[int,</span> <span class="pre">int],</span> <span class="pre">~numpy.ndarray]</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">TopologyScenario.&lt;lambda&gt;&gt;</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyScenario"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyScenario" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Scenario specification: how to build labels + an effect mask topology.</p>
+<ul class="simple">
+<li><p><cite>mask_fn(labels, rng=…, **mask_params)</cite> returns a symmetric (N, N) matrix where:
+0 means “no effect” and non-zero values scale the effect magnitude per edge.</p></li>
+<li><p><cite>labels_fn(n_nodes, n_modules)</cite> returns <cite>net_labels</cite> (shape (N,)).</p></li>
+</ul>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.base_kind">
+<span class="sig-name descname"><span class="pre">base_kind</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.base_kind" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.mask_fn">
+<span class="sig-name descname"><span class="pre">mask_fn</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.mask_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.mask_params">
+<span class="sig-name descname"><span class="pre">mask_params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.mask_params" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.labels_fn">
+<span class="sig-name descname"><span class="pre">labels_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_modules</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.labels_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyScenario.with_mask_params">
+<span class="sig-name descname"><span class="pre">with_mask_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">overrides</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyScenario.with_mask_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyScenario.with_mask_params" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">TopologyDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">group2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">net_labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">effect_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">effect_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">scenario</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">object]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyDataset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Output of a topology simulation, ready for TFNBS/NBS pipelines.</p>
+<ul class="simple">
+<li><p><cite>group1</cite>/<cite>group2</cite> are arrays of shape (n_samples, N, N) with zero diagonal.</p></li>
+<li><p><cite>net_labels</cite> can be passed to cNBS/NI/FBC methods.</p></li>
+<li><p><cite>effect_mask</cite> is the signed/weighted topology mask (not multiplied by effect_size).</p></li>
+</ul>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.group1">
+<span class="sig-name descname"><span class="pre">group1</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.group1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.group2">
+<span class="sig-name descname"><span class="pre">group2</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.group2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.net_labels">
+<span class="sig-name descname"><span class="pre">net_labels</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.net_labels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.effect_mask">
+<span class="sig-name descname"><span class="pre">effect_mask</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.effect_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.effect_size">
+<span class="sig-name descname"><span class="pre">effect_size</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.effect_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.scenario">
+<span class="sig-name descname"><span class="pre">scenario</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.scenario" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.meta">
+<span class="sig-name descname"><span class="pre">meta</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.meta" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDataset.fisher_z">
+<span class="sig-name descname"><span class="pre">fisher_z</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyDataset.fisher_z"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyDataset.fisher_z" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDatasetGenerator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">TopologyDatasetGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_nodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_modules</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intra_corr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inter_corr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uniform_corr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noise_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">42</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyDatasetGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyDatasetGenerator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Reusable dataset generator for topology scenarios.</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">gen</span> <span class="o">=</span> <span class="n">TopologyDatasetGenerator</span><span class="p">(</span><span class="n">n_nodes</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">n_modules</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="s2">&quot;chain&quot;</span><span class="p">,</span> <span class="n">effect_size</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">time_points</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ds</span><span class="o">.</span><span class="n">group1</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(20, 60, 60)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="conninfpy.topologies.TopologyDatasetGenerator.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scenario</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">effect_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples_g1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples_g2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scenario_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_diagonal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#conninfpy.topologies.TopologyDataset" title="conninfpy.topologies.TopologyDataset"><span class="pre">TopologyDataset</span></a></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#TopologyDatasetGenerator.generate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.TopologyDatasetGenerator.generate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.topologies.list_scenarios">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">list_scenarios</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#list_scenarios"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.list_scenarios" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.topologies.get_scenarios">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">get_scenarios</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#get_scenarios"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.get_scenarios" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="conninfpy.topologies.get_scenario">
+<span class="sig-prename descclassname"><span class="pre">conninfpy.topologies.</span></span><span class="sig-name descname"><span class="pre">get_scenario</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scenario</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#conninfpy.topologies.TopologyScenario" title="conninfpy.topologies.TopologyScenario"><span class="pre">TopologyScenario</span></a></span></span><a class="reference internal" href="_modules/conninfpy/topologies.html#get_scenario"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#conninfpy.topologies.get_scenario" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="conninfpy.synth_datasets.html" class="btn btn-neutral float-left" title="conninfpy.synth_datasets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="conninfpy.defaults.html" class="btn btn-neutral float-right" title="conninfpy.defaults" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

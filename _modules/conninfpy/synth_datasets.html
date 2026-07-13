@@ -1,0 +1,639 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.synth_datasets &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../conninfpy.html">conninfpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">conninfpy.synth_datasets</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for conninfpy.synth_datasets</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Synthetic connectivity datasets for benchmarking and testing.&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">linalg</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_sparse_spd_matrix</span>
+    <span class="n">HAS_SKLEARN</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">HAS_SKLEARN</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;generate_fc_matrices&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;generate_multisite_glm_dataset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ModularDatasetGenerator&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="generate_multisite_glm_dataset">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.generate_multisite_glm_dataset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_multisite_glm_dataset</span><span class="p">(</span>
+    <span class="n">n_subjects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">N</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">n_sites</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">effect_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">site_shift_sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+    <span class="n">corr_site_interest</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">n_signal_edges</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">base_corr_sparsity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Multi-site GLM connectivity dataset, sized to mimic a Schaefer-100 study.</span>
+
+<span class="sd">    Built for compact full-pipeline calibration tests and matrix-level</span>
+<span class="sd">    structural-prior validation experiments.</span>
+
+<span class="sd">    Output is in **Fisher-z** units already (so callers should pass</span>
+<span class="sd">    ``fisher_z=False`` to ``analyze()``). Site effects are additive on</span>
+<span class="sd">    Fisher-z; signal is linear in the regressor of interest at a fixed</span>
+<span class="sd">    set of signal edges.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    n_subjects : int, default 30</span>
+<span class="sd">        Total subjects, evenly distributed across ``n_sites``.</span>
+<span class="sd">    N : int, default 100</span>
+<span class="sd">        Number of ROIs. Default 100 mimics Schaefer-100.</span>
+<span class="sd">    n_sites : int, default 3</span>
+<span class="sd">        Number of distinct sites; each contributes a fixed symmetric</span>
+<span class="sd">        Fisher-z offset on all edges.</span>
+<span class="sd">    effect_size : float, default 0.0</span>
+<span class="sd">        Slope of the linear-in-interest perturbation at signal edges.</span>
+<span class="sd">        Set to ``0.0`` for an H₀ dataset (no group / regressor effect).</span>
+<span class="sd">    site_shift_sigma : float, default 0.2</span>
+<span class="sd">        Scale of the per-site additive Fisher-z offset. Each site&#39;s</span>
+<span class="sd">        offset is drawn from ``N(0, σ_site²)`` once per simulation.</span>
+<span class="sd">    corr_site_interest : float in [0, 1], default 0.0</span>
+<span class="sd">        Population correlation between ``sites`` (as an integer code)</span>
+<span class="sd">        and the ``interest`` regressor. ``0.0`` = independent (the</span>
+<span class="sd">        H₀-friendly regime); ``0.6`` = the regime where unrestricted</span>
+<span class="sd">        permutation after harmonisation leaks Type-I.</span>
+<span class="sd">    n_signal_edges : int, default 0</span>
+<span class="sd">        Number of edges carrying the planted signal. Ignored when</span>
+<span class="sd">        ``effect_size == 0``. Edges are drawn uniformly from the upper</span>
+<span class="sd">        triangle (excluding diagonal).</span>
+<span class="sd">    base_corr_sparsity : float, default 0.9</span>
+<span class="sd">        ``alpha`` for ``make_sparse_spd_matrix`` controlling baseline</span>
+<span class="sd">        connectivity sparsity (higher → sparser).</span>
+<span class="sd">    seed : int, optional</span>
+<span class="sd">        Reproducibility handle.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict with keys</span>
+<span class="sd">        - ``&quot;Y&quot;`` — ``(n_subjects, N, N)`` Fisher-z connectivity tensor,</span>
+<span class="sd">          symmetric with zero diagonal.</span>
+<span class="sd">        - ``&quot;interest&quot;`` — ``(n_subjects,)`` regressor of interest.</span>
+<span class="sd">        - ``&quot;sites&quot;`` — ``(n_subjects,)`` integer site labels.</span>
+<span class="sd">        - ``&quot;signal_mask&quot;`` — ``(N, N)`` boolean upper-triangle mask of</span>
+<span class="sd">          true positive edges (all False when ``effect_size == 0`` or</span>
+<span class="sd">          ``n_signal_edges == 0``).</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Designed for end-to-end exercise of</span>
+<span class="sd">    ``analyze(Y, interest=..., sites=...)``: it triggers the auto-</span>
+<span class="sd">    preserve, auto-strata, ComBat-with-preserve, Freedman-Lane with</span>
+<span class="sd">    within-block exchangeability path in a single call. Calibration</span>
+<span class="sd">    tests use ``effect_size=0.0`` (H₀); strata-vs-no-strata sanity</span>
+<span class="sd">    tests use ``corr_site_interest &gt; 0`` to bring the leak into view.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; data = generate_multisite_glm_dataset(</span>
+<span class="sd">    ...     n_subjects=24, N=20, n_sites=3,</span>
+<span class="sd">    ...     site_shift_sigma=0.3, corr_site_interest=0.6, seed=0,</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; data[&quot;Y&quot;].shape</span>
+<span class="sd">    (24, 20, 20)</span>
+<span class="sd">    &gt;&gt;&gt; data[&quot;sites&quot;].shape, data[&quot;interest&quot;].shape</span>
+<span class="sd">    ((24,), (24,))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_SKLEARN</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">&quot;scikit-learn is required for generate_multisite_glm_dataset(). &quot;</span>
+            <span class="s2">&quot;Install it with `pip install conninfpy[full]`.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">corr_site_interest</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;corr_site_interest must be in [0, 1], got </span><span class="si">{</span><span class="n">corr_site_interest</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_subjects</span> <span class="o">&lt;</span> <span class="n">n_sites</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Need at least one subject per site (n_subjects=</span><span class="si">{</span><span class="n">n_subjects</span><span class="si">}</span><span class="s2">, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;n_sites=</span><span class="si">{</span><span class="n">n_sites</span><span class="si">}</span><span class="s2">).&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="c1"># ---- Site assignment (round-robin) ----</span>
+    <span class="n">sites</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_sites</span><span class="p">),</span> <span class="n">n_subjects</span> <span class="o">//</span> <span class="n">n_sites</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[:</span><span class="n">n_subjects</span><span class="p">]</span>
+
+    <span class="c1"># ---- Regressor of interest with target corr(site, interest) ----</span>
+    <span class="c1"># Project site labels to mean-zero, unit-variance to make the</span>
+    <span class="c1"># correlation parameter well-defined.</span>
+    <span class="n">site_codes</span> <span class="o">=</span> <span class="n">sites</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">site_centered</span> <span class="o">=</span> <span class="p">(</span><span class="n">site_codes</span> <span class="o">-</span> <span class="n">site_codes</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">site_codes</span><span class="o">.</span><span class="n">std</span><span class="p">(),</span> <span class="mf">1e-12</span><span class="p">)</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">)</span>
+    <span class="n">interest</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">corr_site_interest</span> <span class="o">*</span> <span class="n">site_centered</span>
+        <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">corr_site_interest</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">noise</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ---- Base covariance + per-subject sampled correlation ----</span>
+    <span class="n">base_cov</span> <span class="o">=</span> <span class="n">make_sparse_spd_matrix</span><span class="p">(</span>
+        <span class="n">N</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">base_corr_sparsity</span><span class="p">,</span> <span class="n">norm_diag</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">n_obs_for_corr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">N</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>  <span class="c1"># ensure stable per-subject correlation</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_subjects</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">):</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span>
+            <span class="n">mean</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="n">cov</span><span class="o">=</span><span class="n">base_cov</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_obs_for_corr</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="c1"># Fisher r→z (clip to avoid arctanh blow-up at |r|→1)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.9999</span><span class="p">,</span> <span class="mf">0.9999</span><span class="p">)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctanh</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="c1"># ---- Per-site additive shift (symmetric, zero diagonal) ----</span>
+    <span class="k">if</span> <span class="n">site_shift_sigma</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">site_shifts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_sites</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">):</span>
+            <span class="n">shift_upper</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="n">iu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">*</span> <span class="n">site_shift_sigma</span>
+            <span class="n">site_shifts</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">iu</span><span class="p">]</span> <span class="o">=</span> <span class="n">shift_upper</span>
+            <span class="n">site_shifts</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">site_shifts</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">+</span> <span class="n">site_shifts</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">):</span>
+            <span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">site_shifts</span><span class="p">[</span><span class="n">sites</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+
+    <span class="c1"># ---- Signal injection ----</span>
+    <span class="n">signal_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">effect_size</span> <span class="o">!=</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">n_signal_edges</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">iu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">iu</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_signal_edges</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">signal_rows</span> <span class="o">=</span> <span class="n">iu</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">chosen</span><span class="p">]</span>
+        <span class="n">signal_cols</span> <span class="o">=</span> <span class="n">iu</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">chosen</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">):</span>
+            <span class="n">delta</span> <span class="o">=</span> <span class="n">effect_size</span> <span class="o">*</span> <span class="n">interest</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">signal_rows</span><span class="p">,</span> <span class="n">signal_cols</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
+            <span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">signal_cols</span><span class="p">,</span> <span class="n">signal_rows</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
+        <span class="n">signal_mask</span><span class="p">[</span><span class="n">signal_rows</span><span class="p">,</span> <span class="n">signal_cols</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">signal_mask</span><span class="p">[</span><span class="n">signal_cols</span><span class="p">,</span> <span class="n">signal_rows</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="c1"># Re-zero diagonal (site shifts and signal already preserve it)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subjects</span><span class="p">):</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">Y</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;Y&quot;</span><span class="p">:</span> <span class="n">Y</span><span class="p">,</span>
+        <span class="s2">&quot;interest&quot;</span><span class="p">:</span> <span class="n">interest</span><span class="p">,</span>
+        <span class="s2">&quot;sites&quot;</span><span class="p">:</span> <span class="n">sites</span><span class="p">,</span>
+        <span class="s2">&quot;signal_mask&quot;</span><span class="p">:</span> <span class="n">signal_mask</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="generate_fc_matrices">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.generate_fc_matrices">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_fc_matrices</span><span class="p">(</span><span class="n">N</span><span class="p">,</span>  <span class="n">effect_size</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples_group1</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">n_samples_group2</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+                         <span class="n">repeated_measures</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate synthetic functional connectivity correlation matrices for groupwise comparisons</span>
+<span class="sd">    or repeated measures.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    N : int</span>
+<span class="sd">        Number of ROIs (regions of interest), i.e. an ``N x N`` matrix.</span>
+<span class="sd">    effect_size : float</span>
+<span class="sd">        Magnitude of correlation difference between groups.</span>
+<span class="sd">    mask : np.ndarray, optional</span>
+<span class="sd">        Binary mask ``(N, N)`` to apply correlation differences.</span>
+<span class="sd">    n_samples_group1 : int</span>
+<span class="sd">        Number of matrices in group 1 (default: 50).</span>
+<span class="sd">    n_samples_group2 : int</span>
+<span class="sd">        Number of matrices in group 2 (default: 50).</span>
+<span class="sd">    repeated_measures : bool</span>
+<span class="sd">        If True, generate within-subject repeated-measures (paired) data,</span>
+<span class="sd">        otherwise independent groups (default: False).</span>
+<span class="sd">    seed : int, optional</span>
+<span class="sd">        Random seed for reproducibility.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    group1 : np.ndarray</span>
+<span class="sd">        Array of FC matrices for group 1, shape ``(n_samples_group1, N, N)``.</span>
+<span class="sd">    group2 : np.ndarray</span>
+<span class="sd">        Array of FC matrices for group 2, shape ``(n_samples_group2, N, N)``.</span>
+<span class="sd">    (base_cov, mod_cov) : tuple of np.ndarray</span>
+<span class="sd">        Original covariance matrix and modified covariance matrix with the</span>
+<span class="sd">        ``effect_size`` introduced; used for group 1 and group 2 matrices</span>
+<span class="sd">        respectively.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; N = 6; e = 0.2; mask = np.zeros((N, N))</span>
+<span class="sd">    &gt;&gt;&gt; mask[0:2, 0:2] = 1; mask[2:4, 2:4] = -1</span>
+<span class="sd">    &gt;&gt;&gt; g1, g2, (c1, c2) = generate_fc_matrices(N, e, mask, 5, 10, seed=0)</span>
+<span class="sd">    &gt;&gt;&gt; g1.shape == (5, 6, 6)</span>
+<span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; g2.shape == (10, 6, 6)</span>
+<span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; np.allclose(c1, c1.T)</span>
+<span class="sd">    True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_SKLEARN</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">&quot;scikit-learn is required for generate_fc_matrices(). &quot;</span>
+            <span class="s2">&quot;Install it with `pip install conninfpy[full]`.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">))</span>
+        <span class="n">N_pos_block</span> <span class="o">=</span> <span class="n">N</span><span class="o">//</span><span class="mi">3</span>
+        <span class="n">mask</span><span class="p">[:</span><span class="n">N_pos_block</span><span class="p">,</span> <span class="p">:</span><span class="n">N_pos_block</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">N_neg_block</span> <span class="o">=</span> <span class="n">N</span><span class="o">//</span><span class="mi">3</span>
+        <span class="n">mask</span><span class="p">[</span><span class="n">N_pos_block</span><span class="p">:</span><span class="n">N_pos_block</span><span class="o">+</span><span class="n">N_neg_block</span><span class="p">,</span> <span class="n">N_pos_block</span><span class="p">:</span><span class="n">N_pos_block</span><span class="o">+</span><span class="n">N_neg_block</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="c1"># Generate base covariance matrix</span>
+    <span class="n">base_cov</span> <span class="o">=</span> <span class="n">make_sparse_spd_matrix</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">norm_diag</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="c1"># Create modified covariance for the second condition or group</span>
+    <span class="n">mod_cov</span> <span class="o">=</span> <span class="n">base_cov</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">mod_cov</span><span class="p">[</span><span class="n">mask</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">effect_size</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">mod_cov</span><span class="p">[</span><span class="n">mask</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span> <span class="c1"># Increase correlations in masked regions</span>
+    <span class="n">mod_cov</span><span class="p">[</span><span class="n">mask</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">effect_size</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mod_cov</span><span class="p">[</span><span class="n">mask</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span> <span class="c1"># Decrease correlations in masked regions</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">mod_cov</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">mod_cov</span> <span class="o">=</span> <span class="p">(</span><span class="n">mod_cov</span><span class="o">+</span><span class="n">mod_cov</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">enforce_spd</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; Ensures a matrix is symmetric positive definite (SPD) by adjusting eigenvalues. &quot;&quot;&quot;</span>
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>       <span class="c1"># Get eigenvalues &amp; eigenvectors</span>
+        <span class="n">eigvals</span><span class="p">[</span><span class="n">eigvals</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">]</span> <span class="o">=</span> <span class="n">eps</span>                    <span class="c1"># Replace negative eigenvalues with small positive value</span>
+        <span class="k">return</span> <span class="n">eigvecs</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">eigvals</span><span class="p">)</span> <span class="o">@</span> <span class="n">eigvecs</span><span class="o">.</span><span class="n">T</span>   <span class="c1"># Reconstruct SPD matrix</span>
+
+
+    <span class="c1"># Enforce SPD property</span>
+    <span class="n">mod_cov</span> <span class="o">=</span> <span class="n">enforce_spd</span><span class="p">(</span><span class="n">mod_cov</span><span class="p">)</span>
+
+
+    <span class="c1"># Generate sample correlation matrices with variability</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_samples</span><span class="p">(</span><span class="n">cov_matrix</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="n">cov_matrix</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">N</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)])</span>
+
+    <span class="k">if</span> <span class="n">repeated_measures</span><span class="p">:</span>
+        <span class="c1"># Generate paired data (same subjects measured twice)</span>
+        <span class="n">group1</span> <span class="o">=</span> <span class="n">generate_samples</span><span class="p">(</span><span class="n">base_cov</span><span class="p">,</span> <span class="n">n_samples_group1</span><span class="p">)</span>
+        <span class="n">group2</span> <span class="o">=</span> <span class="n">generate_samples</span><span class="p">(</span><span class="n">mod_cov</span><span class="p">,</span> <span class="n">n_samples_group1</span><span class="p">)</span>  <span class="c1"># Same number as group1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Generate independent groups</span>
+        <span class="n">group1</span> <span class="o">=</span> <span class="n">generate_samples</span><span class="p">(</span><span class="n">base_cov</span><span class="p">,</span> <span class="n">n_samples_group1</span><span class="p">)</span>
+        <span class="n">group2</span> <span class="o">=</span> <span class="n">generate_samples</span><span class="p">(</span><span class="n">mod_cov</span><span class="p">,</span> <span class="n">n_samples_group2</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">group1</span><span class="p">,</span> <span class="n">group2</span><span class="p">,</span> <span class="p">(</span><span class="n">base_cov</span><span class="p">,</span> <span class="n">mod_cov</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ModularDatasetGenerator">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.ModularDatasetGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ModularDatasetGenerator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A generator for synthetic functional connectivity data with a modular (block) structure.</span>
+<span class="sd">    </span>
+<span class="sd">    This class simulates brain connectivity matrices where nodes are organized into </span>
+<span class="sd">    distinct functional modules (e.g., Visual, DMN, Motor). It allows for the </span>
+<span class="sd">    injection of specific topological effects (within-module or between-module changes)</span>
+<span class="sd">    to simulate pathological conditions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">N</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> 
+        <span class="n">n_modules</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> 
+        <span class="n">intra_corr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span> 
+        <span class="n">inter_corr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> 
+        <span class="n">noise_level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span> 
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the generator.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        N : int</span>
+<span class="sd">            Number of nodes (Regions of Interest).</span>
+<span class="sd">        n_modules : int</span>
+<span class="sd">            Number of functional modules (networks).</span>
+<span class="sd">        intra_corr : float</span>
+<span class="sd">            Base correlation strength between nodes within the same module.</span>
+<span class="sd">        inter_corr : float</span>
+<span class="sd">            Base correlation strength between nodes of different modules.</span>
+<span class="sd">        noise_level : float</span>
+<span class="sd">            Standard deviation of Gaussian noise added to the base covariance structure.</span>
+<span class="sd">        seed : int, optional</span>
+<span class="sd">            Random seed for reproducibility.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">N</span> <span class="o">=</span> <span class="n">N</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_modules</span> <span class="o">=</span> <span class="n">n_modules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_level</span> <span class="o">=</span> <span class="n">noise_level</span>
+        
+        <span class="c1"># Assign nodes to modules (evenly distributed)</span>
+        <span class="c1"># e.g., for N=10, n=2: [0, 1, 0, 1, ...] sorted to [0, 0, ..., 1, 1, ...]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">%</span> <span class="n">n_modules</span><span class="p">)</span>
+        
+        <span class="c1"># Create the underlying ground-truth covariance for &quot;Healthy&quot; controls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_cov</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_base_covariance</span><span class="p">(</span><span class="n">intra_corr</span><span class="p">,</span> <span class="n">inter_corr</span><span class="p">,</span> <span class="n">noise_level</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_base_covariance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">intra</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">inter</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">noise</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Constructs a modular covariance matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">))</span>
+        
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">:</span>
+                    <span class="n">cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                    <span class="c1"># Within-module connection</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="n">intra</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+                    <span class="n">cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Between-module connection</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="n">inter</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+                    <span class="n">cov</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+        
+        <span class="c1"># Symmetrize</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="p">(</span><span class="n">cov</span> <span class="o">+</span> <span class="n">cov</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        
+        <span class="c1"># Clip to ensure values are roughly within correlation bounds before SPD enforcement</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">cov</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.95</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">cov</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        
+        <span class="c1"># Ensure the matrix is mathematically valid (Symmetric Positive Definite)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enforce_spd</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_enforce_spd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Projects a matrix onto the cone of Symmetric Positive Definite matrices.</span>
+<span class="sd">        Replaces negative eigenvalues with a small epsilon and normalizes the diagonal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># 1. Symmetrize</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="p">(</span><span class="n">matrix</span> <span class="o">+</span> <span class="n">matrix</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        
+        <span class="c1"># 2. Eigen-decomposition</span>
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        
+        <span class="c1"># 3. Clip negative eigenvalues</span>
+        <span class="n">eigvals</span><span class="p">[</span><span class="n">eigvals</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">]</span> <span class="o">=</span> <span class="n">eps</span>
+        
+        <span class="c1"># 4. Reconstruct</span>
+        <span class="n">reconstructed</span> <span class="o">=</span> <span class="n">eigvecs</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">eigvals</span><span class="p">)</span> <span class="o">@</span> <span class="n">eigvecs</span><span class="o">.</span><span class="n">T</span>
+        
+        <span class="c1"># 5. Rescale to ensure 1.0 on diagonal (Correlation matrix property)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">reconstructed</span><span class="p">))</span>
+        <span class="n">d_inv</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">d</span>
+        <span class="c1"># D^-1 * M * D^-1</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="n">reconstructed</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">d_inv</span><span class="p">,</span> <span class="n">d_inv</span><span class="p">)</span>
+        
+        <span class="c1"># Final safety clip</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ModularDatasetGenerator.get_mask_within_module">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.ModularDatasetGenerator.get_mask_within_module">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_mask_within_module</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a binary mask for all edges WITHIN a specific module.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">==</span> <span class="n">module_idx</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="c1"># Create block mask using broadcasting indices</span>
+        <span class="c1"># We exclude the diagonal (self-connections)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">j</span><span class="p">:</span>
+                    <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">mask</span></div>
+
+
+<div class="viewcode-block" id="ModularDatasetGenerator.get_mask_between_modules">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.ModularDatasetGenerator.get_mask_between_modules">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_mask_between_modules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module_idx_A</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">module_idx_B</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a binary mask for all edges connecting module A and module B.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">nodes_A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">==</span> <span class="n">module_idx_A</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">nodes_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">==</span> <span class="n">module_idx_B</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nodes_A</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">nodes_B</span><span class="p">:</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Symmetrize</span>
+        <span class="k">return</span> <span class="n">mask</span></div>
+
+
+<div class="viewcode-block" id="ModularDatasetGenerator.generate_data">
+<a class="viewcode-back" href="../../conninfpy.synth_datasets.html#conninfpy.synth_datasets.ModularDatasetGenerator.generate_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">effect_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> 
+        <span class="n">effect_size</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> 
+        <span class="n">n_samples_g1</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> 
+        <span class="n">n_samples_g2</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
+        <span class="n">time_points</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates sample correlation matrices for two groups.</span>
+<span class="sd">        </span>
+<span class="sd">        Group 1 is sampled from the base modular covariance.</span>
+<span class="sd">        Group 2 is sampled from a modified covariance (base + effect).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        effect_mask : np.ndarray</span>
+<span class="sd">            Effect mask matrix of shape (N, N).</span>
+
+<span class="sd">            - 0 means &quot;no effect&quot; for that edge.</span>
+<span class="sd">            - Non-zero values scale the effect magnitude per edge.</span>
+<span class="sd">            - The sign of the value controls effect direction (positive/negative).</span>
+
+<span class="sd">            The matrix is treated as undirected: it will be symmetrized internally</span>
+<span class="sd">            and its diagonal will be set to 0.</span>
+<span class="sd">        effect_size : float</span>
+<span class="sd">            Magnitude of the effect (Cohen&#39;s d-like shift in correlation). </span>
+<span class="sd">            Positive values increase correlation, negative values decrease it.</span>
+<span class="sd">        n_samples_g1 : int</span>
+<span class="sd">            Number of subjects in Group 1 (Control).</span>
+<span class="sd">        n_samples_g2 : int</span>
+<span class="sd">            Number of subjects in Group 2 (Test).</span>
+<span class="sd">        time_points : int</span>
+<span class="sd">            Length of the simulated BOLD time-series. Higher values reduce sampling noise.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        g1_data : np.ndarray (n_samples_g1, N, N)</span>
+<span class="sd">            Correlation matrices for Group 1.</span>
+<span class="sd">        g2_data : np.ndarray (n_samples_g2, N, N)</span>
+<span class="sd">            Correlation matrices for Group 2.</span>
+<span class="sd">        labels : np.ndarray (N,)</span>
+<span class="sd">            Vector of module assignments for nodes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">effect_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">effect_mask</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">effect_mask</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;effect_mask must have shape (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Enforce undirected mask semantics.</span>
+        <span class="n">effect_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">effect_mask</span> <span class="o">+</span> <span class="n">effect_mask</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">effect_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="c1"># Group 1: Base Covariance</span>
+        <span class="n">cov_g1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_cov</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+        <span class="c1"># Group 2: Modified Covariance</span>
+        <span class="n">cov_g2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_cov</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+        <span class="c1"># Add random noise to the effect to simulate biological variability</span>
+        <span class="c1"># This prevents the effect from being a perfect constant shift</span>
+        <span class="n">effect_noise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_level</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">cov_g2</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">effect_noise</span> <span class="o">=</span> <span class="p">(</span><span class="n">effect_noise</span> <span class="o">+</span> <span class="n">effect_noise</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        
+        <span class="c1"># Apply effect: Delta = (Target_Shift + Noise) * Mask</span>
+        <span class="c1"># - For binary masks (0/1), this reduces to a constant mean shift on masked edges.</span>
+        <span class="c1"># - For signed/weighted masks, this enables mixed-sign and graded effects.</span>
+        <span class="n">update_vals</span> <span class="o">=</span> <span class="p">(</span><span class="n">effect_size</span> <span class="o">+</span> <span class="n">effect_noise</span><span class="p">)</span> <span class="o">*</span> <span class="n">effect_mask</span>
+        <span class="n">cov_g2</span> <span class="o">+=</span> <span class="n">update_vals</span>
+        
+        <span class="c1"># Re-enforce SPD property after modification</span>
+        <span class="n">cov_g2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enforce_spd</span><span class="p">(</span><span class="n">cov_g2</span><span class="p">)</span>
+        
+        <span class="c1"># Helper to generate subjects by sampling time-series</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">sample_subject_matrices</span><span class="p">(</span><span class="n">true_cov</span><span class="p">,</span> <span class="n">n_subs</span><span class="p">):</span>
+            <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_subs</span><span class="p">):</span>
+                <span class="c1"># Generate time series: shape (time_points, N)</span>
+                <span class="n">ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span>
+                    <span class="n">mean</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">),</span> 
+                    <span class="n">cov</span><span class="o">=</span><span class="n">true_cov</span><span class="p">,</span> 
+                    <span class="n">size</span><span class="o">=</span><span class="n">time_points</span>
+                <span class="p">)</span>
+                <span class="c1"># Compute Pearson correlation: shape (N, N)</span>
+                <span class="c1"># rowvar=False means columns are variables (nodes)</span>
+                <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">corr</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">matrices</span><span class="p">)</span>
+
+        <span class="n">g1_data</span> <span class="o">=</span> <span class="n">sample_subject_matrices</span><span class="p">(</span><span class="n">cov_g1</span><span class="p">,</span> <span class="n">n_samples_g1</span><span class="p">)</span>
+        <span class="n">g2_data</span> <span class="o">=</span> <span class="n">sample_subject_matrices</span><span class="p">(</span><span class="n">cov_g2</span><span class="p">,</span> <span class="n">n_samples_g2</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">g1_data</span><span class="p">,</span> <span class="n">g2_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

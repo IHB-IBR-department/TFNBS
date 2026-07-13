@@ -1,0 +1,453 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.acceleration &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../conninfpy.html">conninfpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">conninfpy.acceleration</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for conninfpy.acceleration</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Permutation acceleration methods for faster inference.</span>
+
+<span class="sd">Implements tail approximation via Generalized Pareto Distribution (GPD)</span>
+<span class="sd">and gamma approximation, following Winkler et al. (2016) &quot;Faster</span>
+<span class="sd">permutation inference in brain imaging&quot;, NeuroImage.</span>
+
+<span class="sd">These methods reduce the number of permutations needed for accurate</span>
+<span class="sd">p-value estimation from ~5000 to ~200, yielding 10-100x speedup</span>
+<span class="sd">while maintaining exact error rates for FWER-corrected inference.</span>
+
+<span class="sd">References</span>
+<span class="sd">----------</span>
+<span class="sd">Winkler et al. (2016). Faster permutation inference in brain imaging.</span>
+<span class="sd">    NeuroImage, doi:10.1016/j.neuroimage.2016.05.068</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;fit_gpd_tail&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fit_gamma_tail&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compute_p_values_accelerated&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fit_gpd_mom</span><span class="p">(</span>
+    <span class="n">exceedances</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fit GPD parameters by method of moments.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    exceedances : ndarray</span>
+<span class="sd">        Positive values y = T - u for T &gt; u (exceedances above threshold u).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    sigma : float</span>
+<span class="sd">        Scale parameter.</span>
+<span class="sd">    xi : float</span>
+<span class="sd">        Shape parameter.</span>
+<span class="sd">    valid : bool</span>
+<span class="sd">        Whether the fit is valid (enough exceedances, finite parameters).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span>
+
+    <span class="n">y_bar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">exceedances</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">y_bar</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">s2</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span>
+
+    <span class="c1"># Method of moments (Hosking &amp; Wallis, 1987)</span>
+    <span class="n">ratio</span> <span class="o">=</span> <span class="n">y_bar</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">s2</span>
+    <span class="n">xi</span> <span class="o">=</span> <span class="p">(</span><span class="n">ratio</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">y_bar</span> <span class="o">*</span> <span class="p">(</span><span class="n">ratio</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="k">if</span> <span class="n">sigma</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">sigma</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span>
+
+    <span class="k">return</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="kc">True</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_gpd_sf</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">xi</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GPD survival function P(Y &gt; x).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : ndarray</span>
+<span class="sd">        Values at which to evaluate.</span>
+<span class="sd">    sigma : float</span>
+<span class="sd">        Scale parameter.</span>
+<span class="sd">    xi : float</span>
+<span class="sd">        Shape parameter.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ndarray</span>
+<span class="sd">        Survival function values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">xi</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">:</span>
+        <span class="c1"># Exponential case (xi → 0)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x</span> <span class="o">/</span> <span class="n">sigma</span><span class="p">)</span>
+
+    <span class="n">z</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">xi</span> <span class="o">*</span> <span class="n">x</span> <span class="o">/</span> <span class="n">sigma</span>
+    <span class="c1"># Ensure z &gt; 0 for valid domain</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">xi</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_anderson_darling_gpd</span><span class="p">(</span>
+    <span class="n">exceedances</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">xi</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Anderson-Darling test statistic for GPD fit.</span>
+
+<span class="sd">    Lower values indicate better fit. A rough threshold of 2.5</span>
+<span class="sd">    indicates acceptable fit (Choulakian &amp; Stephens, 2001).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    exceedances : sorted ndarray</span>
+<span class="sd">        Exceedances in ascending order.</span>
+<span class="sd">    sigma, xi : float</span>
+<span class="sd">        GPD parameters.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Anderson-Darling statistic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+
+    <span class="c1"># CDF values: F(y) = 1 - SF(y)</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">_gpd_sf</span><span class="p">(</span><span class="n">exceedances</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="mf">1e-15</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-15</span><span class="p">)</span>
+
+    <span class="n">i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">A2</span> <span class="o">=</span> <span class="o">-</span><span class="n">n</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">F</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">F</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span> <span class="o">/</span> <span class="n">n</span>
+
+    <span class="k">return</span> <span class="n">A2</span>
+
+
+<div class="viewcode-block" id="fit_gpd_tail">
+<a class="viewcode-back" href="../../conninfpy.acceleration.html#conninfpy.acceleration.fit_gpd_tail">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fit_gpd_tail</span><span class="p">(</span>
+    <span class="n">null_dist</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">observed</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">n_thresholds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">ad_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute p-values using GPD tail approximation.</span>
+
+<span class="sd">    Fits a GPD to the upper tail of the null distribution and uses</span>
+<span class="sd">    the fitted distribution to compute p-values for the observed</span>
+<span class="sd">    statistics. Falls back to empirical p-values when GPD fit is poor.</span>
+<span class="sd">    This is a tail approximation, not an exact finite-permutation</span>
+<span class="sd">    procedure.</span>
+
+<span class="sd">    Algorithm (Winkler et al., 2016, Section 2.2.3):</span>
+
+<span class="sd">    1. Set initial threshold ``u`` at upper quartile of ``null_dist``</span>
+<span class="sd">    2. Fit GPD to exceedances ``y = T_star_j - u`` by method of moments</span>
+<span class="sd">    3. Test fit with Anderson-Darling; if poor, increase ``u`` and retry</span>
+<span class="sd">    4. Compute ``p = (k / J) * GPD_sf(T - u)`` where ``k`` = #exceedances</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    null_dist : ndarray of shape (J,)</span>
+<span class="sd">        Max-statistic null distribution from permutations.</span>
+<span class="sd">    observed : ndarray of shape ``(*spatial_dims,)``</span>
+<span class="sd">        Observed statistics (e.g., shape (N, N) for connectivity).</span>
+<span class="sd">    n_thresholds : int, default=5</span>
+<span class="sd">        Maximum number of threshold increases to try for good GPD fit.</span>
+<span class="sd">    ad_threshold : float, default=2.5</span>
+<span class="sd">        Anderson-Darling threshold for acceptable fit.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    p_values : ndarray of same shape as observed</span>
+<span class="sd">        P-values. Uses GPD where fit is good, empirical otherwise. The</span>
+<span class="sd">        empirical fallback uses tie-inclusive max-statistic counting and</span>
+<span class="sd">        the Phipson-Smyth +1 correction.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">J</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">null_dist</span><span class="p">)</span>
+    <span class="n">null_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">null_dist</span><span class="p">)</span>
+
+    <span class="c1"># Empirical p-values as fallback (with +1 correction — Phipson &amp; Smyth 2010)</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">observed</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">null_dist</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">p_empirical</span> <span class="o">=</span> <span class="p">(</span><span class="n">count</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">J</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Try increasing thresholds for GPD fit</span>
+    <span class="n">quantiles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.50</span><span class="p">,</span> <span class="mf">0.90</span><span class="p">,</span> <span class="n">n_thresholds</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">quantiles</span><span class="p">:</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">null_sorted</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+        <span class="n">exceedances</span> <span class="o">=</span> <span class="n">null_sorted</span><span class="p">[</span><span class="n">null_sorted</span> <span class="o">&gt;</span> <span class="n">u</span><span class="p">]</span> <span class="o">-</span> <span class="n">u</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">sigma</span><span class="p">,</span> <span class="n">xi</span><span class="p">,</span> <span class="n">valid</span> <span class="o">=</span> <span class="n">_fit_gpd_mom</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Check fit quality</span>
+        <span class="n">ad_stat</span> <span class="o">=</span> <span class="n">_anderson_darling_gpd</span><span class="p">(</span><span class="n">exceedances</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ad_stat</span> <span class="o">&gt;</span> <span class="n">ad_threshold</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Good fit found — compute p-values from GPD</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">exceedances</span><span class="p">)</span>  <span class="c1"># number of exceedances</span>
+        <span class="n">tail_fraction</span> <span class="o">=</span> <span class="n">k</span> <span class="o">/</span> <span class="n">J</span>  <span class="c1"># P(T &gt; u)</span>
+
+        <span class="c1"># For observed values &gt; u: p = tail_fraction * GPD_sf(T - u)</span>
+        <span class="c1"># For observed values &lt;= u: use empirical p-value</span>
+        <span class="n">above_u</span> <span class="o">=</span> <span class="n">observed</span> <span class="o">&gt;</span> <span class="n">u</span>
+        <span class="n">p_gpd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p_empirical</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">above_u</span><span class="p">):</span>
+            <span class="n">gpd_tail_p</span> <span class="o">=</span> <span class="n">tail_fraction</span> <span class="o">*</span> <span class="n">_gpd_sf</span><span class="p">(</span><span class="n">observed</span><span class="p">[</span><span class="n">above_u</span><span class="p">]</span> <span class="o">-</span> <span class="n">u</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span>
+            <span class="c1"># Ensure p-values are in [1/J, 1] (can&#39;t be more precise than 1/J)</span>
+            <span class="n">gpd_tail_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">gpd_tail_p</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">J</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="n">p_gpd</span><span class="p">[</span><span class="n">above_u</span><span class="p">]</span> <span class="o">=</span> <span class="n">gpd_tail_p</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;GPD fit: u=</span><span class="si">{</span><span class="n">u</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">, xi=</span><span class="si">{</span><span class="n">xi</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;sigma=</span><span class="si">{</span><span class="n">sigma</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, AD=</span><span class="si">{</span><span class="n">ad_stat</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">p_gpd</span>
+
+    <span class="c1"># No good fit found — fall back to empirical</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GPD fit failed at all thresholds, using empirical p-values&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p_empirical</span></div>
+
+
+
+<div class="viewcode-block" id="fit_gamma_tail">
+<a class="viewcode-back" href="../../conninfpy.acceleration.html#conninfpy.acceleration.fit_gamma_tail">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fit_gamma_tail</span><span class="p">(</span>
+    <span class="n">null_dist</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">observed</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute p-values using gamma (Pearson type III) approximation.</span>
+
+<span class="sd">    Fits a gamma distribution to the null distribution using method</span>
+<span class="sd">    of moments (first three moments) and computes p-values from the</span>
+<span class="sd">    fitted distribution. Simpler and more robust than GPD, but still an</span>
+<span class="sd">    approximation to the finite-permutation tail.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    null_dist : ndarray of shape (J,)</span>
+<span class="sd">        Max-statistic null distribution.</span>
+<span class="sd">    observed : ndarray of shape ``(*spatial_dims,)``</span>
+<span class="sd">        Observed statistics.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    p_values : ndarray of same shape as observed</span>
+<span class="sd">        P-values from fitted gamma distribution, or tie-inclusive</span>
+<span class="sd">        empirical p-values with the Phipson-Smyth +1 correction when</span>
+<span class="sd">        gamma fitting is not possible.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span>
+
+    <span class="n">J</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">null_dist</span><span class="p">)</span>
+
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">null_dist</span><span class="p">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">null_dist</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">skew_val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">skew</span><span class="p">(</span><span class="n">null_dist</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">var</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="n">skew_val</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">:</span>
+        <span class="c1"># Can&#39;t fit gamma, fall back to empirical (with +1 correction)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">observed</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">null_dist</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">count</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">J</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Gamma parameters from moments</span>
+    <span class="c1"># shape a = 4/skew^2, scale b = sqrt(var / a), loc = mean - a*b</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="mf">4.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">skew_val</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var</span> <span class="o">/</span> <span class="n">a</span><span class="p">)</span>
+    <span class="n">loc</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">-</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span>
+
+    <span class="c1"># P-values from gamma survival function</span>
+    <span class="n">p_values</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="n">observed</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">loc</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+    <span class="n">p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p_values</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">J</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">p_values</span></div>
+
+
+
+<div class="viewcode-block" id="compute_p_values_accelerated">
+<a class="viewcode-back" href="../../conninfpy.acceleration.html#conninfpy.acceleration.compute_p_values_accelerated">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_p_values_accelerated</span><span class="p">(</span>
+    <span class="n">emp_stat_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">],</span>
+    <span class="n">max_null_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">],</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpd&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute p-values using accelerated tail approximation.</span>
+
+<span class="sd">    Drop-in replacement for ``_compute_p_values_from_null`` that uses</span>
+<span class="sd">    GPD or gamma fitting instead of pure empirical counting. Tail</span>
+<span class="sd">    estimates are approximate; fallback empirical p-values use the same</span>
+<span class="sd">    tie-inclusive max-statistic counting as the standard path.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    emp_stat_dict : dict</span>
+<span class="sd">        Dictionary with empirical statistic arrays (any keys).</span>
+<span class="sd">    max_null_dict : dict</span>
+<span class="sd">        Dictionary with null distribution arrays.</span>
+<span class="sd">    method : {&#39;gpd&#39;, &#39;gamma&#39;}, default=&#39;gpd&#39;</span>
+<span class="sd">        Acceleration method.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary with p-value arrays for each key.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fit_func</span> <span class="o">=</span> <span class="n">fit_gpd_tail</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;gpd&quot;</span> <span class="k">else</span> <span class="n">fit_gamma_tail</span>
+    <span class="n">p_values</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">emp_stat_dict</span><span class="p">:</span>
+        <span class="n">emp</span> <span class="o">=</span> <span class="n">emp_stat_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">null</span> <span class="o">=</span> <span class="n">max_null_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">emp</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Standard case: (N, N) vs (J,)</span>
+            <span class="n">p_values</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">fit_func</span><span class="p">(</span><span class="n">null</span><span class="p">,</span> <span class="n">emp</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Multi-param: (N, N, n_params) vs (J, n_params)</span>
+            <span class="n">n_params</span> <span class="o">=</span> <span class="n">emp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">p_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">p_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_params</span><span class="p">):</span>
+                <span class="n">p_slice</span> <span class="o">=</span> <span class="n">fit_func</span><span class="p">(</span><span class="n">null</span><span class="p">[:,</span> <span class="n">p_idx</span><span class="p">],</span> <span class="n">emp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">p_idx</span><span class="p">])</span>
+                <span class="n">p_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p_slice</span><span class="p">)</span>
+            <span class="n">p_values</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">p_list</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">p_values</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

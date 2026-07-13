@@ -1,0 +1,916 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.harmonize &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../conninfpy.html">conninfpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">conninfpy.harmonize</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for conninfpy.harmonize</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Multi-site harmonization for connectivity data.</span>
+
+<span class="sd">Implements parametric empirical-Bayes ComBat (Johnson, Li &amp; Rabinovic 2007;</span>
+<span class="sd">Fortin et al. 2017) directly in numpy — no dependency on ``neuroHarmonize``</span>
+<span class="sd">or ``neurocombat``. Plus design-matrix diagnostics (VIF, condition number).</span>
+
+<span class="sd">ComBat model per feature j:</span>
+
+<span class="sd">    Y_ij_s = α_j + X_i β_j + γ_sj + δ_sj · ε_ij_s,   ε ~ N(0, σ_j²)</span>
+
+<span class="sd">where ``s`` indexes site, ``i`` indexes subject within site, and ``X_i`` holds</span>
+<span class="sd">covariates to preserve (age, sex, diagnosis). The parameterization follows</span>
+<span class="sd">Fortin 2017 / neuroCombat: site dummies are encoded one-hot (no reference</span>
+<span class="sd">site dropped); ``α`` is the sample-size-weighted grand mean of per-site</span>
+<span class="sd">intercepts; ``σ²`` uses the biased ``var.pooled`` denominator (divide by</span>
+<span class="sd">``n``, not ``n − p``). This matches the canonical neuroCombat reference</span>
+<span class="sd">implementation to machine precision under EB and without — validated in</span>
+<span class="sd">``tests/test_combat_equivalence.py``.</span>
+
+<span class="sd">Estimation:</span>
+
+<span class="sd">1. Fit OLS with site dummies + preserved covariates to obtain per-site</span>
+<span class="sd">   intercepts, ``β̂``, and pooled ``σ̂_j``.</span>
+<span class="sd">2. Standardize residuals per feature.</span>
+<span class="sd">3. Estimate per-(site, feature) location ``γ̂`` and scale ``δ̂²`` from the</span>
+<span class="sd">   standardized data.</span>
+<span class="sd">4. Empirical Bayes shrinkage using site-level conjugate priors, iterated to</span>
+<span class="sd">   convergence.</span>
+<span class="sd">5. Adjust: subtract the shrunken site effect, re-add the preserved-covariate</span>
+<span class="sd">   fit and the pooled scale.</span>
+
+<span class="sd">Use this when your cohort pools subjects from multiple scanners/sites and</span>
+<span class="sd">you want to remove the site-aligned variance that is *orthogonal* to the</span>
+<span class="sd">biological covariates you care about. Fortin 2018 discusses the limits.</span>
+
+<span class="sd">Typical use</span>
+<span class="sd">-----------</span>
+<span class="sd">&gt;&gt;&gt; from conninfpy import combat_harmonize</span>
+<span class="sd">&gt;&gt;&gt; result = combat_harmonize(Y, sites=site_labels, preserve=covariates)</span>
+<span class="sd">&gt;&gt;&gt; Y_adj = result.Y_adjusted   # same shape as Y</span>
+<span class="sd">&gt;&gt;&gt; result.diagnostics           # ratio of between-site variance before/after</span>
+
+<span class="sd">References</span>
+<span class="sd">----------</span>
+<span class="sd">Johnson WE, Li C, Rabinovic A (2007). Adjusting batch effects in microarray</span>
+<span class="sd">expression data using empirical Bayes methods. Biostatistics 8(1):118-27.</span>
+
+<span class="sd">Fortin J-P, Parker D, Tunç B, et al. (2017). Harmonization of multi-site</span>
+<span class="sd">diffusion tensor imaging data. NeuroImage 161:149-170.</span>
+
+<span class="sd">Fortin J-P et al. (2018). Harmonization of cortical thickness measurements</span>
+<span class="sd">across scanners and sites. NeuroImage 167:104-120.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
+
+
+<span class="c1"># Floor applied to variance estimates inside ComBat. Matches the</span>
+<span class="c1"># `np.maximum(·, _VAR_FLOOR)` calls in `combat_fit`. Below this value we</span>
+<span class="c1"># emit a RuntimeWarning so catastrophic cancellations (e.g. Fisher-z near</span>
+<span class="c1"># saturation, |r|→1, where within-site var collapses to zero) don&#39;t pass</span>
+<span class="c1"># silently. Clip behavior is unchanged.</span>
+<span class="n">_VAR_FLOOR</span> <span class="o">=</span> <span class="mf">1e-12</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_warn_variance_floor</span><span class="p">(</span>
+    <span class="n">var</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">site_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Emit a RuntimeWarning listing how many entries fell at/below the floor.</span>
+
+<span class="sd">    ``stage`` names the call site (&#39;pooled sigma&#39;, &#39;per-site delta&#39;,</span>
+<span class="sd">    &#39;EB-shrunken delta&#39;); ``site_label`` is the human-readable site name if</span>
+<span class="sd">    the offending entries are per-site.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">var</span> <span class="o">&lt;=</span> <span class="n">_VAR_FLOOR</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bad</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span>
+    <span class="n">n_bad</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bad</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">finite</span> <span class="o">=</span> <span class="n">var</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">var</span><span class="p">)]</span>
+    <span class="n">min_val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">finite</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="k">if</span> <span class="n">finite</span><span class="o">.</span><span class="n">size</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">)</span>
+    <span class="n">where</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot; at site </span><span class="si">{</span><span class="n">site_label</span><span class="si">!r}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">site_label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;ComBat: </span><span class="si">{</span><span class="n">n_bad</span><span class="si">}</span><span class="s2"> feature(s)</span><span class="si">{</span><span class="n">where</span><span class="si">}</span><span class="s2"> had variance ≤ </span><span class="si">{</span><span class="n">_VAR_FLOOR</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2"> &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;at &#39;</span><span class="si">{</span><span class="n">stage</span><span class="si">}</span><span class="s2">&#39; (min value = </span><span class="si">{</span><span class="n">min_val</span><span class="si">:</span><span class="s2">.3e</span><span class="si">}</span><span class="s2">); clipped to </span><span class="si">{</span><span class="n">_VAR_FLOOR</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">. &quot;</span>
+        <span class="s2">&quot;This commonly indicates catastrophic cancellation (Fisher-z near &quot;</span>
+        <span class="s2">&quot;saturation |r|→1) or a within-site constant feature.&quot;</span><span class="p">,</span>
+        <span class="ne">RuntimeWarning</span><span class="p">,</span>
+        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;ComBatModel&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CombatResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;combat_harmonize&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;combat_fit&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;combat_apply&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compute_vif&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;design_diagnostics&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;flatten_upper&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;unflatten_upper&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;block_mass&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Flat &lt;-&gt; matrix conversions (promoted from examples/abide_validation)</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="flatten_upper">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.flatten_upper">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">flatten_upper</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">],</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flatten the upper triangle (k=1) of a (n, N, N) connectivity stack.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n_subjects, N, N)</span>
+<span class="sd">        Symmetric connectivity matrices with zero diagonal.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    features : ndarray of shape (n_subjects, N*(N-1)/2)</span>
+<span class="sd">        Flattened upper triangles — one feature per edge.</span>
+<span class="sd">    triu_idx : tuple of ndarray</span>
+<span class="sd">        ``(rows, cols)`` index tuple usable as ``M[triu_idx]`` to invert.</span>
+<span class="sd">    N : int</span>
+<span class="sd">        Side length of the original matrices.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">Y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Y must have shape (n, N, N), got </span><span class="si">{</span><span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">triu_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">features</span> <span class="o">=</span> <span class="n">Y</span><span class="p">[:,</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">triu_idx</span><span class="p">,</span> <span class="n">N</span></div>
+
+
+
+<div class="viewcode-block" id="unflatten_upper">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.unflatten_upper">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unflatten_upper</span><span class="p">(</span>
+    <span class="n">features</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">triu_idx</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">,</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">],</span>
+    <span class="n">N</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reconstruct (n, N, N) symmetric matrices (zero diagonal) from flattened</span>
+<span class="sd">    upper-triangle features.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">features</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">Y</span><span class="p">[:,</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">features</span>
+    <span class="n">Y</span><span class="p">[:,</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">triu_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">features</span>
+    <span class="k">return</span> <span class="n">Y</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Site encoding</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_encode_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return integer site codes and the ordered list of unique site labels.&quot;&quot;&quot;</span>
+    <span class="n">unique</span><span class="p">,</span> <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sites</span><span class="p">),</span> <span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inverse</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">unique</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_site_dummies</span><span class="p">(</span><span class="n">site_codes</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">],</span> <span class="n">n_sites</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-hot site dummies: ``n_sites`` columns, no reference dropped.</span>
+
+<span class="sd">    Canonical Fortin 2017 / Johnson 2007 parameterization — the per-site</span>
+<span class="sd">    intercepts in the OLS fit are then per-site feature means, and the</span>
+<span class="sd">    grand-mean α is recovered as a sample-size-weighted average of them.</span>
+<span class="sd">    Combined with `preserve` columns, the design ``[D | preserve]`` is</span>
+<span class="sd">    full-rank (the one-hot dummies sum to ones but the preserve block</span>
+<span class="sd">    typically has nontrivial variation; no separate intercept needed).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">site_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n_sites</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">):</span>
+        <span class="n">D</span><span class="p">[:,</span> <span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">D</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># ComBat model (dataclass state for fit → apply)</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="ComBatModel">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.ComBatModel">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ComBatModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fitted parametric ComBat state, for later application to new data.&quot;&quot;&quot;</span>
+
+    <span class="n">site_labels</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+    <span class="n">alpha</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">beta</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sigma</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">gamma_star</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">delta_star</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">eb</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">preserve_n_cols</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="CombatResult">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.CombatResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CombatResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return value of :func:`combat_harmonize`.&quot;&quot;&quot;</span>
+
+    <span class="n">Y_adjusted</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">ComBatModel</span>
+    <span class="n">diagnostics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Empirical Bayes priors (method of moments)</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_aprior</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Method-of-moments shape λ for inverse-gamma prior on δ².&quot;&quot;&quot;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">))</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="k">if</span> <span class="n">delta_sq</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">v</span> <span class="o">+</span> <span class="n">m</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">v</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bprior</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Method-of-moments scale θ for inverse-gamma prior on δ².&quot;&quot;&quot;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">))</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">delta_sq</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="k">if</span> <span class="n">delta_sq</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="n">v</span> <span class="o">+</span> <span class="n">m</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="n">v</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_eb_update</span><span class="p">(</span>
+    <span class="n">Z_s</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">gamma_hat</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">delta_sq_hat</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">gamma_bar</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">tau_sq</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">lam</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">theta</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Johnson 2007 Appendix iterative EB estimator for (γ*, δ²*) at one site.</span>
+
+<span class="sd">    Z_s : (n_s, p) standardized residuals for subjects in site s.</span>
+<span class="sd">    gamma_hat, delta_sq_hat : (p,) starting estimates (method of moments).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_s</span> <span class="o">=</span> <span class="n">Z_s</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">gamma_old</span> <span class="o">=</span> <span class="n">gamma_hat</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">delta_sq_old</span> <span class="o">=</span> <span class="n">delta_sq_hat</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+        <span class="c1"># γ update</span>
+        <span class="n">gamma_new</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_s</span> <span class="o">*</span> <span class="n">tau_sq</span> <span class="o">*</span> <span class="n">gamma_hat</span> <span class="o">+</span> <span class="n">delta_sq_old</span> <span class="o">*</span> <span class="n">gamma_bar</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">n_s</span> <span class="o">*</span> <span class="n">tau_sq</span> <span class="o">+</span> <span class="n">delta_sq_old</span>
+        <span class="p">)</span>
+        <span class="c1"># δ² update</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">Z_s</span> <span class="o">-</span> <span class="n">gamma_new</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">delta_sq_new</span> <span class="o">=</span> <span class="p">(</span><span class="n">theta</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">ss</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_s</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="n">lam</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="n">change</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">gamma_new</span> <span class="o">-</span> <span class="n">gamma_old</span><span class="p">))),</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">delta_sq_new</span> <span class="o">-</span> <span class="n">delta_sq_old</span><span class="p">))),</span>
+        <span class="p">)</span>
+        <span class="n">gamma_old</span><span class="p">,</span> <span class="n">delta_sq_old</span> <span class="o">=</span> <span class="n">gamma_new</span><span class="p">,</span> <span class="n">delta_sq_new</span>
+        <span class="k">if</span> <span class="n">change</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">gamma_old</span><span class="p">,</span> <span class="n">delta_sq_old</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Core fit + apply</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prepare_inputs</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">preserve</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flatten (n, N, N) → (n, p) if needed; validate ``preserve``.&quot;&quot;&quot;</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">matrix_shape</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">triu_idx</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">Y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;3D Y must have shape (n, N, N), got </span><span class="si">{</span><span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="n">features</span><span class="p">,</span> <span class="n">triu_idx</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">flatten_upper</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+        <span class="n">matrix_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">Y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">Y</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Y must be 2D (n, p) or 3D (n, N, N); got ndim=</span><span class="si">{</span><span class="n">Y</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">preserve</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">preserve</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">preserve</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">preserve</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">preserve</span> <span class="o">=</span> <span class="n">preserve</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">preserve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;preserve has </span><span class="si">{</span><span class="n">preserve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows but Y has &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> subjects.&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">features</span><span class="p">,</span> <span class="n">preserve</span><span class="p">,</span> <span class="n">matrix_shape</span><span class="p">,</span> <span class="n">triu_idx</span>
+
+
+<div class="viewcode-block" id="combat_fit">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.combat_fit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">combat_fit</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">sites</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">preserve</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">eb</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComBatModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fit parametric ComBat on a training cohort.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n, N, N) or (n, p)</span>
+<span class="sd">        Connectivity matrices (3D) or pre-flattened features (2D).</span>
+<span class="sd">    sites : sequence of length n</span>
+<span class="sd">        Site label per subject. Any hashable (strings, ints).</span>
+<span class="sd">    preserve : ndarray of shape (n,) or (n, k), optional</span>
+<span class="sd">        Covariates whose effect on Y should be preserved (e.g. diagnosis,</span>
+<span class="sd">        age, sex). Their fitted coefficients survive harmonization.</span>
+<span class="sd">    eb : bool, default=True</span>
+<span class="sd">        If True (standard ComBat), apply empirical-Bayes shrinkage on the</span>
+<span class="sd">        per-(site, feature) effects. If False, use the raw method-of-moments</span>
+<span class="sd">        estimates — faster but noisier for small per-site sample sizes.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ComBatModel</span>
+<span class="sd">        Fitted state, usable with :func:`combat_apply`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">features</span><span class="p">,</span> <span class="n">preserve</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_prepare_inputs</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">preserve</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">site_codes</span><span class="p">,</span> <span class="n">site_labels</span> <span class="o">=</span> <span class="n">_encode_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
+    <span class="n">n_sites</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_labels</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_sites</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;ComBat needs ≥ 2 sites, got </span><span class="si">{</span><span class="n">n_sites</span><span class="si">}</span><span class="s2">. If you have one site, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;no harmonization is needed.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Build design: [site_dummies (all K, one-hot) | preserve_cols].</span>
+    <span class="c1"># Canonical Fortin 2017 / neuroCombat parameterization — no reference</span>
+    <span class="c1"># site dropped; α is recovered as the sample-size-weighted average of</span>
+    <span class="c1"># the per-site intercepts. No separate intercept column needed (one-hot</span>
+    <span class="c1"># dummies already span the constants).</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">_site_dummies</span><span class="p">(</span><span class="n">site_codes</span><span class="p">,</span> <span class="n">n_sites</span><span class="p">)</span>              <span class="c1"># (n, n_sites)</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">D</span><span class="p">]</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">preserve</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">preserve</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">preserve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">X_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span>
+
+    <span class="c1"># OLS fit. First n_sites rows of beta_full = per-site intercepts</span>
+    <span class="c1"># (per-site feature mean after preserve adjustment); next k rows = β̂.</span>
+    <span class="n">beta_full</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">X_full</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># α̂_j = weighted grand mean = Σ_s (n_s/n) · per_site_intercept_s</span>
+    <span class="n">n_per_site</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">)],</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">site_weights</span> <span class="o">=</span> <span class="n">n_per_site</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>                 <span class="c1"># (n_sites,)</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="n">site_weights</span> <span class="o">@</span> <span class="n">beta_full</span><span class="p">[:</span><span class="n">n_sites</span><span class="p">]</span>           <span class="c1"># (p,)</span>
+    <span class="n">beta_cov</span> <span class="o">=</span> <span class="n">beta_full</span><span class="p">[</span><span class="n">n_sites</span><span class="p">:</span><span class="n">n_sites</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># Pooled residual variance — Fortin 2017 var.pooled (biased MLE,</span>
+    <span class="c1"># divide by n). This matches neuroCombat&#39;s reference convention.</span>
+    <span class="n">preds</span> <span class="o">=</span> <span class="n">X_full</span> <span class="o">@</span> <span class="n">beta_full</span>
+    <span class="n">residuals</span> <span class="o">=</span> <span class="n">features</span> <span class="o">-</span> <span class="n">preds</span>
+    <span class="n">sigma_sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">residuals</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">_warn_variance_floor</span><span class="p">(</span><span class="n">sigma_sq</span><span class="p">,</span> <span class="s2">&quot;pooled sigma&quot;</span><span class="p">)</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">sigma_sq</span><span class="p">,</span> <span class="n">_VAR_FLOOR</span><span class="p">))</span>
+
+    <span class="c1"># Standardize: Z_ij = (Y_ij - α̂_j - X_i β̂_j) / σ̂_j</span>
+    <span class="c1"># Note: site effects are NOT subtracted here — we want Z to retain them.</span>
+    <span class="n">preserve_fit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">beta_cov</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">preserve_fit</span> <span class="o">=</span> <span class="n">preserve</span> <span class="o">@</span> <span class="n">beta_cov</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="p">(</span><span class="n">features</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">preserve_fit</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="c1"># Method-of-moments per (site, feature)</span>
+    <span class="n">gamma_hat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_sites</span><span class="p">,</span> <span class="n">p</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">delta_sq_hat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n_sites</span><span class="p">,</span> <span class="n">p</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Too few subjects to estimate scale; keep δ²=1</span>
+            <span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Z</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span>
+            <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">continue</span>
+        <span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Z</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">Z</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">_warn_variance_floor</span><span class="p">(</span>
+            <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="s2">&quot;per-site delta&quot;</span><span class="p">,</span> <span class="n">site_label</span><span class="o">=</span><span class="n">site_labels</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="n">_VAR_FLOOR</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">eb</span><span class="p">:</span>
+        <span class="n">gamma_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">gamma_hat</span><span class="p">)</span>
+        <span class="n">delta_star_sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">delta_sq_hat</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">gamma_star</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+                <span class="n">delta_star_sq</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="n">g_bar</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]))</span>
+            <span class="n">t_sq</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">lam</span> <span class="o">=</span> <span class="n">_aprior</span><span class="p">(</span><span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">])</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="n">_bprior</span><span class="p">(</span><span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span> <span class="ow">or</span> <span class="n">t_sq</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Degenerate prior → fall back to MoM</span>
+                <span class="n">gamma_star</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+                <span class="n">delta_star_sq</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="n">gamma_star</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="n">delta_star_sq</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">_eb_update</span><span class="p">(</span>
+                <span class="n">Z</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">gamma_hat</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="n">delta_sq_hat</span><span class="p">[</span><span class="n">s</span><span class="p">],</span>
+                <span class="n">g_bar</span><span class="p">,</span> <span class="n">t_sq</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">_warn_variance_floor</span><span class="p">(</span><span class="n">delta_star_sq</span><span class="p">,</span> <span class="s2">&quot;EB-shrunken delta&quot;</span><span class="p">)</span>
+        <span class="n">delta_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">delta_star_sq</span><span class="p">,</span> <span class="n">_VAR_FLOOR</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">gamma_star</span> <span class="o">=</span> <span class="n">gamma_hat</span>
+        <span class="n">delta_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">delta_sq_hat</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">ComBatModel</span><span class="p">(</span>
+        <span class="n">site_labels</span><span class="o">=</span><span class="n">site_labels</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+        <span class="n">beta</span><span class="o">=</span><span class="n">beta_cov</span><span class="p">,</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span>
+        <span class="n">gamma_star</span><span class="o">=</span><span class="n">gamma_star</span><span class="p">,</span>
+        <span class="n">delta_star</span><span class="o">=</span><span class="n">delta_star</span><span class="p">,</span>
+        <span class="n">eb</span><span class="o">=</span><span class="n">eb</span><span class="p">,</span>
+        <span class="n">preserve_n_cols</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="combat_apply">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.combat_apply">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">combat_apply</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">ComBatModel</span><span class="p">,</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">sites</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">preserve</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply a fitted ComBat model to new data. Sites must all be present in</span>
+<span class="sd">    the training cohort; unseen sites raise ValueError.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">features</span><span class="p">,</span> <span class="n">preserve</span><span class="p">,</span> <span class="n">matrix_shape</span><span class="p">,</span> <span class="n">triu_idx</span> <span class="o">=</span> <span class="n">_prepare_inputs</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">preserve</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">features</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">label_to_code</span> <span class="o">=</span> <span class="p">{</span><span class="n">lab</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">lab</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">site_labels</span><span class="p">)}</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">site_codes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">label_to_code</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sites</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Site </span><span class="si">{</span><span class="n">err</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">!r}</span><span class="s2"> was not present at fit time. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Known sites: </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">site_labels</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+    <span class="k">if</span> <span class="n">site_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sites length (</span><span class="si">{</span><span class="n">site_codes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) != n (</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+
+    <span class="n">preserve_fit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">beta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">preserve</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model was fit with preserve; new data missing it.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">preserve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">model</span><span class="o">.</span><span class="n">preserve_n_cols</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;preserve has </span><span class="si">{</span><span class="n">preserve</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> cols, expected &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">preserve_n_cols</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">preserve_fit</span> <span class="o">=</span> <span class="n">preserve</span> <span class="o">@</span> <span class="n">model</span><span class="o">.</span><span class="n">beta</span>
+
+    <span class="c1"># Standardize new data with fit-time α, β, σ</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="p">(</span><span class="n">features</span> <span class="o">-</span> <span class="n">model</span><span class="o">.</span><span class="n">alpha</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">preserve_fit</span><span class="p">)</span> <span class="o">/</span> <span class="n">model</span><span class="o">.</span><span class="n">sigma</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="c1"># Remove shrunken site effect</span>
+    <span class="n">gamma_per_sub</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">gamma_star</span><span class="p">[</span><span class="n">site_codes</span><span class="p">]</span>
+    <span class="n">delta_per_sub</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">delta_star</span><span class="p">[</span><span class="n">site_codes</span><span class="p">]</span>
+    <span class="n">Z_adj</span> <span class="o">=</span> <span class="p">(</span><span class="n">Z</span> <span class="o">-</span> <span class="n">gamma_per_sub</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta_per_sub</span>
+
+    <span class="c1"># Rescale back</span>
+    <span class="n">adjusted</span> <span class="o">=</span> <span class="n">Z_adj</span> <span class="o">*</span> <span class="n">model</span><span class="o">.</span><span class="n">sigma</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">model</span><span class="o">.</span><span class="n">alpha</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">preserve_fit</span>
+
+    <span class="k">if</span> <span class="n">matrix_shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">unflatten_upper</span><span class="p">(</span><span class="n">adjusted</span><span class="p">,</span> <span class="n">triu_idx</span><span class="p">,</span> <span class="n">matrix_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">adjusted</span></div>
+
+
+
+<div class="viewcode-block" id="combat_harmonize">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.combat_harmonize">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">combat_harmonize</span><span class="p">(</span>
+    <span class="n">Y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">sites</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+    <span class="n">preserve</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">eb</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">return_diagnostics</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CombatResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fit + transform: parametric empirical-Bayes ComBat on the full cohort.</span>
+
+<span class="sd">    See module docstring for the model and references. Handles either</span>
+<span class="sd">    ``(n, N, N)`` connectivity matrices or ``(n, p)`` pre-flattened features.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Y : ndarray of shape (n, N, N) or (n, p)</span>
+<span class="sd">        Input data.</span>
+<span class="sd">    sites : sequence of length n</span>
+<span class="sd">        Site label per subject.</span>
+<span class="sd">    preserve : ndarray of shape (n,) or (n, k), optional</span>
+<span class="sd">        Covariates whose variance should be preserved through ComBat.</span>
+<span class="sd">        Pass the GLM nuisance design (age, sex, motion, ...) here and</span>
+<span class="sd">        omit the variable that downstream inference will test — that</span>
+<span class="sd">        avoids the Nygaard 2016 label leak in which the harmonization</span>
+<span class="sd">        fit absorbs label-aligned variance the permutation null cannot</span>
+<span class="sd">        recover. See :func:`~conninfpy.analyze`, which sets</span>
+<span class="sd">        ``preserve = confounds`` automatically under the ``combat_only`` and</span>
+<span class="sd">        ``combat_site_dummies_glm`` strategies.</span>
+<span class="sd">    eb : bool, default=True</span>
+<span class="sd">        Apply empirical-Bayes shrinkage on site effects (recommended).</span>
+<span class="sd">    return_diagnostics : bool, default=True</span>
+<span class="sd">        If True, compute a between-site / within-site variance ratio before</span>
+<span class="sd">        and after correction, plus the explicit</span>
+<span class="sd">        ``between_site_variance_ratio_after_over_before`` key used by</span>
+<span class="sd">        :func:`conninfpy.analyze` for residual-site-variance flags.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    CombatResult</span>
+<span class="sd">        ``Y_adjusted`` (same shape as input), ``model``, and ``diagnostics``</span>
+<span class="sd">        (between-site variance ratio before/after, after/before ratio,</span>
+<span class="sd">        ratio reduction, and per-site sample sizes).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">combat_fit</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">sites</span><span class="p">,</span> <span class="n">preserve</span><span class="o">=</span><span class="n">preserve</span><span class="p">,</span> <span class="n">eb</span><span class="o">=</span><span class="n">eb</span><span class="p">)</span>
+    <span class="n">Y_adj</span> <span class="o">=</span> <span class="n">combat_apply</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">sites</span><span class="p">,</span> <span class="n">preserve</span><span class="o">=</span><span class="n">preserve</span><span class="p">)</span>
+
+    <span class="n">diagnostics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">return_diagnostics</span><span class="p">:</span>
+        <span class="n">features_before</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_prepare_inputs</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">features_after</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_prepare_inputs</span><span class="p">(</span><span class="n">Y_adj</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">site_codes</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_encode_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_between_over_total</span><span class="p">(</span><span class="n">feats</span><span class="p">):</span>
+            <span class="n">n_sites</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">site_codes</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">site_means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">feats</span><span class="p">[</span><span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_sites</span><span class="p">)]</span>
+            <span class="p">)</span>  <span class="c1"># (n_sites, p)</span>
+            <span class="n">grand</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">between</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">site_means</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="n">between</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+
+        <span class="n">ratio_before</span> <span class="o">=</span> <span class="n">_between_over_total</span><span class="p">(</span><span class="n">features_before</span><span class="p">)</span>
+        <span class="n">ratio_after</span> <span class="o">=</span> <span class="n">_between_over_total</span><span class="p">(</span><span class="n">features_after</span><span class="p">)</span>
+        <span class="n">ratio_after_over_before</span> <span class="o">=</span> <span class="n">ratio_after</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">ratio_before</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">diagnostics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;between_site_variance_ratio_before&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ratio_before</span><span class="p">),</span>
+            <span class="s2">&quot;between_site_variance_ratio_after&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ratio_after</span><span class="p">),</span>
+            <span class="s2">&quot;between_site_variance_ratio_after_over_before&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">ratio_after_over_before</span><span class="p">),</span>
+            <span class="s2">&quot;ratio_reduction&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">ratio_after_over_before</span><span class="p">),</span>
+            <span class="s2">&quot;site_labels&quot;</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">site_labels</span><span class="p">,</span>
+            <span class="s2">&quot;per_site_n&quot;</span><span class="p">:</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">site_codes</span> <span class="o">==</span> <span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">site_labels</span><span class="p">))],</span>
+        <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">CombatResult</span><span class="p">(</span><span class="n">Y_adjusted</span><span class="o">=</span><span class="n">Y_adj</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">diagnostics</span><span class="o">=</span><span class="n">diagnostics</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Design diagnostics (VIF + condition number + correlation)</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="compute_vif">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.compute_vif">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_vif</span><span class="p">(</span><span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Variance inflation factor per design-matrix column.</span>
+
+<span class="sd">    ``VIF_j = 1 / (1 - R²_j)`` where ``R²_j`` is from regressing column j on</span>
+<span class="sd">    all other columns. ``VIF &gt; 5`` is a common concern threshold; ``&gt; 10``</span>
+<span class="sd">    is strong collinearity (Kutner et al. 2004).</span>
+
+<span class="sd">    Constant columns (e.g. intercept) get ``VIF = 1`` by convention.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : ndarray of shape (n, p)</span>
+<span class="sd">        Design matrix.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ndarray of shape (p,)</span>
+<span class="sd">        VIF per column.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">vif</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+        <span class="n">x_j</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">x_j</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Constant column (e.g. intercept) → R² undefined; report 1</span>
+            <span class="n">vif</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">continue</span>
+        <span class="n">others</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">others</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">vif</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="k">continue</span>
+        <span class="c1"># Add intercept to the &quot;others&quot; block to get the right R²</span>
+        <span class="n">others_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">others</span><span class="p">])</span>
+        <span class="n">beta</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">others_full</span><span class="p">,</span> <span class="n">x_j</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">pred</span> <span class="o">=</span> <span class="n">others_full</span> <span class="o">@</span> <span class="n">beta</span>
+        <span class="n">ss_res</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">x_j</span> <span class="o">-</span> <span class="n">pred</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">ss_tot</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">x_j</span> <span class="o">-</span> <span class="n">x_j</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">r_sq</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">ss_res</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">ss_tot</span><span class="p">,</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">r_sq</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">r_sq</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">1e-12</span><span class="p">)</span>
+        <span class="n">vif</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">r_sq</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">vif</span></div>
+
+
+
+<div class="viewcode-block" id="design_diagnostics">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.design_diagnostics">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">design_diagnostics</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Diagnostic report for a GLM design matrix.</span>
+
+<span class="sd">    Returns a dict with:</span>
+<span class="sd">      - ``condition_number``: condition number of ``X&#39;X`` (&gt; 30 is caution,</span>
+<span class="sd">        &gt; 100 is strong concern)</span>
+<span class="sd">      - ``vif``: VIF per column</span>
+<span class="sd">      - ``vif_max``, ``vif_max_col``: most collinear column</span>
+<span class="sd">      - ``correlation``: pairwise Pearson correlation matrix (p, p)</span>
+<span class="sd">      - ``flags``: list of plain-English warnings when thresholds are crossed</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : ndarray of shape (n, p)</span>
+<span class="sd">        Design matrix (should include intercept if used in the GLM).</span>
+<span class="sd">    names : sequence of str, optional</span>
+<span class="sd">        Column names for reporting. Defaults to ``[&#39;x0&#39;, &#39;x1&#39;, ...]``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;x</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">)]</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">!=</span> <span class="n">p</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;names length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span><span class="si">}</span><span class="s2">) must match ncols (</span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+
+    <span class="n">XtX</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">X</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cond</span><span class="p">(</span><span class="n">XtX</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+
+    <span class="n">vif</span> <span class="o">=</span> <span class="n">compute_vif</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">vif_argmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">vif</span><span class="p">))</span>
+
+    <span class="c1"># Pairwise correlation (intercept → NaN row/col; report as 0)</span>
+    <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">):</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="n">flags</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">cond</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Condition number </span><span class="si">{</span><span class="n">cond</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> &gt; 100: strong multicollinearity — &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;coefficient estimates may be unstable.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">cond</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">:</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Condition number </span><span class="si">{</span><span class="n">cond</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> &gt; 30: moderate multicollinearity.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">vif</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VIF for &#39;</span><span class="si">{</span><span class="n">names</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; = </span><span class="si">{</span><span class="n">vif</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> &gt; 10: &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;strong collinearity.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">vif</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;VIF for &#39;</span><span class="si">{</span><span class="n">names</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; = </span><span class="si">{</span><span class="n">vif</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> &gt; 5: &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;moderate collinearity.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;condition_number&quot;</span><span class="p">:</span> <span class="n">cond</span><span class="p">,</span>
+        <span class="s2">&quot;vif&quot;</span><span class="p">:</span> <span class="n">vif</span><span class="p">,</span>
+        <span class="s2">&quot;vif_max&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">vif</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">]),</span>
+        <span class="s2">&quot;vif_max_col&quot;</span><span class="p">:</span> <span class="n">names</span><span class="p">[</span><span class="n">vif_argmax</span><span class="p">],</span>
+        <span class="s2">&quot;correlation&quot;</span><span class="p">:</span> <span class="n">corr</span><span class="p">,</span>
+        <span class="s2">&quot;names&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">names</span><span class="p">),</span>
+        <span class="s2">&quot;flags&quot;</span><span class="p">:</span> <span class="n">flags</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Block-mass aggregation (promoted from examples/abide_validation)</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="block_mass">
+<a class="viewcode-back" href="../../conninfpy.harmonize.html#conninfpy.harmonize.block_mass">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">block_mass</span><span class="p">(</span>
+    <span class="n">p_full</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">],</span>
+    <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">return_upper</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">]:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Aggregate edge-level survival counts into a network-block matrix.</span>
+
+<span class="sd">    For an upper-triangular set of significant edges (``p &lt;= alpha``),</span>
+<span class="sd">    count how many fall within each unordered pair of network labels</span>
+<span class="sd">    ``(i, j)``. The diagonal counts within-network edges.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    p_full : ndarray of shape (N, N)</span>
+<span class="sd">        Edge-wise p-value matrix (typically symmetric, with diagonal=1).</span>
+<span class="sd">    net_labels : ndarray of shape (N,)</span>
+<span class="sd">        Integer network assignment per node, ``0..K-1``. The Yeo-7</span>
+<span class="sd">        partition stored in ``abide_prepared.npz[&#39;net_labels&#39;]`` is the</span>
+<span class="sd">        canonical use case.</span>
+<span class="sd">    alpha : float, default ``0.05``</span>
+<span class="sd">        Significance threshold; edges with ``p &lt;= alpha`` are counted.</span>
+<span class="sd">    return_upper : bool, default ``True``</span>
+<span class="sd">        If ``True``, the returned matrix is upper-triangular (lower</span>
+<span class="sd">        triangle zero-filled). If ``False``, the matrix is symmetric.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    M : ndarray of shape (K, K), int</span>
+<span class="sd">        Block-mass matrix where ``M[i, j]`` is the number of significant</span>
+<span class="sd">        edges with one endpoint in network ``i`` and the other in ``j``.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt; from conninfpy import block_mass</span>
+<span class="sd">    &gt;&gt;&gt; p = np.array([[1, 0.01, 0.5], [0.01, 1, 0.6], [0.5, 0.6, 1]])</span>
+<span class="sd">    &gt;&gt;&gt; labels = np.array([0, 0, 1])</span>
+<span class="sd">    &gt;&gt;&gt; block_mass(p, labels, alpha=0.05)</span>
+<span class="sd">    array([[1, 0],</span>
+<span class="sd">           [0, 0]])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">p_full</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;p_full must be (N, N), got </span><span class="si">{</span><span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">net_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;net_labels has </span><span class="si">{</span><span class="n">net_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> entries but p_full is &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> × </span><span class="si">{</span><span class="n">p_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">K</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">net_labels</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">K</span><span class="p">,</span> <span class="n">K</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="n">sig</span> <span class="o">=</span> <span class="p">(</span><span class="n">p_full</span> <span class="o">&lt;=</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">p_full</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">iu</span><span class="p">,</span> <span class="n">ju</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">p_full</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">sig_idx</span> <span class="o">=</span> <span class="n">sig</span><span class="p">[</span><span class="n">iu</span><span class="p">,</span> <span class="n">ju</span><span class="p">]</span>
+    <span class="n">iu</span><span class="p">,</span> <span class="n">ju</span> <span class="o">=</span> <span class="n">iu</span><span class="p">[</span><span class="n">sig_idx</span><span class="p">],</span> <span class="n">ju</span><span class="p">[</span><span class="n">sig_idx</span><span class="p">]</span>
+
+    <span class="n">bi</span> <span class="o">=</span> <span class="n">net_labels</span><span class="p">[</span><span class="n">iu</span><span class="p">]</span>
+    <span class="n">bj</span> <span class="o">=</span> <span class="n">net_labels</span><span class="p">[</span><span class="n">ju</span><span class="p">]</span>
+    <span class="n">lo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">bi</span><span class="p">,</span> <span class="n">bj</span><span class="p">)</span>
+    <span class="n">hi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">bi</span><span class="p">,</span> <span class="n">bj</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">return_upper</span><span class="p">:</span>
+        <span class="c1"># mirror to lower triangle (off-diagonal only)</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">M</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">triu</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="k">return</span> <span class="n">M</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1406 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>conninfpy.tfnbs_score &mdash; ConnInfPy 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=51b770b3"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ConnInfPy
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../approach.html">How Inference Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflows.html">Recommended Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../conninfpy.html">conninfpy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">References</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ConnInfPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">conninfpy.tfnbs_score</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for conninfpy.tfnbs_score</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Threshold-Free Network-Based Statistics (TFNBS) scoring module.</span>
+
+<span class="sd">This module provides implementations of TFCE (Threshold-Free Cluster Enhancement)</span>
+<span class="sd">adapted for network/connectivity analysis. The main function is `get_tfnbs_score()`</span>
+<span class="sd">which transforms t-statistic matrices into TFNBS scores.</span>
+
+<span class="sd">Functions</span>
+<span class="sd">---------</span>
+<span class="sd">get_tfnbs_score : Main optimized TFNBS implementation using scipy</span>
+<span class="sd">get_tfnbs_score_baseline : Non-optimized version for benchmarking</span>
+<span class="sd">get_tfnbs_score_networkx : Legacy networkx implementation for comparison with other packages</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy.typing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">npt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">csr_matrix</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse.csgraph</span><span class="w"> </span><span class="kn">import</span> <span class="n">connected_components</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">numba</span><span class="w"> </span><span class="kn">import</span> <span class="n">njit</span>
+    <span class="n">HAS_NUMBA</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">HAS_NUMBA</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">njit</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fallback decorator when numba is not installed.&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">func</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">return</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">decorator</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;get_tfnbs_score&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_network_informed_tfnbs_score&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_fbc_tfnbs_score&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HAS_NUMBA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFAULT_START_THRESHOLD&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFAULT_EXTENT_EXPONENT&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFAULT_HEIGHT_EXPONENT&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFAULT_N_THRESHOLDS&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFAULT_MIN_CLUSTER_SIZE&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Constants — imported from unified defaults</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.defaults</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">DEFAULT_EXTENT_EXPONENT</span><span class="p">,</span>
+    <span class="n">DEFAULT_HEIGHT_EXPONENT</span><span class="p">,</span>
+    <span class="n">DEFAULT_N_THRESHOLDS_SCORING</span> <span class="k">as</span> <span class="n">DEFAULT_N_THRESHOLDS</span><span class="p">,</span>
+    <span class="n">DEFAULT_MIN_CLUSTER_SIZE</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Type aliases</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="n">ArrayLike</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]]</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Helper functions</span>
+<span class="c1"># =============================================================================</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_params</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate input dimensions and unify scalar/array parameters.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Input statistical matrix.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent parameter(s).</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height parameter(s).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    e_arr : ndarray</span>
+<span class="sd">        Extent parameter as 1D array.</span>
+<span class="sd">    h_arr : ndarray</span>
+<span class="sd">        Height parameter as 1D array.</span>
+<span class="sd">    scalar_mode : bool</span>
+<span class="sd">        True if both e and h were originally scalars.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If diagonal elements are non-zero or e/h shapes don&#39;t match.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Diagonal elements of the connectivity matrix must be zero (no self-connections).&quot;</span><span class="p">)</span>
+
+    <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+
+    <span class="n">e_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="n">h_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">e_arr</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">h_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parameters &#39;e&#39; and &#39;h&#39; must have the same shape.&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_thresholds</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]],</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute threshold range for TFCE integration.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps.</span>
+<span class="sd">    start_thres : float</span>
+<span class="sd">        Initial threshold.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    thresholds : ndarray or None</span>
+<span class="sd">        Array of threshold values, or None if no valid range exists.</span>
+<span class="sd">    dh : float</span>
+<span class="sd">        Step size for integration.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_stat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+    <span class="n">dh</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_stat</span> <span class="o">-</span> <span class="n">start_thres</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+
+    <span class="k">if</span> <span class="n">dh</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span>
+
+    <span class="n">thresholds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_thres</span> <span class="o">+</span> <span class="n">dh</span><span class="p">,</span> <span class="n">max_stat</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">thresholds</span><span class="p">,</span> <span class="n">dh</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_symmetric</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span> <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if matrix is symmetric within given tolerance.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">matrix</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_edges</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">symmetric</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract edges with values above threshold.</span>
+
+<span class="sd">    For symmetric matrices, extracts only upper triangle for efficiency.</span>
+<span class="sd">    For asymmetric matrices, extracts all off-diagonal elements.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix.</span>
+<span class="sd">    start_thres : float</span>
+<span class="sd">        Minimum threshold for edge inclusion.</span>
+<span class="sd">    symmetric : bool</span>
+<span class="sd">        Whether matrix is symmetric (use upper triangle only).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    row_indices : ndarray</span>
+<span class="sd">        Row indices of valid edges.</span>
+<span class="sd">    col_indices : ndarray</span>
+<span class="sd">        Column indices of valid edges.</span>
+<span class="sd">    edge_weights : ndarray</span>
+<span class="sd">        Edge weight values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">symmetric</span><span class="p">:</span>
+        <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">triu_indices_from</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">))</span>
+
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">t_stats</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">]</span>
+    <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">&gt;</span> <span class="n">start_thres</span>
+    <span class="k">return</span> <span class="n">rows</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">],</span> <span class="n">cols</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">],</span> <span class="n">weights</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="get_tfnbs_score">
+<a class="viewcode-back" href="../../conninfpy.tfnbs_score.html#conninfpy.tfnbs_score.get_tfnbs_score">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tfnbs_score</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transform the connectivity matrix using Threshold-Free Network-Based Statistics.</span>
+
+<span class="sd">    Optimized implementation using scipy&#39;s csgraph module with:</span>
+
+<span class="sd">    - Pre-extracted edges to avoid repeated masking</span>
+<span class="sd">    - Buffer reuse to minimize memory allocations</span>
+<span class="sd">    - Vectorized cluster size computation</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent. Can be a scalar or list of values for parameter sweep.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent. Can be a scalar or list of values for parameter sweep.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps between start_thres and max(t_stats).</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+<span class="sd">    backend : {&#39;auto&#39;, &#39;numba&#39;, &#39;scipy&#39;}, default=&#39;auto&#39;</span>
+<span class="sd">        Computation backend. &#39;auto&#39; uses numba if available, otherwise scipy.</span>
+<span class="sd">        &#39;numba&#39; uses JIT-compiled union-find for connected components</span>
+<span class="sd">        (8-30x faster). Falls back to &#39;scipy&#39; if numba is not installed.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        TFNBS score matrix. Shape is (N, N) if e and h are scalars,</span>
+<span class="sd">        otherwise (N, N, num_params).</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; t = np.array([[0, 2.1, 0.5],[2.1, 0, 2.5],[0.5, 2.5, 0]])</span>
+<span class="sd">    &gt;&gt;&gt; np.round(get_tfnbs_score(t, e=0.5, h=2.0, n=10), 2)</span>
+<span class="sd">    array([[0.  , 2.19, 0.  ],</span>
+<span class="sd">           [2.19, 0.  , 4.5 ],</span>
+<span class="sd">           [0.  , 4.5 , 0.  ]])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">use_numba</span> <span class="o">=</span> <span class="p">(</span><span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;numba&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">backend</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span> <span class="ow">and</span> <span class="n">HAS_NUMBA</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_numba</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_NUMBA</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Numba not installed, falling back to scipy backend.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_get_tfnbs_score_numba</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">_validate_params</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="c1"># Round to avoid float precision issues at threshold boundaries</span>
+    <span class="n">t_stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e_arr</span><span class="p">)</span>
+    <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="n">threshs</span><span class="p">,</span> <span class="n">dh</span> <span class="o">=</span> <span class="n">_compute_thresholds</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">threshs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="c1"># Check if matrix is symmetric for optimization</span>
+    <span class="n">is_symm</span> <span class="o">=</span> <span class="n">_is_symmetric</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span> <span class="o">=</span> <span class="n">_get_edges</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">,</span> <span class="n">symmetric</span><span class="o">=</span><span class="n">is_symm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span>
+
+    <span class="c1"># Pre-allocate reusable buffers</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="n">clustsize</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">threshs</span><span class="p">:</span>
+        <span class="n">active_edges</span> <span class="o">=</span> <span class="n">edge_weights</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">active_edges</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">active_rows</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="p">[</span><span class="n">active_edges</span><span class="p">]</span>
+        <span class="n">active_cols</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="p">[</span><span class="n">active_edges</span><span class="p">]</span>
+
+        <span class="c1"># Build mask for active edges</span>
+        <span class="n">mask</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+            <span class="c1"># For symmetric matrices, mirror to lower triangle</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># For connected_components, always use symmetric mask (undirected graph)</span>
+        <span class="n">mask_for_cc</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">|</span> <span class="n">mask</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">sparse_mat</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">mask_for_cc</span><span class="p">)</span>
+        <span class="n">n_components</span><span class="p">,</span> <span class="n">node_labels</span> <span class="o">=</span> <span class="n">connected_components</span><span class="p">(</span><span class="n">sparse_mat</span><span class="p">,</span> <span class="n">directed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Count edges per component</span>
+        <span class="n">edge_component_ids</span> <span class="o">=</span> <span class="n">node_labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">]</span>
+        <span class="n">component_edge_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">edge_component_ids</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>
+        <span class="n">edge_sizes</span> <span class="o">=</span> <span class="n">component_edge_counts</span><span class="p">[</span><span class="n">edge_component_ids</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">clustsize</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">clustsize</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_sizes</span>
+        <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+            <span class="c1"># For symmetric matrices, copy to lower triangle</span>
+            <span class="n">clustsize</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_sizes</span>
+
+        <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span>
+
+    <span class="n">tfnbs</span> <span class="o">*=</span> <span class="n">dh</span>
+    <span class="k">return</span> <span class="n">tfnbs</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Numba JIT backend</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="nd">@njit</span><span class="p">(</span><span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_union_find_labels</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">n_nodes</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Union-Find connected components with path compression and union-by-rank.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    rows, cols : int64 arrays</span>
+<span class="sd">        Edge list (row[i], col[i]) for each edge.</span>
+<span class="sd">    n_nodes : int</span>
+<span class="sd">        Total number of nodes in the graph.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    labels : int32 array of shape (n_nodes,)</span>
+<span class="sd">        Component label for each node (compressed so root = label).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">rank</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">)):</span>
+        <span class="c1"># find root of rows[i]</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">parent</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">!=</span> <span class="n">a</span><span class="p">:</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">parent</span><span class="p">[</span><span class="n">a</span><span class="p">]]</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">a</span><span class="p">]</span>
+        <span class="c1"># find root of cols[i]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">cols</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">!=</span> <span class="n">b</span><span class="p">:</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]]</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="o">!=</span> <span class="n">b</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">rank</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">rank</span><span class="p">[</span><span class="n">b</span><span class="p">]:</span>
+                <span class="n">parent</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+            <span class="k">elif</span> <span class="n">rank</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">rank</span><span class="p">[</span><span class="n">b</span><span class="p">]:</span>
+                <span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parent</span><span class="p">[</span><span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span>
+                <span class="n">rank</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Flatten labels</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="k">while</span> <span class="n">parent</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">!=</span> <span class="n">x</span><span class="p">:</span>
+            <span class="n">parent</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">parent</span><span class="p">[</span><span class="n">x</span><span class="p">]]</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">parent</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+        <span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="k">return</span> <span class="n">labels</span>
+
+
+<span class="nd">@njit</span><span class="p">(</span><span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_tfnbs_core_numba_scalar</span><span class="p">(</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span><span class="p">,</span>
+    <span class="n">thresholds</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">dh</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">is_symm</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;JIT-compiled TFNBS inner loop for scalar (e, h).</span>
+
+<span class="sd">    Returns a flat array of shape (nroi * nroi,) representing the score matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nroi</span> <span class="o">*</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">t_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">thresholds</span><span class="p">)):</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="n">thresholds</span><span class="p">[</span><span class="n">t_idx</span><span class="p">]</span>
+
+        <span class="c1"># Count active edges</span>
+        <span class="n">n_active</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">edge_weights</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">edge_weights</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">n_active</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">n_active</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Collect active edges</span>
+        <span class="n">active_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">active_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">edge_weights</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">edge_weights</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">active_rows</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">active_cols</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Build symmetric edge list for union-find</span>
+        <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+            <span class="n">sym_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">sym_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+                <span class="n">sym_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_rows</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_cols</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="n">_union_find_labels</span><span class="p">(</span><span class="n">sym_rows</span><span class="p">,</span> <span class="n">sym_cols</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># For asymmetric, symmetrize for connected components</span>
+            <span class="n">sym_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">sym_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+                <span class="n">sym_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_rows</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">sym_cols</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="n">_union_find_labels</span><span class="p">(</span><span class="n">sym_rows</span><span class="p">,</span> <span class="n">sym_cols</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span>
+
+        <span class="c1"># Count edges per component (using the original active edges)</span>
+        <span class="c1"># First, find max label for bincount size</span>
+        <span class="n">max_label</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">lbl</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="n">lbl</span> <span class="o">&gt;</span> <span class="n">max_label</span><span class="p">:</span>
+                <span class="n">max_label</span> <span class="o">=</span> <span class="n">lbl</span>
+        <span class="n">comp_edge_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">max_label</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">comp_edge_counts</span><span class="p">[</span><span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Accumulate scores</span>
+        <span class="n">h_power</span> <span class="o">=</span> <span class="n">threshold</span> <span class="o">**</span> <span class="n">h</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">edge_size</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">comp_edge_counts</span><span class="p">[</span><span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]])</span>
+            <span class="n">score_inc</span> <span class="o">=</span> <span class="p">(</span><span class="n">edge_size</span> <span class="o">**</span> <span class="n">e</span><span class="p">)</span> <span class="o">*</span> <span class="n">h_power</span>
+            <span class="n">r</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">tfnbs</span><span class="p">[</span><span class="n">r</span> <span class="o">*</span> <span class="n">nroi</span> <span class="o">+</span> <span class="n">c</span><span class="p">]</span> <span class="o">+=</span> <span class="n">score_inc</span>
+            <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                <span class="n">tfnbs</span><span class="p">[</span><span class="n">c</span> <span class="o">*</span> <span class="n">nroi</span> <span class="o">+</span> <span class="n">r</span><span class="p">]</span> <span class="o">+=</span> <span class="n">score_inc</span>
+
+    <span class="c1"># Multiply by dh</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tfnbs</span><span class="p">)):</span>
+        <span class="n">tfnbs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="n">dh</span>
+
+    <span class="k">return</span> <span class="n">tfnbs</span>
+
+
+<span class="nd">@njit</span><span class="p">(</span><span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_tfnbs_core_numba_multi</span><span class="p">(</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span><span class="p">,</span>
+    <span class="n">thresholds</span><span class="p">,</span> <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">dh</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">n_params</span><span class="p">,</span> <span class="n">is_symm</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;JIT-compiled TFNBS inner loop for multiple (e, h) parameter pairs.</span>
+
+<span class="sd">    Returns a flat array of shape (nroi * nroi * n_params,).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nroi</span> <span class="o">*</span> <span class="n">nroi</span> <span class="o">*</span> <span class="n">n_params</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">t_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">thresholds</span><span class="p">)):</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="n">thresholds</span><span class="p">[</span><span class="n">t_idx</span><span class="p">]</span>
+
+        <span class="c1"># Count active edges</span>
+        <span class="n">n_active</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">edge_weights</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">edge_weights</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">n_active</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">n_active</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Collect active edges</span>
+        <span class="n">active_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">active_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">edge_weights</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">edge_weights</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                <span class="n">active_rows</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">active_cols</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Build symmetric edge list for union-find</span>
+        <span class="n">sym_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">sym_cols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_active</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">sym_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">sym_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">sym_rows</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">sym_cols</span><span class="p">[</span><span class="n">n_active</span> <span class="o">+</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">_union_find_labels</span><span class="p">(</span><span class="n">sym_rows</span><span class="p">,</span> <span class="n">sym_cols</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span>
+
+        <span class="c1"># Count edges per component</span>
+        <span class="n">max_label</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">lbl</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="n">lbl</span> <span class="o">&gt;</span> <span class="n">max_label</span><span class="p">:</span>
+                <span class="n">max_label</span> <span class="o">=</span> <span class="n">lbl</span>
+        <span class="n">comp_edge_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">max_label</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">comp_edge_counts</span><span class="p">[</span><span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Accumulate scores for all parameter pairs</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_active</span><span class="p">):</span>
+            <span class="n">edge_size</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">comp_edge_counts</span><span class="p">[</span><span class="n">labels</span><span class="p">[</span><span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">]]])</span>
+            <span class="n">r</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">active_rows</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">active_cols</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_params</span><span class="p">):</span>
+                <span class="n">score_inc</span> <span class="o">=</span> <span class="p">(</span><span class="n">edge_size</span> <span class="o">**</span> <span class="n">e_arr</span><span class="p">[</span><span class="n">p</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_arr</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+                <span class="n">tfnbs</span><span class="p">[(</span><span class="n">r</span> <span class="o">*</span> <span class="n">nroi</span> <span class="o">+</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_params</span> <span class="o">+</span> <span class="n">p</span><span class="p">]</span> <span class="o">+=</span> <span class="n">score_inc</span>
+                <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                    <span class="n">tfnbs</span><span class="p">[(</span><span class="n">c</span> <span class="o">*</span> <span class="n">nroi</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_params</span> <span class="o">+</span> <span class="n">p</span><span class="p">]</span> <span class="o">+=</span> <span class="n">score_inc</span>
+
+    <span class="c1"># Multiply by dh</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tfnbs</span><span class="p">)):</span>
+        <span class="n">tfnbs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="n">dh</span>
+
+    <span class="k">return</span> <span class="n">tfnbs</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_tfnbs_score_numba</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;TFNBS scoring using Numba JIT backend.</span>
+
+<span class="sd">    Same interface as get_tfnbs_score() but uses JIT-compiled union-find</span>
+<span class="sd">    for connected components instead of scipy.sparse.csgraph.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps.</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        TFNBS score matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">_validate_params</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+    <span class="n">t_stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e_arr</span><span class="p">)</span>
+
+    <span class="n">threshs</span><span class="p">,</span> <span class="n">dh</span> <span class="o">=</span> <span class="n">_compute_thresholds</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">threshs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="n">is_symm</span> <span class="o">=</span> <span class="n">_is_symmetric</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span> <span class="o">=</span> <span class="n">_get_edges</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">,</span> <span class="n">symmetric</span><span class="o">=</span><span class="n">is_symm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="c1"># Ensure int64 for numba</span>
+    <span class="n">edge_rows</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="n">edge_cols</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="n">edge_weights</span> <span class="o">=</span> <span class="n">edge_weights</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">e_arr</span> <span class="o">=</span> <span class="n">e_arr</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">h_arr</span> <span class="o">=</span> <span class="n">h_arr</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">flat</span> <span class="o">=</span> <span class="n">_tfnbs_core_numba_scalar</span><span class="p">(</span>
+            <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span><span class="p">,</span>
+            <span class="n">threshs</span><span class="p">,</span> <span class="n">e_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">h_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dh</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">is_symm</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">flat</span> <span class="o">=</span> <span class="n">_tfnbs_core_numba_multi</span><span class="p">(</span>
+            <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span><span class="p">,</span>
+            <span class="n">threshs</span><span class="p">,</span> <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">dh</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">,</span> <span class="n">is_symm</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tfnbs_score_baseline</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Baseline (non-optimized) implementation of TFNBS for performance comparison.</span>
+
+<span class="sd">    .. deprecated:: 2.0</span>
+<span class="sd">        Removed from the public API in v2.0; the function lives on only as</span>
+<span class="sd">        an equivalence reference for internal tests. Will be deleted in</span>
+<span class="sd">        v2.1. Use :func:`get_tfnbs_score` instead — it is the optimised</span>
+<span class="sd">        production implementation.</span>
+
+<span class="sd">    This is the original scipy-based implementation without optimizations.</span>
+<span class="sd">    Use `get_tfnbs_score()` for production - it is ~1.5x faster.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent. Can be a scalar or list of values.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent. Can be a scalar or list of values.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps between start_thres and max(t_stats).</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        TFNBS score matrix.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; t = np.array([[0, 2.1, 0.5],[2.1, 0, 2.5],[0.5, 2.5, 0]])</span>
+<span class="sd">    &gt;&gt;&gt; np.round(get_tfnbs_score_baseline(t, e=0.5, h=2.0, n=10), 2)</span>
+<span class="sd">    array([[0.  , 2.19, 0.  ],</span>
+<span class="sd">           [2.19, 0.  , 4.5 ],</span>
+<span class="sd">           [0.  , 4.5 , 0.  ]])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Diagonal elements of the connectivity matrix must be zero (no self-connections).&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Round to avoid float precision issues at threshold boundaries</span>
+    <span class="n">t_stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">],</span> <span class="p">[</span><span class="n">h</span><span class="p">]</span>
+
+    <span class="n">e</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">h</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;e and h must have the same shape!&quot;</span><span class="p">)</span>
+
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="n">max_stat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+    <span class="n">dh</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_stat</span> <span class="o">-</span> <span class="n">start_thres</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="k">if</span> <span class="n">dh</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+    <span class="n">threshs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_thres</span> <span class="o">+</span> <span class="n">dh</span><span class="p">,</span> <span class="n">max_stat</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">threshs</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">t_stats</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">n_components</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">connected_components</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">directed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">unique</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">clustsize</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">mask</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">lbl</span><span class="p">,</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">unique</span><span class="p">,</span> <span class="n">counts</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">sz_links</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="n">lbl</span><span class="p">,</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">lbl</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="n">clustsize</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="n">lbl</span><span class="p">,</span> <span class="n">labels</span> <span class="o">==</span> <span class="n">lbl</span><span class="p">)]</span> <span class="o">*=</span> <span class="n">sz_links</span>
+
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">clustsize</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span> <span class="o">**</span> <span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">**</span> <span class="n">e</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="n">tfnbs</span> <span class="o">*=</span> <span class="n">dh</span>
+    <span class="k">return</span> <span class="n">tfnbs</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tfnbs_score_networkx</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transform the connectivity matrix using Threshold-Free Network-Based Statistics.</span>
+
+<span class="sd">    .. deprecated:: 2.0</span>
+<span class="sd">        Removed from the public API in v2.0; the function lives on only as</span>
+<span class="sd">        an equivalence reference for internal tests. Will be deleted in</span>
+<span class="sd">        v2.1. Use :func:`get_tfnbs_score` instead.</span>
+
+<span class="sd">    Legacy networkx implementation - use `get_tfnbs_score()` for better performance.</span>
+<span class="sd">    This function is kept for comparison with other packages that use networkx.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent. Can be a scalar or list of values.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent. Can be a scalar or list of values.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps between start_thres and max(t_stats).</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        TFNBS score matrix.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; t = np.array([[0, 2.1, 0.5],[2.1, 0, 2.5],[0.5, 2.5, 0]])</span>
+<span class="sd">    &gt;&gt;&gt; np.round(get_tfnbs_score_networkx(t, e=0.5, h=2.0, n=10), 2)</span>
+<span class="sd">    array([[0.  , 2.19, 0.  ],</span>
+<span class="sd">           [2.19, 0.  , 4.5 ],</span>
+<span class="sd">           [0.  , 4.5 , 0.  ]])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">&quot;networkx is required for get_tfnbs_score_networkx(). &quot;</span>
+            <span class="s2">&quot;Use get_tfnbs_score() instead.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">_validate_params</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e_arr</span><span class="p">)</span>
+    <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="n">threshs</span><span class="p">,</span> <span class="n">dh</span> <span class="o">=</span> <span class="n">_compute_thresholds</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">threshs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+
+    <span class="n">clustsize</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">threshs</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">t_stats</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">G</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">from_numpy_array</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">connected_components</span><span class="p">(</span><span class="n">G</span><span class="p">))</span>
+
+        <span class="n">clustsize</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">clustsize</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">components</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">component</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">component_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">component</span><span class="p">)</span>
+                <span class="n">sz_links</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">component_list</span><span class="p">,</span> <span class="n">component_list</span><span class="p">)])</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="n">clustsize</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">component_list</span><span class="p">,</span> <span class="n">component_list</span><span class="p">)]</span> <span class="o">*=</span> <span class="n">sz_links</span>
+
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">clustsize</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tfnbs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">clustsize</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span>
+
+    <span class="n">tfnbs</span> <span class="o">*=</span> <span class="n">dh</span>
+    <span class="k">return</span> <span class="n">tfnbs</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Network-Informed TFNBS scoring module.</span>
+
+<span class="sd">This module extends TFNBS to incorporate functional network architecture.</span>
+<span class="sd">It weights topological clusters based on the density of the functional blocks</span>
+<span class="sd">they span, increasing sensitivity to effects that align with known</span>
+<span class="sd">functional anatomy.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Specific Helper Functions</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_net_labels</span><span class="p">(</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span> 
+    <span class="n">n_nodes</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate and normalize network labels.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    net_labels : ndarray of shape (N,)</span>
+<span class="sd">        Network assignments.</span>
+<span class="sd">    n_nodes : int</span>
+<span class="sd">        Expected number of nodes.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    normalized_labels : ndarray</span>
+<span class="sd">        Labels mapped to 0..K-1 range.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">net_labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_nodes</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;net_labels shape </span><span class="si">{</span><span class="n">net_labels</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;number of nodes </span><span class="si">{</span><span class="n">n_nodes</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Map to continuous range 0..K-1 for efficient bincount indexing</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">net_labels</span><span class="p">,</span> <span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inverse</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_precompute_block_metadata</span><span class="p">(</span>
+    <span class="n">edge_rows</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span>
+    <span class="n">edge_cols</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span>
+    <span class="n">node_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pre-compute canonical block assignments and capacity factors.</span>
+<span class="sd">    </span>
+<span class="sd">    Block IDs are canonical for undirected network pairs:</span>
+<span class="sd">    ``min(label_i, label_j) * K + max(label_i, label_j)``. This avoids</span>
+<span class="sd">    ROI-order-dependent density weights and avoids re-calculating block IDs</span>
+<span class="sd">    and capacities inside the threshold loop.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    edge_rows : ndarray</span>
+<span class="sd">        Row indices of all potential suprathreshold edges.</span>
+<span class="sd">    edge_cols : ndarray</span>
+<span class="sd">        Column indices of all potential suprathreshold edges.</span>
+<span class="sd">    node_labels : ndarray</span>
+<span class="sd">        Normalized network labels (0..K-1) for each node.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    edge_block_ids : ndarray</span>
+<span class="sd">        Canonical block ID assigned to each edge in `edge_rows`.</span>
+<span class="sd">    sqrt_capacities : ndarray</span>
+<span class="sd">        Lookup table for sqrt(M_total) indexed by Block ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_nets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">node_labels</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    
+    <span class="n">labels_i</span> <span class="o">=</span> <span class="n">node_labels</span><span class="p">[</span><span class="n">edge_rows</span><span class="p">]</span>
+    <span class="n">labels_j</span> <span class="o">=</span> <span class="n">node_labels</span><span class="p">[</span><span class="n">edge_cols</span><span class="p">]</span>
+
+    <span class="c1"># Canonical block ID for undirected network pairs. This keeps block-density</span>
+    <span class="c1"># weights invariant to ROI ordering within the upper triangle.</span>
+    <span class="n">min_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">labels_i</span><span class="p">,</span> <span class="n">labels_j</span><span class="p">)</span>
+    <span class="n">max_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">labels_i</span><span class="p">,</span> <span class="n">labels_j</span><span class="p">)</span>
+    <span class="n">edge_block_ids</span> <span class="o">=</span> <span class="n">min_labels</span> <span class="o">*</span> <span class="n">n_nets</span> <span class="o">+</span> <span class="n">max_labels</span>
+    
+    <span class="c1"># Total number of possible blocks</span>
+    <span class="n">n_blocks_total</span> <span class="o">=</span> <span class="n">n_nets</span> <span class="o">*</span> <span class="n">n_nets</span>
+    
+    <span class="c1"># Calculate Capacity (M_total) for each block based on the provided edges.</span>
+    <span class="c1"># If we are working with just upper triangle edges, this counts the </span>
+    <span class="c1"># capacity of the upper triangle block, which is correct for the density formula.</span>
+    <span class="n">block_capacities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">edge_block_ids</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">n_blocks_total</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    
+    <span class="c1"># Pre-calculate sqrt(Capacity) for the weighting formula: W = k / sqrt(M)</span>
+    <span class="c1"># Avoid division by zero</span>
+    <span class="n">sqrt_capacities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">block_capacities</span><span class="p">)</span>
+    <span class="n">sqrt_capacities</span><span class="p">[</span><span class="n">sqrt_capacities</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+    
+    <span class="k">return</span> <span class="n">edge_block_ids</span><span class="p">,</span> <span class="n">sqrt_capacities</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_edge_block_weights</span><span class="p">(</span>
+    <span class="n">active_edge_indices</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">],</span>
+    <span class="n">edge_block_ids</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span>
+    <span class="n">sqrt_capacities</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute edge-level weights based on functional block density.</span>
+
+<span class="sd">    Each edge&#39;s weight depends only on its functional block density,</span>
+<span class="sd">    with no topological clustering (Edge-Level Weighting approach).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    active_edge_indices : ndarray</span>
+<span class="sd">        Boolean mask indicating which pre-extracted edges are active.</span>
+<span class="sd">    edge_block_ids : ndarray</span>
+<span class="sd">        Block ID for every pre-extracted edge.</span>
+<span class="sd">    sqrt_capacities : ndarray</span>
+<span class="sd">        Sqrt of total edges per block (precomputed).</span>
+<span class="sd">    normalization : {&#39;sqrt&#39;, &#39;linear&#39;, &#39;none&#39;}, default=&#39;sqrt&#39;</span>
+<span class="sd">        Normalization variant for block density weighting:</span>
+<span class="sd">        - ``&#39;sqrt&#39;``: W = k / sqrt(M_b) (default, current)</span>
+<span class="sd">        - ``&#39;linear&#39;``: W = k / M_b (density normalization)</span>
+<span class="sd">        - ``&#39;none&#39;``: W = k (raw active count, no normalization)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    edge_weights : ndarray</span>
+<span class="sd">        Weight for each active edge based on its block density.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># 1. Get block IDs for active edges</span>
+    <span class="n">active_block_ids</span> <span class="o">=</span> <span class="n">edge_block_ids</span><span class="p">[</span><span class="n">active_edge_indices</span><span class="p">]</span>
+
+    <span class="c1"># 2. Count active edges (k) per block</span>
+    <span class="n">block_active_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">active_block_ids</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">sqrt_capacities</span><span class="p">))</span>
+
+    <span class="c1"># 3. Calculate weight per block based on normalization variant</span>
+    <span class="k">if</span> <span class="n">normalization</span> <span class="o">==</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span>
+        <span class="c1"># W = k / sqrt(M_b) — default</span>
+        <span class="n">block_weights</span> <span class="o">=</span> <span class="n">block_active_counts</span> <span class="o">/</span> <span class="n">sqrt_capacities</span>
+    <span class="k">elif</span> <span class="n">normalization</span> <span class="o">==</span> <span class="s2">&quot;linear&quot;</span><span class="p">:</span>
+        <span class="c1"># W = k / M_b = k / (sqrt(M_b))^2</span>
+        <span class="n">block_weights</span> <span class="o">=</span> <span class="n">block_active_counts</span> <span class="o">/</span> <span class="p">(</span><span class="n">sqrt_capacities</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">normalization</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+        <span class="c1"># W = k — raw active count</span>
+        <span class="n">block_weights</span> <span class="o">=</span> <span class="n">block_active_counts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Invalid normalization: &#39;</span><span class="si">{</span><span class="n">normalization</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Must be one of: &#39;sqrt&#39;, &#39;linear&#39;, &#39;none&#39;&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># 4. Return weight for each active edge</span>
+    <span class="k">return</span> <span class="n">block_weights</span><span class="p">[</span><span class="n">active_block_ids</span><span class="p">]</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Main Function</span>
+<span class="c1"># =============================================================================</span>
+
+<div class="viewcode-block" id="get_network_informed_tfnbs_score">
+<a class="viewcode-back" href="../../conninfpy.tfnbs_score.html#conninfpy.tfnbs_score.get_network_informed_tfnbs_score">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_network_informed_tfnbs_score</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sqrt&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transform connectivity matrix using Network-Informed TFNBS (Edge-Level Weighting).</span>
+
+<span class="sd">    This method uses Edge-Level Weighting: each edge&#39;s support depends only on</span>
+<span class="sd">    the density of its functional block, with NO topological clustering.</span>
+<span class="sd">    This prevents &quot;signal bleeding&quot; where noise edges inherit scores from</span>
+<span class="sd">    signal clusters they happen to connect to.</span>
+
+<span class="sd">    Weighting Logic (depends on normalization):</span>
+<span class="sd">        - ``&#39;sqrt&#39;``: S_edge = k / sqrt(M_b) (default)</span>
+<span class="sd">        - ``&#39;linear&#39;``: S_edge = k / M_b (density)</span>
+<span class="sd">        - ``&#39;none&#39;``: S_edge = k (raw active count)</span>
+
+<span class="sd">    Key difference from standard TFNBS:</span>
+<span class="sd">        - Standard TFNBS: edges cluster if they share a node (topological)</span>
+<span class="sd">        - NI-TFNBS: each edge scored independently by block density</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed.</span>
+<span class="sd">    net_labels : ndarray of shape (N,)</span>
+<span class="sd">        Integer labels assigning each node to a functional network.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps.</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+<span class="sd">    normalization : {&#39;sqrt&#39;, &#39;linear&#39;, &#39;none&#39;}, default=&#39;sqrt&#39;</span>
+<span class="sd">        Block density normalization variant for ablation study.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        Network-Informed TFNBS score matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># 1. Validation</span>
+    <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">_validate_params</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="n">normalized_net_labels</span> <span class="o">=</span> <span class="n">_validate_net_labels</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">net_labels</span><span class="p">),</span> <span class="n">nroi</span><span class="p">)</span>
+    
+    <span class="c1"># Round to avoid float precision issues at threshold boundaries</span>
+    <span class="n">t_stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    
+    <span class="c1"># Initialize output</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e_arr</span><span class="p">)</span>
+    <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="c1"># 2. Thresholds</span>
+    <span class="n">threshs</span><span class="p">,</span> <span class="n">dh</span> <span class="o">=</span> <span class="n">_compute_thresholds</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">threshs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="c1"># 3. Pre-processing</span>
+    <span class="c1"># Check symmetry to optimize edge extraction</span>
+    <span class="n">is_symm</span> <span class="o">=</span> <span class="n">_is_symmetric</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+    
+    <span class="c1"># Extract ALL potential edges &gt; start_thres. </span>
+    <span class="c1"># We do this ONCE to avoid repeated masking of the full NxN matrix.</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span> <span class="o">=</span> <span class="n">_get_edges</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">,</span> <span class="n">symmetric</span><span class="o">=</span><span class="n">is_symm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="c1"># Pre-compute Block Metadata for these specific edges</span>
+    <span class="c1"># This gives us the Block ID for every edge in our list and the Capacity of blocks</span>
+    <span class="n">edge_block_ids</span><span class="p">,</span> <span class="n">sqrt_capacities</span> <span class="o">=</span> <span class="n">_precompute_block_metadata</span><span class="p">(</span>
+        <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">normalized_net_labels</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Prepare broadcasting parameters</span>
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span>
+
+    <span class="c1"># 4. Main Integration Loop (NO topological clustering - edge-level weighting)</span>
+    <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">threshs</span><span class="p">:</span>
+        <span class="c1"># Determine which of our pre-extracted edges are active at this level</span>
+        <span class="n">active_indices_mask</span> <span class="o">=</span> <span class="n">edge_weights</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">active_indices_mask</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Get active edge indices</span>
+        <span class="n">active_rows</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="p">[</span><span class="n">active_indices_mask</span><span class="p">]</span>
+        <span class="n">active_cols</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="p">[</span><span class="n">active_indices_mask</span><span class="p">]</span>
+
+        <span class="c1"># Compute edge-level weights based on block density</span>
+        <span class="n">edge_supports</span> <span class="o">=</span> <span class="n">_compute_edge_block_weights</span><span class="p">(</span>
+            <span class="n">active_indices_mask</span><span class="p">,</span>
+            <span class="n">edge_block_ids</span><span class="p">,</span>
+            <span class="n">sqrt_capacities</span><span class="p">,</span>
+            <span class="n">normalization</span><span class="o">=</span><span class="n">normalization</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Calculate score increment: h^H * support^E * dh</span>
+        <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+            <span class="n">increment</span> <span class="o">=</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">edge_supports</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="n">dh</span>
+            <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">]</span> <span class="o">+=</span> <span class="n">increment</span>
+            <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">]</span> <span class="o">+=</span> <span class="n">increment</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Handle parameter sweep (broadcast dimensions)</span>
+            <span class="n">increment</span> <span class="o">=</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">edge_supports</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="n">dh</span>
+            <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">increment</span>
+            <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">increment</span>
+
+    <span class="k">return</span> <span class="n">tfnbs</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># Functional Block Clustering TFNBS (FBC-TFNBS)</span>
+<span class="c1"># =============================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_canonical_block_ids</span><span class="p">(</span>
+    <span class="n">edge_rows</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span>
+    <span class="n">edge_cols</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">],</span>
+    <span class="n">node_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
+    <span class="n">n_networks</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute canonical block IDs for edges (handles undirected networks).</span>
+
+<span class="sd">    For undirected networks, Block(A→B) == Block(B→A), so we use</span>
+<span class="sd">    min(label_i, label_j) * n_networks + max(label_i, label_j).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    edge_rows : ndarray</span>
+<span class="sd">        Row indices of edges.</span>
+<span class="sd">    edge_cols : ndarray</span>
+<span class="sd">        Column indices of edges.</span>
+<span class="sd">    node_labels : ndarray</span>
+<span class="sd">        Network label for each node (0..K-1).</span>
+<span class="sd">    n_networks : int</span>
+<span class="sd">        Number of distinct networks.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    block_ids : ndarray</span>
+<span class="sd">        Canonical block ID for each edge.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">labels_i</span> <span class="o">=</span> <span class="n">node_labels</span><span class="p">[</span><span class="n">edge_rows</span><span class="p">]</span>
+    <span class="n">labels_j</span> <span class="o">=</span> <span class="n">node_labels</span><span class="p">[</span><span class="n">edge_cols</span><span class="p">]</span>
+
+    <span class="c1"># Canonical ordering for undirected: min * n_networks + max</span>
+    <span class="n">min_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">labels_i</span><span class="p">,</span> <span class="n">labels_j</span><span class="p">)</span>
+    <span class="n">max_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">labels_i</span><span class="p">,</span> <span class="n">labels_j</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">min_labels</span> <span class="o">*</span> <span class="n">n_networks</span> <span class="o">+</span> <span class="n">max_labels</span>
+
+
+<div class="viewcode-block" id="get_fbc_tfnbs_score">
+<a class="viewcode-back" href="../../conninfpy.tfnbs_score.html#conninfpy.tfnbs_score.get_fbc_tfnbs_score">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_fbc_tfnbs_score</span><span class="p">(</span>
+    <span class="n">t_stats</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">],</span>
+    <span class="n">net_labels</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">],</span>
+    <span class="n">e</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">h</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+    <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">start_thres</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">DEFAULT_START_THRESHOLD</span><span class="p">,</span>
+    <span class="n">min_cluster_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_MIN_CLUSTER_SIZE</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Functional Block Clustering TFNBS (FBC-TFNBS).</span>
+
+<span class="sd">    This method clusters edges by functional block membership rather than</span>
+<span class="sd">    topological connectivity. At each threshold:</span>
+
+<span class="sd">    1. Edges are grouped by their functional block (e.g., Visual-Visual, DMN-DMN)</span>
+<span class="sd">    2. If a block has k &gt;= min_cluster_size edges, those edges support each other</span>
+<span class="sd">       (support = k)</span>
+<span class="sd">    3. If a block has fewer edges, they are considered &quot;isolated&quot; and suppressed</span>
+<span class="sd">       (support = 0)</span>
+
+<span class="sd">    Key difference from standard TFNBS:</span>
+<span class="sd">        - Standard TFNBS: edges cluster if they share a node (topological)</span>
+<span class="sd">        - FBC-TFNBS: edges cluster if they&#39;re in the same functional block</span>
+
+<span class="sd">    Key difference from NI-TFNBS:</span>
+<span class="sd">        - NI-TFNBS: topological clustering with density weighting (spreads to noise)</span>
+<span class="sd">        - FBC-TFNBS: no topological clustering, isolated edges are suppressed</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_stats : ndarray of shape (N, N)</span>
+<span class="sd">        Statistical matrix to be transformed (usually absolute t-values).</span>
+<span class="sd">    net_labels : ndarray of shape (N,)</span>
+<span class="sd">        Integer labels assigning each node to a functional network.</span>
+<span class="sd">    e : float or array-like</span>
+<span class="sd">        Extent exponent. Controls how much cluster size matters.</span>
+<span class="sd">    h : float or array-like</span>
+<span class="sd">        Height exponent. Controls how much threshold height matters.</span>
+<span class="sd">    n : int</span>
+<span class="sd">        Number of threshold steps between start_thres and max(t_stats).</span>
+<span class="sd">    start_thres : float, default=1.65</span>
+<span class="sd">        Initial threshold for cluster formation.</span>
+<span class="sd">    min_cluster_size : int, default=3</span>
+<span class="sd">        Minimum number of edges in a functional block to form a cluster.</span>
+<span class="sd">        Blocks with fewer edges get support=0 (suppressed).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tfnbs : ndarray of shape (N, N) or (N, N, num_params)</span>
+<span class="sd">        FBC-TFNBS score matrix.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The key insight is that edges in the same functional block should support</span>
+<span class="sd">    each other even if they don&#39;t share any nodes. This captures the biological</span>
+<span class="sd">    reality that effects within a functional system (e.g., Visual cortex) are</span>
+<span class="sd">    likely related, while isolated edges are more likely noise.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt; # Create a simple t-statistic matrix</span>
+<span class="sd">    &gt;&gt;&gt; t = np.array([[0, 2.5, 1.8, 0.5],</span>
+<span class="sd">    ...               [2.5, 0, 2.2, 0.3],</span>
+<span class="sd">    ...               [1.8, 2.2, 0, 2.0],</span>
+<span class="sd">    ...               [0.5, 0.3, 2.0, 0]])</span>
+<span class="sd">    &gt;&gt;&gt; # Nodes 0,1 in network 0; nodes 2,3 in network 1</span>
+<span class="sd">    &gt;&gt;&gt; labels = np.array([0, 0, 1, 1])</span>
+<span class="sd">    &gt;&gt;&gt; scores = get_fbc_tfnbs_score(t, labels, e=0.5, h=2.0, n=20,</span>
+<span class="sd">    ...                               start_thres=1.5, min_cluster_size=2)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># 1. Validation</span>
+    <span class="n">e_arr</span><span class="p">,</span> <span class="n">h_arr</span><span class="p">,</span> <span class="n">scalar_mode</span> <span class="o">=</span> <span class="n">_validate_params</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+    <span class="n">nroi</span> <span class="o">=</span> <span class="n">t_stats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">normalized_net_labels</span> <span class="o">=</span> <span class="n">_validate_net_labels</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">net_labels</span><span class="p">),</span> <span class="n">nroi</span><span class="p">)</span>
+    <span class="n">n_networks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">normalized_net_labels</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="c1"># Round to avoid float precision issues</span>
+    <span class="n">t_stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="c1"># Initialize output</span>
+    <span class="n">num_params</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">e_arr</span><span class="p">)</span>
+    <span class="n">tfnbs_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">)</span> <span class="k">if</span> <span class="n">scalar_mode</span> <span class="k">else</span> <span class="p">(</span><span class="n">nroi</span><span class="p">,</span> <span class="n">nroi</span><span class="p">,</span> <span class="n">num_params</span><span class="p">)</span>
+    <span class="n">tfnbs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">tfnbs_shape</span><span class="p">)</span>
+
+    <span class="c1"># 2. Compute thresholds</span>
+    <span class="n">threshs</span><span class="p">,</span> <span class="n">dh</span> <span class="o">=</span> <span class="n">_compute_thresholds</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">threshs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="c1"># 3. Pre-processing</span>
+    <span class="n">is_symm</span> <span class="o">=</span> <span class="n">_is_symmetric</span><span class="p">(</span><span class="n">t_stats</span><span class="p">)</span>
+
+    <span class="c1"># Extract edges above start threshold</span>
+    <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">edge_weights</span> <span class="o">=</span> <span class="n">_get_edges</span><span class="p">(</span><span class="n">t_stats</span><span class="p">,</span> <span class="n">start_thres</span><span class="p">,</span> <span class="n">symmetric</span><span class="o">=</span><span class="n">is_symm</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">tfnbs</span>
+
+    <span class="c1"># Compute canonical block IDs for all extracted edges</span>
+    <span class="n">edge_block_ids</span> <span class="o">=</span> <span class="n">_compute_canonical_block_ids</span><span class="p">(</span>
+        <span class="n">edge_rows</span><span class="p">,</span> <span class="n">edge_cols</span><span class="p">,</span> <span class="n">normalized_net_labels</span><span class="p">,</span> <span class="n">n_networks</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Maximum possible block ID (for bincount)</span>
+    <span class="n">max_block_id</span> <span class="o">=</span> <span class="n">n_networks</span> <span class="o">*</span> <span class="n">n_networks</span>
+
+    <span class="c1"># Prepare broadcasting parameters</span>
+    <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">e_bc</span> <span class="o">=</span> <span class="n">e_arr</span>
+        <span class="n">h_bc</span> <span class="o">=</span> <span class="n">h_arr</span>
+
+    <span class="c1"># 4. Main Integration Loop</span>
+    <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">threshs</span><span class="p">:</span>
+        <span class="c1"># Find active edges at this threshold</span>
+        <span class="n">active_mask</span> <span class="o">=</span> <span class="n">edge_weights</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">active_mask</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">active_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">active_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">active_rows</span> <span class="o">=</span> <span class="n">edge_rows</span><span class="p">[</span><span class="n">active_indices</span><span class="p">]</span>
+        <span class="n">active_cols</span> <span class="o">=</span> <span class="n">edge_cols</span><span class="p">[</span><span class="n">active_indices</span><span class="p">]</span>
+        <span class="n">active_block_ids</span> <span class="o">=</span> <span class="n">edge_block_ids</span><span class="p">[</span><span class="n">active_indices</span><span class="p">]</span>
+
+        <span class="c1"># Count edges per functional block at this threshold</span>
+        <span class="n">block_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">active_block_ids</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">max_block_id</span><span class="p">)</span>
+
+        <span class="c1"># Compute support for each active edge</span>
+        <span class="c1"># Support = block_count if block_count &gt;= min_cluster_size, else 0</span>
+        <span class="n">edge_block_counts</span> <span class="o">=</span> <span class="n">block_counts</span><span class="p">[</span><span class="n">active_block_ids</span><span class="p">]</span>
+        <span class="n">edge_supports</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">edge_block_counts</span> <span class="o">&gt;=</span> <span class="n">min_cluster_size</span><span class="p">,</span>
+            <span class="n">edge_block_counts</span><span class="p">,</span>
+            <span class="mi">0</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="c1"># Calculate score increment: h^H * support^E * dh</span>
+        <span class="c1"># Note: support^E where support=0 gives 0, which is correct (suppressed)</span>
+        <span class="k">if</span> <span class="n">scalar_mode</span><span class="p">:</span>
+            <span class="n">increment</span> <span class="o">=</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">edge_supports</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="n">dh</span>
+            <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">]</span> <span class="o">+=</span> <span class="n">increment</span>
+            <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">]</span> <span class="o">+=</span> <span class="n">increment</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Handle parameter sweep</span>
+            <span class="n">increment</span> <span class="o">=</span> <span class="p">(</span><span class="n">threshold</span> <span class="o">**</span> <span class="n">h_bc</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">edge_supports</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">**</span> <span class="n">e_bc</span><span class="p">)</span> <span class="o">*</span> <span class="n">dh</span>
+            <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_rows</span><span class="p">,</span> <span class="n">active_cols</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">increment</span>
+            <span class="k">if</span> <span class="n">is_symm</span><span class="p">:</span>
+                <span class="n">tfnbs</span><span class="p">[</span><span class="n">active_cols</span><span class="p">,</span> <span class="n">active_rows</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">increment</span>
+
+    <span class="k">return</span> <span class="n">tfnbs</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, IHB RAS.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
