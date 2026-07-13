@@ -4,10 +4,9 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
-import numpy as np
 import pandas as pd
-from scipy.spatial import ConvexHull
+import numpy as np
+from nilearn.plotting import plot_connectome
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,58 +30,51 @@ NETWORK_ALIASES = {
     "Cont": "Frontoparietal",
 }
 PROJECTIONS = [
-    ("Sagittal", "y", "z"),
-    ("Coronal", "x", "z"),
-    ("Axial", "x", "y"),
+    ("Sagittal", "x"),
+    ("Coronal", "y"),
+    ("Axial", "z"),
 ]
 
 
-def _draw_projection(ax, atlas: pd.DataFrame, title: str, horizontal: str, vertical: str, marker_size: float) -> None:
-    points = atlas[[horizontal, vertical]].to_numpy()
-    hull = ConvexHull(points)
-    outline = points[hull.vertices]
-    ax.add_patch(
-        Polygon(outline, closed=True, facecolor="#F8FAFC", edgecolor="#94A3B8", linewidth=1.2, zorder=0)
+def _draw_projection(fig, rect, atlas: pd.DataFrame, display_mode: str, marker_size: float) -> None:
+    ax = fig.add_axes(rect)
+    coords = atlas[["x", "y", "z"]].to_numpy()
+    node_colors = [NETWORK_COLORS[network] for network in atlas["network"]]
+    plot_connectome(
+        np.zeros((len(atlas), len(atlas))),
+        coords,
+        node_color=node_colors,
+        node_size=marker_size,
+        display_mode=display_mode,
+        figure=fig,
+        axes=ax,
+        title=None,
+        annotate=False,
+        black_bg=False,
+        alpha=0.95,
+        colorbar=False,
+        node_kwargs={"edgecolors": "white", "linewidths": 0.25},
     )
-
-    for network in NETWORK_ORDER:
-        subset = atlas.loc[atlas["network"] == network]
-        ax.scatter(
-            subset[horizontal],
-            subset[vertical],
-            s=marker_size,
-            color=NETWORK_COLORS[network],
-            edgecolors="white",
-            linewidths=0.35,
-            alpha=0.94,
-            zorder=2,
-        )
-
-    x_span = np.ptp(points[:, 0])
-    y_span = np.ptp(points[:, 1])
-    ax.set_xlim(points[:, 0].min() - x_span * 0.09, points[:, 0].max() + x_span * 0.09)
-    ax.set_ylim(points[:, 1].min() - y_span * 0.09, points[:, 1].max() + y_span * 0.09)
-    ax.set_aspect("equal")
-    ax.set_title(title, loc="left", fontsize=13, color="#475569", pad=7)
-    ax.axis("off")
 
 
 def create_palette(n_rois: int) -> Path:
     atlas = pd.read_csv(ATLAS_DIR / f"schaefer{n_rois}_yeo7.csv")
     atlas["network"] = atlas["network"].replace(NETWORK_ALIASES)
-    marker_size = {100: 52, 200: 30, 400: 15}[n_rois]
+    marker_size = {100: 55, 200: 34, 400: 18}[n_rois]
 
     fig = plt.figure(figsize=(4.77, 15.62), dpi=100, facecolor="white")
-    fig.subplots_adjust(left=0.08, right=0.92, top=0.91, bottom=0.05, hspace=0.26)
-    grid = fig.add_gridspec(4, 1, height_ratios=[1, 1, 1, 0.7])
 
     fig.text(0.08, 0.972, "Yeo-7", fontsize=29, fontweight="bold", color="#1F2937", va="top")
     fig.text(0.08, 0.936, f"Schaefer-{n_rois} network palette", fontsize=15, color="#64748B", va="top")
 
-    for index, (title, horizontal, vertical) in enumerate(PROJECTIONS):
-        _draw_projection(fig.add_subplot(grid[index]), atlas, title, horizontal, vertical, marker_size)
+    for rect, (title, display_mode) in zip(
+        ([0.08, 0.66, 0.84, 0.22], [0.08, 0.39, 0.84, 0.22], [0.08, 0.12, 0.84, 0.22]),
+        PROJECTIONS,
+    ):
+        _draw_projection(fig, rect, atlas, display_mode, marker_size)
+        fig.text(rect[0], rect[1] + rect[3] + 0.008, title, fontsize=13, color="#64748B", va="bottom")
 
-    legend_ax = fig.add_subplot(grid[3])
+    legend_ax = fig.add_axes([0.08, 0.01, 0.84, 0.12])
     legend_ax.axis("off")
     for index, network in enumerate(NETWORK_ORDER):
         y = 0.92 - index * 0.125
