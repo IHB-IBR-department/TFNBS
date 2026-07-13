@@ -1,31 +1,3 @@
-# Core Package Dependencies (Inference + Export + Basic Plotting + JIT Speedup)
-# -------------------------------------------------------------------------
-numpy
-scipy
-statsmodels
-pandas
-matplotlib
-numba             # Default: 8-30x JIT speedup for TFNBS scoring
-
-# Optional Streamlit App (pip install conninfpy[app])
-# ---------------------------------------------------
-streamlit         # Interactive ConnInfPy dashboard in apps/streamlit_nimare.py
-
-# Optional Validation & Comparison Tools (pip install conninfpy[full])
-# ------------------------------------------------------------------
-scikit-learn      # Required for ML validation and synth_datasets
-pyyaml            # Required for validation configs
-networkx          # Optional: legacy TFNBS comparison only
-
-# Development & Benchmarking (pip install conninfpy[dev])
-# ------------------------------------------------------
-pytest            # Unit testing
-seaborn           # Advanced statistical plotting
-mypy              # Type checking
-nibabel           # Reading NIfTI/GIFTI neuroimaging data
-nilearn           # Comparative validation and neuroimaging utils
-mne               # EEG data handling and analysis
-neuroCombat       # Validation against reference Combat implementation
-neuroHarmonize    # Validation of advanced harmonization strategies
-tabulate          # Required for pandas to_markdown
--e .              # Install conninfpy package in editable mode for Streamlit Cloud
+# Public Streamlit Cloud runtime.
+# NiMARE is intentionally excluded; the app keeps decoding visible as offline-only.
+-e .[app]

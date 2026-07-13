@@ -1,0 +1,3 @@
+# Lightweight public Streamlit deployment without NiMARE decoding.
+# Set CONNINFPY_ENABLE_DECODING=false in the deployment environment as well.
+-e .[app]

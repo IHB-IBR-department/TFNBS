@@ -680,6 +680,24 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
             with st.container(border=True):
                 st.markdown("##### Dataset Inspector")
                 if loader_instance is not None:
+                    is_active_loaded_dataset = (
+                        st.session_state.connectivity_data is not None
+                        and st.session_state.get("loaded_settings_hash")
+                        == st.session_state.get("current_settings_hash")
+                    )
+                    if is_active_loaded_dataset:
+                        st.markdown("### Dataset ready")
+                        st.success("Dataset is in-session, validated, and ready for inference.")
+                        if st.button(
+                            "Continue to Design & Inference",
+                            key="btn_continue_to_design_loaded",
+                            type="primary",
+                            use_container_width=True,
+                        ):
+                            st.session_state.next_tab = tabs_list[1]
+                            st.rerun()
+                        st.divider()
+
                     preview = loader_instance.preview()
                     
                     delegated_loader = getattr(loader_instance, "target_loader", None)
@@ -784,10 +802,8 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
 
     # ----------------- DISPLAY PREPROCESSING OPTIONS & TRIGGER -----------------
     if loader_instance is not None:
-        st.divider()
-        col_preprocess, col_trigger = st.columns([3, 2])
-        
-        with col_preprocess:
+        with col_left:
+            st.divider()
             # Timeseries connectivity options if timeseries is loaded
             if ts_preprocess_required or (preview and preview.data_kind_guess == "timeseries"):
                 st.markdown("##### 🛠️ Connectivity Construction Options")
@@ -805,8 +821,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
             else:
                 st.markdown("##### 🛠️ Ingestion Preprocessing")
                 st.info("Input data is already precomputed connectivity matrices. No correlation calculation required.")
-                
-        with col_trigger:
+
             st.markdown("##### 🚀 Ingest & Process Dataset")
             
             # Check cache status beforehand to inform the user
@@ -900,6 +915,7 @@ def render_data_ingestion_view(base_atlas, atlas_choice, tabs_list):
                     except Exception as e:
                         st.error(f"Loading failed: {e}")
                         st.exception(e)
+
 
 
     # Optional: Subnetwork selection

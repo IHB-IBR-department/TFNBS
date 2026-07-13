@@ -129,7 +129,7 @@ def _run_decoding_background(
         task.status = "failed"
         task.progress_message = "❌ Failed"
 
-def render_meta_decoding_view(base_atlas):
+def render_meta_decoding_view(base_atlas, *, decoding_enabled: bool = True):
     if "decoding_task" not in st.session_state:
         st.session_state.decoding_task = DecodingTask()
         
@@ -138,6 +138,13 @@ def render_meta_decoding_view(base_atlas):
         st.markdown("### Meta-Analytic Decoding (NiMARE)")
     with col_h:
         render_help("meta_analytic_decoding")
+
+    if not decoding_enabled:
+        st.info(
+            "Meta-analytic decoding is available in the offline ConnInfPy version, "
+            "which includes the optional NiMARE dependency and local reference datasets."
+        )
+        return
     
     is_stale = result_is_stale()
 

@@ -93,12 +93,26 @@ pip install "conninfpy[dev]"
 
 The optional Streamlit application provides manifest-based data ingestion,
 design binding, background inference, directional result plots, atlas-aware
-edge exports, and NiMARE decoding when its local cache is available.
+edge exports, and NiMARE decoding.
 
 ```bash
 pip install -r requirements.txt
 streamlit run apps/streamlit_nimare.py
 ```
+
+### Streamlit Cloud profiles
+
+The repository-root `requirements.txt` is the public Streamlit Cloud profile.
+It intentionally excludes NiMARE, so Cloud discovers the lightweight runtime
+automatically and labels decoding as available in the offline version.
+
+To run the complete local/offline version, install:
+
+```bash
+pip install -r requirements-offline.txt
+```
+
+Both profiles use the same `apps/streamlit_nimare.py` entry point.
 
 ## Running the tests
 

@@ -1,0 +1,2 @@
+# Full local/offline runtime, including NiMARE meta-analytic decoding.
+-e .[app,decode]

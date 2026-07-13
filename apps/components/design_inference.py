@@ -630,8 +630,8 @@ def render_design_inference_view(base_atlas, tabs_list):
             sc_prior_path = None
             with st.expander("Method Parameters", expanded=False):
                 if operator_choice in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                    e_exp = st.number_input("Extent exponent (E)", 0.1, 2.0, 0.4, 0.05)
-                    h_exp = st.number_input("Height exponent (H)", 1.0, 5.0, 3.0, 0.1)
+                    e_exp = st.number_input("Extent exponent (E)", 0.1, 2.0, 0.6, 0.05)
+                    h_exp = st.number_input("Height exponent (H)", 1.0, 5.0, 2.0, 0.1)
                     n_steps = st.number_input("Integration steps (n)", 5, 50, 10, 1)
                     op_kwargs["e"] = e_exp
                     op_kwargs["h"] = h_exp
@@ -695,8 +695,8 @@ def render_design_inference_view(base_atlas, tabs_list):
 
                 with st.expander("Companion Method Parameters", expanded=False):
                     if comp_method in ("tfnbs", "ni_tfnbs", "fbc_tfnbs"):
-                        comp_e = st.number_input("Companion Extent exponent (E)", 0.1, 2.0, 0.4, 0.05, key="comp_e")
-                        comp_h = st.number_input("Companion Height exponent (H)", 1.0, 5.0, 3.0, 0.1, key="comp_h")
+                        comp_e = st.number_input("Companion Extent exponent (E)", 0.1, 2.0, 0.6, 0.05, key="comp_e")
+                        comp_h = st.number_input("Companion Height exponent (H)", 1.0, 5.0, 2.0, 0.1, key="comp_h")
                         comp_n = st.number_input("Companion Integration steps (n)", 5, 50, 10, 1, key="comp_n")
                         comp_kwargs["e"] = comp_e
                         comp_kwargs["h"] = comp_h
