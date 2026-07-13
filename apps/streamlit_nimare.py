@@ -113,8 +113,13 @@ if atlas_mode == "Bundled atlas":
 
     # Sidebar resting state network visualization palette
     if "Schaefer" in atlas_choice:
+        schaefer_palette = {
+            "Schaefer-100 Yeo-7": "apps/assets/yeo7_schaefer100_sidebar_palette.png",
+            "Schaefer-200 Yeo-7": "apps/assets/yeo7_schaefer200_sidebar_palette.png",
+            "Schaefer-400 Yeo-7": "apps/assets/yeo7_schaefer400_sidebar_palette.png",
+        }[atlas_choice]
         st.sidebar.image(
-            "apps/assets/yeo7_schaefer100_sidebar_palette.png",
+            schaefer_palette,
             use_container_width=True
         )
         st.sidebar.caption("Yeo-7 network palette mapping")
