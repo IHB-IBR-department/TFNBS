@@ -40,29 +40,26 @@ What you get out of one `pip install`:
   (hub, rich-club, chain, scattered, gradient, fragmented within-module,
   …) used in the paper's no-method-dominates-across-topologies finding.
 
-![Pipeline overview](figures/fig1_pipeline.png)
+![ConnInfPy connectivity-inference pipeline](docs/conninfpy.png)
 
-### What's in the figure (panels A–H)
+## Workflow
 
-The 8-panel figure walks the full pipeline from raw multi-site
-connectivity data to FWER-corrected $p$-maps. Each block corresponds to
-a distinct stage of the inference pipeline:
-
-| Panel | Stage | What is shown | Code entry-points |
-|---|---|---|---|
-| **A** | Ground truth | Side-by-side Group 1 (no effect) vs Group 2 (planted effect on a within-module-dense topology); 30×30 modular matrices in viridis | `conninfpy.topologies` (19-scenario library), `generate_fc_matrices` |
-| **B** | Multi-site FC | Stack of per-subject Fisher-$z$ FC matrices coloured by acquisition site, exhibiting visible site-effect heterogeneity | `fisher_r_to_z` |
-| **C** | Harmonization (NEW) | ComBat before/after — between-site mean FC visibly homogenised while age/sex/diagnosis are preserved | `combat_harmonize`, `combat_fit`/`combat_apply`, `design_diagnostics` |
-| **D** | GLM + Freedman–Lane (NEW) | Design matrix $X$ → reduced-model residual permutation → reconstructed $y^{\pi}$ → per-edge $t$ / $\beta$ / $F$. **Multi-contrast support**: several contrasts of interest (e.g. age, sex, motion) are evaluated under one shared nuisance model in a single permutation pass — $\hat\beta^\pi$ is reused across all $K$ contrasts. | `compute_p_val_glm`, `compute_p_val_glm_multi` (NEW), `compute_p_val_paired_glm`, `build_design_matrix` |
-| **E** | NBS | Fixed cluster-defining threshold $\tau$ + connected-components labelling — illustrates the parameter that TFNBS eliminates | `nbs_bct`, `compute_p_val(method="nbs")` |
-| **F** | TFNBS | Threshold-free integration $S_e = \sum_h [\eta_h(e)]^E h^H \Delta h$ across $\mathcal{H}$; FDR-calibrated regime $(E, H) = (0.3, 3.0)$ | `get_tfnbs_score`, `apply_tfnbs`, `compute_p_val(method="tfnbs")` |
-| **G** | Block-prior methods (NEW) | cNBS (Yeo-7 block aggregation) · **NI-TFNBS** (block-density soft prior, $\omega_B(h) = k_B(h)/\sqrt{|B|}$) · **FBC-TFNBS** (atomic blocks with $m_{\min}$ threshold) | `apply_cnbs`, `apply_ni_tfnbs`, `apply_fbc_tfnbs` |
-| **H** | Inference layer | Max-stat permutation null + GPD tail fit (200-perm reproduces 5{,}000-perm empirical $p$ to $\|\Delta(-\log_{10} p)\| \le 0.001$ on $>99\,\%$ of edges) + per-tail FWER $p$-maps (positive/negative directional split) | `fit_gpd_tail`, `compute_p_values_accelerated`, `acceleration="gpd"` |
-
-Panels marked **NEW** are contributions of this package: in-package
-ComBat (C), edge-wise GLM with Freedman–Lane and the F-contrast / paired-Δ
-wrappers (D), NI-TFNBS and FBC-TFNBS block-prior operators (G), and
-network-level GPD tail acceleration (H).
+1. **Prepare connectivity data:** supply a subject-by-ROI-by-ROI tensor,
+   a categorical group or continuous predictor, and optional nuisance and
+   site variables. Fisher-z connectivity is recommended for correlation data.
+2. **Choose the design:** use a two-sample or paired permutation test for
+   direct contrasts, or a Freedman-Lane GLM for continuous predictors and
+   covariate-adjusted group comparisons.
+3. **Handle site effects when needed:** retain site labels as permutation
+   strata, add site dummies to a GLM, or use ComBat while preserving the
+   biological variables under test.
+4. **Choose an inference method:** use TFNBS for threshold-free topological
+   enhancement, NBS for component inference with a fixed `tau`, a
+   network-aware method when atlas partitions are available, or an edge-wise
+   baseline such as max-t or BH-FDR.
+5. **Interpret the output:** inspect directional FWER-corrected results,
+   export atlas-aware significant-edge tables, and optionally use the
+   Streamlit interface for brain-space plots and meta-analytic decoding.
 
 > **History.** Originally developed as a TFNBS-only implementation
 > (`tfnbs`); renamed and substantially expanded in 2026-04 to the
@@ -91,6 +88,17 @@ pip install "conninfpy[dev]"
 > pip install numpy scipy statsmodels pandas matplotlib
 > ```
 > The library will automatically detect the missing `numba` and fall back to the SciPy backend.
+
+## Interactive application
+
+The optional Streamlit application provides manifest-based data ingestion,
+design binding, background inference, directional result plots, atlas-aware
+edge exports, and NiMARE decoding when its local cache is available.
+
+```bash
+pip install -r requirements.txt
+streamlit run apps/streamlit_nimare.py
+```
 
 ## Running the tests
 
@@ -324,6 +332,17 @@ p_vals = compute_p_val_glm(
     acceleration="gpd",   # ~25× speedup; also 'gamma'
 )
 ```
+
+![Timing benchmark for TFNBS, NBS, and GLM-TFNBS](figures/timing_benchmark.png)
+
+**Timing benchmark.** The left panel reports wall-clock time for 100
+permutations at increasing network sizes; the right panel shows the same
+work normalized per permutation on a log-log scale. NBS and TFNBS have
+similar scaling in this benchmark, while GLM-TFNBS is slower because each
+permutation includes edge-wise model fitting and residual reconstruction.
+Treat these values as a relative implementation benchmark, not a runtime
+guarantee: CPU, BLAS backend, multiprocessing, acceleration choice, and the
+number of permutations all affect an individual analysis.
 
 ---
 
