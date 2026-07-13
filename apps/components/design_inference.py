@@ -897,13 +897,8 @@ def render_design_inference_view(base_atlas, tabs_list):
                                 num_dropped = len(pheno_df) - valid_mask.sum()
                                 if num_dropped > 0:
                                     st.warning(f"⚠️ **Missing Data Excluded:** Automatically dropped {num_dropped} subject(s) due to missing (`NaN`) values in selected model variables.")
-                                 Y = Y[valid_mask.to_numpy()]
-                                 pheno_df = pheno_df.loc[valid_mask].reset_index(drop=True)
-
-                            # Always zero out diagonal of connectivity matrices to prevent float noise causing TFNBS crashes
-                            for i in range(Y.shape[0]):
-                                np.fill_diagonal(Y[i], 0.0)
-
+                                Y = Y[valid_mask.to_numpy()]
+                                pheno_df = pheno_df.loc[valid_mask].reset_index(drop=True)
                             
                             interest = None
                             confounds = None
