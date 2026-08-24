@@ -1,0 +1,25 @@
+# Development / test-suite dependencies.
+# Mirrors the [dev] extra in setup.cfg, as a plain requirements file so the
+# test suite runs from a source checkout before the PyPI release:
+#
+#   pip install -r requirements-dev.txt
+#
+# Contents:
+#   - pyyaml, scikit-learn, networkx: required to import conninfpy.loaders
+#     and run the synthetic-data fixtures used across the test suite
+#   - pytest: two test modules (test_decode, test_interpret) use it directly
+#   - streamlit, nibabel, nilearn: two test modules import app plotting
+#     helpers (apps/utils/helpers.py) and nilearn-based connectome plots
+#   - sphinx stack + seaborn + mypy: docs build and type checks
+pyyaml
+scikit-learn
+networkx
+pytest
+streamlit
+nibabel
+nilearn
+sphinx
+sphinx-rtd-theme
+myst-parser
+seaborn
+mypy

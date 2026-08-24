@@ -75,19 +75,18 @@ What you get out of one `pip install`:
 conda create -n conninfpy python=3.11 -y
 conda activate conninfpy
 
-# Default installation (includes JIT speedup)
-pip install conninfpy
-
-# For development (unit tests, docs, notebook tools)
-pip install "conninfpy[dev]"
+# Default installation from PyPI (includes JIT speedup)
+python -m pip install conninfpy # not published yet > use requirements installation method from CONTRIBUTE.md
 ```
 
 > **Installation Troubleshooting:** If the default installation fails (usually due to `numba` or `llvmlite` compilation issues on legacy systems), you can perform a **Safe Install** without JIT acceleration:
 > ```bash
-> pip install conninfpy --no-deps
-> pip install numpy scipy statsmodels pandas matplotlib
+> python -m pip install . --no-deps
+> python -m pip install numpy scipy statsmodels pandas matplotlib
 > ```
 > The library will automatically detect the missing `numba` and fall back to the SciPy backend.
+
+---
 
 ## Interactive application
 
@@ -96,46 +95,23 @@ design binding, background inference, directional result plots, atlas-aware
 edge exports, and NiMARE decoding.
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r gui-requirements.txt
 streamlit run apps/streamlit_nimare.py
 ```
 
 ### Streamlit Cloud profiles
 
-The repository-root `requirements.txt` is the public Streamlit Cloud profile.
+`gui-requirements.txt` is the public Streamlit Cloud profile.
 It intentionally excludes NiMARE, so Cloud discovers the lightweight runtime
 automatically and labels decoding as available in the offline version.
 
 To run the complete local/offline version, install:
 
 ```bash
-pip install -r requirements-offline.txt
+python -m pip install -r gui-requirements-offline.txt
 ```
 
 Both profiles use the same `apps/streamlit_nimare.py` entry point.
-
-## Running the tests
-
-```bash
-python -m unittest discover -s tests -t .
-```
-
-The suite uses Python's standard `unittest` (no pytest required). Per-module or
-per-class runs:
-
-```bash
-python -m unittest tests.test_glm_stats
-python -m unittest tests.test_glm_stats.TestFStatCompute
-python -m unittest tests.test_glm_stats.TestFStatCompute.test_fstat_single_row_equals_tstat_squared
-```
-
-## Building the docs
-
-```bash
-cd docs
-sphinx-build source _build
-# Docs auto-build on push to main via GitHub Actions → gh-pages.
-```
 
 ---
 
@@ -221,7 +197,7 @@ features.
 ```python
 from conninfpy import compute_p_val, fisher_r_to_z
 
-group1_z = fisher_r_to_z(group1)   # (n1, N, N), symmetric, zero diagonal
+group1_z = fisher_r_to_z(group1)   # (n1, N, N), symmetric
 group2_z = fisher_r_to_z(group2)
 
 p_vals = compute_p_val(
@@ -238,9 +214,11 @@ p_vals = compute_p_val(
 ### GLM with continuous predictor and confounds
 
 ```python
+import numpy as np
 from conninfpy import compute_p_val_glm, fisher_r_to_z
 
 Y = fisher_r_to_z(connectivity_matrices)     # (n_subjects, N, N)
+idx = np.arange(Y.shape[-1]); Y[:, idx, idx] = 0.0   # zero diagonal (self-connections) — required by TFNBS
 p_vals = compute_p_val_glm(
     Y, interest=age, confounds=motion,
     method="tfnbs", n_permutations=5000,
@@ -279,6 +257,7 @@ contrasts = {
     "sex":    np.array([0, 0, 1, 0]),
     "motion": np.array([0, 0, 0, 1]),
 }
+idx = np.arange(Y.shape[-1]); Y[:, idx, idx] = 0.0   # zero diagonal (self-connections) — required by TFNBS
 
 results = compute_p_val_glm_multi(
     Y, X, contrasts,
@@ -307,6 +286,7 @@ from conninfpy import compute_p_val_glm
 X = np.column_stack([np.ones(n), group_B, group_C])
 # Joint test β_B = β_C = 0
 C = np.array([[0, 1, 0], [0, 0, 1]])
+idx = np.arange(Y.shape[-1]); Y[:, idx, idx] = 0.0   # zero diagonal (self-connections) — required by TFNBS
 
 p_vals = compute_p_val_glm(
     Y, design_matrix=X, contrast=C,
@@ -340,6 +320,8 @@ for flag in report["flags"]:
 ### Acceleration (fewer permutations, same FWER)
 
 ```python
+import numpy as np
+idx = np.arange(Y.shape[-1]); Y[:, idx, idx] = 0.0   # zero diagonal (self-connections) — required by TFNBS
 p_vals = compute_p_val_glm(
     Y, interest=age, confounds=motion,
     method="tfnbs", n_permutations=200,

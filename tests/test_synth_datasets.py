@@ -134,9 +134,6 @@ class TestModularDatasetGenerator(TestCase):
         # (It won't be exact due to SPD enforcement and sampling noise)
         avg_effect = np.mean(masked_diff)
         avg_noise = np.mean(non_masked_diff)
-        
-        print(f"\nDEBUG: Measured Effect: {avg_effect:.4f}, Expected: ~{effect_size}")
-        print(f"DEBUG: Background Noise Diff: {avg_noise:.4f}")
 
         self.assertGreater(avg_effect, 0.15, "Effect was not applied correctly in Group 2")
         self.assertLess(abs(avg_noise), 0.05, "Background should not change significantly")
